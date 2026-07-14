@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<%- include('partials/head') %>
+<title>SeuBoné</title>
+</head>
+<body>
+<%- include('partials/nav') %>
+<div class="hub-container">
+  <div class="hub-welcome">
+    <h1>Olá, <%= usuario.nome.split(' ')[0] %></h1>
+    <p>Painéis disponíveis para o seu acesso.</p>
+  </div>
+  <% if (paineis.length === 0) { %>
+    <div class="hub-empty">
+      <i class="ti ti-lock" aria-hidden="true"></i>
+      Nenhum painel liberado para o seu usuário ainda. Fale com seu gestor.
+    </div>
+  <% } else { %>
+  <div class="hub-grid">
+    <% paineis.forEach(function(p) { %>
+      <a class="hub-card" href="<%= p.url %>">
+        <div class="hub-card-icon"><i class="ti <%= p.icone %>" aria-hidden="true"></i></div>
+        <div>
+          <h3><%= p.titulo %></h3>
+          <p><%= p.descricao %></p>
+        </div>
+        <div class="hub-card-footer">Abrir <i class="ti ti-arrow-right" aria-hidden="true"></i></div>
+      </a>
+    <% }); %>
+  </div>
+  <% } %>
+</div>
+</body>
+</html>

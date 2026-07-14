@@ -1,0 +1,20 @@
+<div class="hub-topbar">
+  <a href="/" class="hub-brand">
+    <div class="hub-brand-mark"><img src="/img/logo-seubone.png" alt="SeuBoné"></div>
+    <div class="hub-brand-text"><span class="gold">SeuBoné</span></div>
+  </a>
+  <% if (typeof usuario !== 'undefined' && usuario) { %>
+  <div class="hub-user">
+    <div class="hub-user-info">
+      <div class="hub-avatar"><%= usuario.nome.split(' ').filter(Boolean).slice(0,2).map(w => w[0]).join('').toUpperCase() %></div>
+      <div class="hub-user-text">
+        <span class="hub-user-name"><%= usuario.nome %></span>
+        <span class="hub-role-badge"><%= usuario.role %></span>
+      </div>
+    </div>
+    <form action="/logout" method="POST" style="margin:0;">
+      <button type="submit" class="hub-logout"><i class="ti ti-logout-2" aria-hidden="true"></i> Sair</button>
+    </form>
+  </div>
+  <% } %>
+</div>

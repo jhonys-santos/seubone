@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<%- include('../partials/head') %>
+<title>Cadastrar Pedido Urgente — SeuBoné</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/pedidos-urgentes.css">
+</head>
+<body>
+<%- include('../partials/nav') %>
+<%- include('_subnav', { pagina: 'cadastro' }) %>
+
+<div class="pu-scope">
+<div class="pu-container">
+  <div class="card">
+    <label>Ordem de Serviço (OS) *</label>
+    <input type="text" id="os" placeholder="Ex: OS-48213" required>
+
+    <label>Cliente *</label>
+    <input type="text" id="cliente" placeholder="Nome do cliente" required>
+
+    <label>Link do Bitrix/Lulu 2.0 *</label>
+    <input type="url" id="linkCrm" placeholder="https://..." required>
+
+    <div class="row2">
+      <div>
+        <label>Modalidade de envio *</label>
+        <select id="modalidade" required>
+          <option value="">Selecione</option>
+          <option>Aéreo</option>
+          <option>Rodoviário</option>
+          <option>Carro de linha</option>
+          <option>Retirada no escritório (Natal)</option>
+          <option>Retirada no estoque (Caicó)</option>
+          <option>Outro</option>
+        </select>
+      </div>
+      <div>
+        <label>Transportadora &amp; Modalidade de envio (Ex: Latam - Standard) *</label>
+        <input type="text" id="transportadora" list="lista-transportadoras" placeholder="Ex: Latam - Standard" required>
+        <datalist id="lista-transportadoras">
+          <option value="Correios">
+          <option value="Braspress">
+          <option value="Jadlog">
+          <option value="Total Express">
+          <option value="Rodonaves">
+          <option value="Latam Cargo">
+          <option value="Azul Cargo">
+          <option value="Gollog">
+          <option value="Motoboy local">
+        </datalist>
+      </div>
+    </div>
+
+    <label>Prazo limite para despacho hoje *</label>
+    <input type="datetime-local" id="prazo" required>
+
+    <div id="blocoAereo" style="display:none;">
+      <label>Tipo de envio (aéreo) *</label>
+      <select id="tipoEnvioAereo">
+        <option value="">Selecione</option>
+        <option value="Retirada">Retirada no aeroporto</option>
+        <option value="Domicílio">Entrega em domicílio</option>
+      </select>
+
+      <div id="blocoAeroporto" style="display:none;">
+        <label>Aeroporto de retirada *</label>
+        <input type="text" id="aeroporto" list="lista-aeroportos" placeholder="Ex: Aeroporto de Natal (NAT)">
+        <datalist id="lista-aeroportos">
+          <option value="Aeroporto de Natal (NAT)">
+          <option value="Aeroporto do Recife (REC)">
+          <option value="Aeroporto de Fortaleza (FOR)">
+          <option value="Aeroporto de Guarulhos (GRU)">
+          <option value="Aeroporto do Galeão (GIG)">
+          <option value="Aeroporto de Brasília (BSB)">
+        </datalist>
+      </div>
+    </div>
+
+    <label>OS (Imagem) — opcional</label>
+    <input type="file" id="osImagem" accept="image/*" onchange="previewOsImagem()">
+    <img id="previewOsImagem" style="display:none; margin-top:10px; max-width:160px; border-radius:8px; border:1px solid var(--border);">
+
+    <label>Minuta (PDF) — opcional</label>
+    <input type="file" id="manifesto" accept="application/pdf">
+
+    <label>Nota fiscal (PDF) — opcional</label>
+    <input type="file" id="notaFiscal" accept="application/pdf">
+
+    <label>Observação — opcional</label>
+    <textarea id="observacao" rows="3" placeholder="Situação fora do padrão que o estoque precisa saber antes de despachar"></textarea>
+
+    <div style="font-size:12px;color:var(--text-muted);margin-top:16px;display:flex;align-items:center;gap:6px;"><i class="ti ti-user-circle" aria-hidden="true"></i> Cadastrando como <strong style="color:var(--text)"><%= usuario.nome %></strong></div>
+    <button class="btn-primary" id="btnEnviar" onclick="enviar()"><i class="ti ti-send" aria-hidden="true"></i> Cadastrar pedido</button>
+
+    <div class="msg" id="msg"></div>
+  </div>
+</div>
+</div>
+
+<script src="/js/pedidos-urgentes-cadastro.js"></script>
+</body>
+</html>

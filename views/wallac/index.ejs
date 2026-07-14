@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<%- include('../partials/head') %>
+<title>Produção SBP Escritório — SeuBoné</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
+<link rel="stylesheet" href="/css/wallac.css">
+</head>
+<body>
+<%- include('../partials/nav') %>
+
+<div class="wallac-container">
+  <div class="wallac-header">
+    <h2><i class="ti ti-packages" aria-hidden="true"></i> Painel de Produção SBP Escritório</h2>
+    <div id="status-conexao">Carregando...</div>
+  </div>
+
+  <div class="board">
+    <div class="coluna" data-status="A chegar">
+      <div class="coluna-titulo"><span>A chegar</span><span id="contagem-A chegar">0</span></div>
+      <div class="cards" id="col-A chegar"></div>
+    </div>
+    <div class="coluna" data-status="Recebido">
+      <div class="coluna-titulo"><span>Recebido</span><span id="contagem-Recebido">0</span></div>
+      <div class="cards" id="col-Recebido"></div>
+    </div>
+    <div class="coluna" data-status="Em produção">
+      <div class="coluna-titulo"><span>Em produção</span><span id="contagem-Em produção">0</span></div>
+      <div class="cards" id="col-Em produção"></div>
+    </div>
+    <div class="coluna" data-status="Finalizado">
+      <div class="coluna-titulo"><span>Finalizado</span><span id="contagem-Finalizado">0</span></div>
+      <div class="cards" id="col-Finalizado"></div>
+    </div>
+  </div>
+</div>
+
+<script src="/js/wallac.js"></script>
+</body>
+</html>

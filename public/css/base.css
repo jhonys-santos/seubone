@@ -1,0 +1,213 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+:root {
+  --bg: #121212;
+  --surface: #1a1a1a;
+  --surface-2: #232323;
+  --surface-3: #2a2a2a;
+  --border: rgba(255,255,255,0.08);
+  --border-strong: rgba(255,255,255,0.14);
+
+  --gold: #F5B800;
+  --gold-dark: #B8860B;
+  --gold-dim: rgba(245,184,0,0.14);
+  --on-gold: #171200;
+
+  --text: #EDEDEB;
+  --text-muted: #9A9994;
+  --text-hint: #656460;
+
+  --ok: #34C77B;
+  --ok-bg: rgba(52,199,123,0.14);
+  --warn: #FF9E2C;
+  --warn-bg: rgba(255,158,44,0.14);
+  --bad: #F0554F;
+  --bad-bg: rgba(240,85,79,0.14);
+
+  --radius-sm: 8px;
+  --radius: 12px;
+  --radius-lg: 18px;
+  --shadow: 0 12px 32px rgba(0,0,0,0.4);
+  --shadow-sm: 0 2px 10px rgba(0,0,0,0.25);
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+a { color: inherit; }
+i.ti { line-height: 1; }
+
+/* ── TOPBAR ───────────────────────────────────────────────── */
+.hub-topbar {
+  background: rgba(18,18,18,0.85);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--border);
+  padding: 12px 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+}
+
+.hub-brand { display: flex; align-items: center; gap: 11px; text-decoration: none; }
+.hub-brand-mark {
+  width: 32px; height: 32px; border-radius: var(--radius-sm);
+  overflow: hidden; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--surface-2); border: 1px solid var(--border);
+}
+.hub-brand-mark img { width: 100%; height: 100%; object-fit: contain; padding: 3px; }
+.hub-brand-text { font-weight: 700; font-size: 15px; letter-spacing: -0.01em; color: var(--text); }
+.hub-brand-text .gold { color: var(--gold); }
+.hub-brand-text .sub { color: var(--text-hint); font-weight: 400; margin-left: 6px; font-size: 12.5px; }
+
+.hub-user { display: flex; align-items: center; gap: 12px; }
+.hub-user-info { display: flex; align-items: center; gap: 10px; }
+.hub-avatar {
+  width: 32px; height: 32px; border-radius: 50%;
+  background: var(--gold-dim); border: 1px solid var(--gold-dark);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 700; color: var(--gold); flex-shrink: 0;
+}
+.hub-user-text { display: flex; flex-direction: column; line-height: 1.3; }
+.hub-user-name { font-size: 13px; font-weight: 600; color: var(--text); }
+.hub-role-badge {
+  font-size: 9.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--gold); width: fit-content;
+}
+.hub-logout {
+  background: none; border: 1px solid var(--border); color: var(--text-muted);
+  border-radius: var(--radius-sm); padding: 7px 13px; font-size: 12px; cursor: pointer;
+  font-family: inherit; display: flex; align-items: center; gap: 6px; transition: all .15s;
+}
+.hub-logout:hover { border-color: var(--bad); color: var(--bad); background: var(--bad-bg); }
+
+.hub-container { max-width: 1080px; margin: 0 auto; padding: 32px 24px 64px; }
+
+/* ── LOGIN ────────────────────────────────────────────────── */
+.login-page {
+  min-height: 100vh; display: flex; align-items: center; justify-content: center;
+  padding: 24px;
+  background:
+    radial-gradient(600px circle at 15% 10%, rgba(245,184,0,0.06), transparent 60%),
+    radial-gradient(500px circle at 85% 90%, rgba(245,184,0,0.05), transparent 60%),
+    var(--bg);
+}
+.login-card {
+  width: 100%; max-width: 380px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 2.25rem 2rem;
+  box-shadow: var(--shadow);
+}
+.login-logo { display: flex; flex-direction: column; align-items: center; gap: 12px; margin-bottom: 1.75rem; }
+.login-logo-mark {
+  width: 48px; height: 48px; border-radius: var(--radius); overflow: hidden;
+  background: var(--surface-2); border: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+}
+.login-logo-mark img { width: 100%; height: 100%; object-fit: contain; padding: 6px; }
+.login-logo-text { font-weight: 700; font-size: 17px; letter-spacing: -0.01em; }
+.login-logo-text .gold { color: var(--gold); }
+.login-sub { font-size: 12.5px; color: var(--text-hint); text-align: center; margin-top: -6px; }
+
+.field { margin-bottom: 1.1rem; }
+.field label {
+  display: block; font-size: 11px; font-weight: 600; color: var(--text-muted);
+  text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 7px;
+}
+.field-wrap { position: relative; }
+.field-wrap .fi {
+  position: absolute; left: 13px; top: 50%; transform: translateY(-50%);
+  font-size: 15px; color: var(--text-hint); pointer-events: none;
+}
+.field input {
+  width: 100%; background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); color: var(--text); font-size: 14px;
+  padding: 11px 13px 11px 40px; font-family: inherit; outline: none;
+  transition: border-color .15s, box-shadow .15s;
+}
+.field input:focus { border-color: var(--gold-dark); box-shadow: 0 0 0 3px var(--gold-dim); }
+.field input::placeholder { color: var(--text-hint); }
+
+.btn-login {
+  width: 100%; background: var(--gold); color: var(--on-gold); border: none;
+  border-radius: var(--radius-sm); padding: 12px; font-size: 14px; font-weight: 700;
+  cursor: pointer; margin-top: 0.5rem; font-family: inherit;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  transition: opacity .15s, transform .1s;
+}
+.btn-login:hover { opacity: 0.9; }
+.btn-login:active { transform: scale(0.98); }
+
+.login-erro {
+  background: var(--bad-bg); border: 1px solid rgba(240,85,79,0.3); color: var(--bad);
+  border-radius: var(--radius-sm); padding: 10px 13px; font-size: 12.5px;
+  margin-top: 1rem; display: flex; align-items: center; gap: 8px;
+}
+.login-footer { text-align: center; margin-top: 1.5rem; font-size: 11px; color: var(--text-hint); }
+
+/* ── HUB HOME ─────────────────────────────────────────────── */
+.hub-welcome { margin-bottom: 1.75rem; }
+.hub-welcome h1 { font-size: 20px; font-weight: 700; margin: 0 0 4px; letter-spacing: -0.01em; }
+.hub-welcome p { font-size: 13px; color: var(--text-muted); margin: 0; }
+
+.hub-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 14px;
+}
+.hub-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1.4rem;
+  text-decoration: none; color: var(--text);
+  transition: border-color .15s, transform .15s, background .15s;
+  display: flex; flex-direction: column; gap: 14px;
+}
+.hub-card:hover { border-color: var(--gold-dark); transform: translateY(-2px); background: var(--surface-2); }
+.hub-card-icon {
+  width: 42px; height: 42px; border-radius: var(--radius-sm);
+  background: var(--gold-dim); border: 1px solid var(--gold-dark);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--gold); font-size: 19px;
+}
+.hub-card h3 { margin: 0; font-size: 15px; font-weight: 700; letter-spacing: -0.01em; }
+.hub-card p { margin: 0; font-size: 12.5px; color: var(--text-muted); line-height: 1.5; }
+.hub-card-footer {
+  margin-top: auto; display: flex; align-items: center; gap: 5px;
+  font-size: 12px; font-weight: 600; color: var(--gold-dark);
+}
+.hub-card:hover .hub-card-footer { color: var(--gold); }
+
+.hub-empty {
+  text-align: center; padding: 3rem 1rem; color: var(--text-hint); font-size: 13px;
+}
+.hub-empty i { font-size: 28px; display: block; margin-bottom: 10px; color: var(--text-hint); }
+
+/* ── ERRO ─────────────────────────────────────────────────── */
+.hub-error-state {
+  text-align: center; padding: 4rem 1rem;
+}
+.hub-error-state i { font-size: 40px; color: var(--gold-dark); margin-bottom: 16px; display: block; }
+.hub-error-state h1 { font-size: 17px; font-weight: 700; margin: 0 0 6px; }
+.hub-error-state p { font-size: 13px; color: var(--text-muted); margin: 0 0 20px; }
+.hub-error-state a {
+  display: inline-flex; align-items: center; gap: 6px;
+  color: var(--gold); font-size: 13px; font-weight: 600; text-decoration: none;
+}
+.hub-error-state a:hover { text-decoration: underline; }

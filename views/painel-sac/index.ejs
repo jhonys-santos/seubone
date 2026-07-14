@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<%- include('../partials/head') %>
+<title>Meus Indicadores — SeuBoné</title>
+<link rel="stylesheet" href="/css/painel-sac.css">
+</head>
+<body>
+<%- include('../partials/nav') %>
+
+<!-- LOADING PAINEL -->
+<div class="loading-screen show" id="loading-screen">
+  <div class="loading-logo">
+    <img src="/img/logo-seubone.png" alt="SeuBoné" style="width:32px;height:32px;object-fit:contain;">
+    <span>SeuBoné</span>
+  </div>
+  <div class="loading-bar"><div class="loading-fill"></div></div>
+  <div class="loading-txt" id="loading-txt">Carregando seu painel...</div>
+</div>
+
+<!-- POPUP AVISO -->
+<div class="popup-overlay" id="popup-aviso">
+  <div class="popup-box">
+    <div class="popup-icon-row">
+      <div class="popup-icon"><i class="ti ti-bell-ringing" style="font-size:20px;color:var(--gold)"></i></div>
+      <div class="popup-title-text" id="av-titulo"></div>
+    </div>
+    <div class="popup-body-text" id="av-corpo"></div>
+    <div class="popup-footer">
+      <span class="popup-meta" id="av-meta"></span>
+      <button class="btn-primary" onclick="fecharPopup('popup-aviso')">Entendido ✓</button>
+    </div>
+  </div>
+</div>
+
+<!-- POPUP SUGESTÃO -->
+<div class="popup-overlay" id="popup-sugestao">
+  <div class="popup-box">
+    <div class="popup-icon-row">
+      <div class="popup-icon"><i class="ti ti-bulb" style="font-size:20px;color:var(--ok-text)"></i></div>
+      <div class="popup-title-text">Enviar sugestão</div>
+    </div>
+    <div id="sug-form">
+      <div class="sug-label">Título</div>
+      <input class="sug-input" id="sug-titulo" type="text" placeholder="Ex: Melhoria no fluxo de refabricação">
+      <div class="sug-label">Sugestão</div>
+      <textarea class="sug-textarea" id="sug-texto" placeholder="Descreva sua sugestão com detalhes..."></textarea>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:1rem;">
+        <button class="btn-ghost" onclick="fecharPopup('popup-sugestao')">Cancelar</button>
+        <button class="btn-primary" onclick="enviarSugestao()"><i class="ti ti-send" style="font-size:13px;margin-right:4px"></i>Enviar</button>
+      </div>
+    </div>
+    <div id="sug-ok" class="sug-enviado" style="display:none">
+      <i class="ti ti-circle-check"></i>
+      <p>Sugestão enviada com sucesso!<br><span id="sug-nome-ok"></span></p>
+      <button class="btn-primary" style="margin-top:1rem" onclick="fecharPopup('popup-sugestao')">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<!-- PAINEL -->
+<div class="dash" id="dash">
+  <div id="error-banner" class="error-banner"></div>
+  <div class="topbar">
+    <div class="left-info">
+      <div class="slabel" style="margin-bottom:0">Painel de indicadores</div>
+    </div>
+    <div class="topbar-right">
+      <% if (outrosColaboradores.length) { %>
+      <div class="ver-como-wrap">
+        <span class="tag">Gestor</span>
+        <select class="ver-como-select" id="ver-como-select" onchange="trocarVerComo(this.value)">
+          <option value="">Ver meus indicadores</option>
+          <% outrosColaboradores.forEach(function(c) { %>
+            <option value="<%= c.slug %>">Ver como: <%= c.nome %></option>
+          <% }); %>
+        </select>
+      </div>
+      <% } %>
+      <button class="theme-toggle" id="theme-btn" onclick="toggleTema()"><i class="ti ti-sun" id="theme-icon" style="font-size:13px"></i> <span id="theme-label">Claro</span></button>
+      <button class="logout-btn" onclick="abrirAcessos()" style="border-color:var(--gold-dark);color:var(--gold);"><i class="ti ti-key" style="font-size:13px"></i> Acessos</button>
+      <button class="logout-btn" onclick="window.open('https://tourmaline-quartz-cf5.notion.site/Base-de-Conhecimento-SAC-8216ddb8fcf74707b0fcd57d75b4fe72','_blank')" style="border-color:var(--gold-dark);color:var(--gold);"><i class="ti ti-book" style="font-size:13px"></i> Base de Conhecimento</button>
+    </div>
+  </div>
+  <div class="filter-bar">
+    <div class="tabs">
+      <button class="tab active" onclick="setPeriodo('semana',this)">Semana</button>
+      <button class="tab" onclick="setPeriodo('mes',this)">Mês</button>
+    </div>
+    <div class="week-select-wrap" id="week-select-wrap">
+      <select class="week-select" id="week-select" onchange="setSemana(parseInt(this.value))"></select>
+    </div>
+    <select class="month-select" id="month-select" onchange="setMes(this.value)">
+      <option value="0">Janeiro</option><option value="1">Fevereiro</option><option value="2">Março</option>
+      <option value="3">Abril</option><option value="4">Maio</option><option value="5">Junho</option>
+      <option value="6">Julho</option><option value="7">Agosto</option><option value="8">Setembro</option>
+      <option value="9">Outubro</option><option value="10">Novembro</option><option value="11">Dezembro</option>
+    </select>
+  </div>
+  <div class="slabel" id="kpi-label">Indicadores principais</div>
+  <div class="kpi-grid" id="kpi-grid"></div>
+  <div id="evolucao-block"></div>
+  <div class="slabel" id="pico-label">Pico de demanda</div>
+  <div class="pico-card" id="pico-card"></div>
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+    <div class="slabel" style="margin-bottom:0" id="audit-section-label">Auditoria de processos</div>
+    <button id="btn-ver-auditorias" onclick="abrirHistoricoAuditoria()" style="display:none;background:var(--gold-dim);border:1px solid var(--gold-dark);border-radius:8px;padding:5px 12px;cursor:pointer;color:var(--gold);font-size:11px;font-weight:700;font-family:inherit;align-items:center;gap:5px">
+      <i class="ti ti-clipboard-list" style="font-size:12px"></i> Ver auditorias
+    </button>
+  </div>
+  <div class="audit-card" id="audit-block"></div>
+  <div class="slabel" id="detrat-label">Insatisfeitos · CSAT</div>
+  <div class="detrat-card" id="detrat-block"></div>
+  <div class="slabel" id="rv-label" style="display:none">Remuneração variável · mês</div>
+  <div class="rv-card" id="rv-block" style="display:none"></div>
+  <div class="card" style="margin-bottom:1.5rem">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2px;flex-wrap:wrap;gap:8px">
+      <div class="slabel" id="escala-title">Escala de serviço</div>
+      <div style="display:flex;align-items:center;gap:6px">
+        <button id="btn-trocas" onclick="abrirTrocasPendentes()" style="background:var(--gold-dim);border:1px solid var(--gold-dark);border-radius:8px;padding:5px 12px;cursor:pointer;color:var(--gold);font-size:11px;font-weight:700;font-family:inherit;display:flex;align-items:center;gap:5px">
+          <i class="ti ti-arrows-exchange" style="font-size:13px"></i> Trocas <span id="trocas-count" style="background:var(--gold);color:#1A1A18;border-radius:10px;padding:1px 6px;font-size:10px">0</span>
+        </button>
+        <button onclick="navEscala(-1)" style="background:none;border:1px solid var(--border);border-radius:6px;width:26px;height:26px;cursor:pointer;color:var(--text-muted);font-size:13px;display:flex;align-items:center;justify-content:center;line-height:1">‹</button>
+        <span id="escala-mes-label" style="font-size:12px;font-weight:600;color:var(--text);min-width:90px;text-align:center"></span>
+        <button onclick="navEscala(1)" style="background:none;border:1px solid var(--border);border-radius:6px;width:26px;height:26px;cursor:pointer;color:var(--text-muted);font-size:13px;display:flex;align-items:center;justify-content:center;line-height:1">›</button>
+      </div>
+    </div>
+    <div style="font-size:11px;color:var(--text-muted);margin-bottom:12px" id="escala-horario">08:00 às 18:00 · 5×2</div>
+    <div class="esc-hdr" id="esc-hdr"></div>
+    <div class="esc-grid" id="esc-grid"></div>
+    <div class="esc-legend">
+      <div class="leg"><div class="leg-dot" style="background:rgba(61,175,114,0.3);border:1px solid #3DAF72"></div><span class="leg-lbl">Trabalha</span></div>
+      <div class="leg"><div class="leg-dot" style="background:rgba(212,75,75,0.3);border:1px solid #D44B4B"></div><span class="leg-lbl">Folga</span></div>
+      <div class="leg"><div class="leg-dot" style="background:rgba(212,150,40,0.3);border:1px solid #D49628"></div><span class="leg-lbl">Feriado</span></div>
+      <div class="leg"><div class="leg-dot" style="background:rgba(80,140,220,0.3);border:1px solid #3A7BD5"></div><span class="leg-lbl">Férias/Troca</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL ACESSOS -->
+<div class="modal-overlay" id="modal-acessos" onclick="if(event.target===this)fecharAcessos()">
+  <div class="modal-box" style="max-width:480px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem">
+      <div>
+        <div style="font-size:15px;font-weight:700"><i class="ti ti-key" style="color:var(--gold);margin-right:6px"></i>Acessos</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:2px">Suas credenciais de ferramentas</div>
+      </div>
+      <button onclick="fecharAcessos()" style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:20px;line-height:1;padding:4px"><i class="ti ti-x"></i></button>
+    </div>
+
+    <div id="acessos-lista" style="margin-bottom:1rem;display:flex;flex-direction:column;gap:8px;max-height:340px;overflow-y:auto;padding-right:2px"></div>
+
+    <button id="btn-add-acesso" onclick="mostrarFormAcesso()" style="width:100%;background:var(--gold-dim);border:1px dashed var(--gold-dark);border-radius:var(--rs);padding:10px;font-size:12px;font-weight:600;color:var(--gold);cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:6px;transition:background .15s">
+      <i class="ti ti-plus"></i> Adicionar acesso
+    </button>
+
+    <div id="form-acesso" style="display:none;margin-top:12px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);padding:14px">
+      <div style="font-size:12px;font-weight:700;margin-bottom:10px;color:var(--text)" id="form-acesso-titulo">Novo acesso</div>
+      <input type="hidden" id="acesso-edit-idx" value="">
+      <div class="field" style="margin-bottom:10px">
+        <label>Ferramenta</label>
+        <div class="field-wrap"><i class="ti ti-tool fi"></i><input id="acesso-ferramenta" placeholder="ex: Octadesk, Atende Simples…" autocomplete="off"></div>
+      </div>
+      <div class="field" style="margin-bottom:10px">
+        <label>Login / E-mail</label>
+        <div class="field-wrap"><i class="ti ti-at fi"></i><input id="acesso-login" placeholder="login ou e-mail" autocomplete="off"></div>
+      </div>
+      <div class="field" style="margin-bottom:14px">
+        <label>Senha</label>
+        <div class="field-wrap">
+          <i class="ti ti-lock fi"></i>
+          <input id="acesso-senha" type="password" placeholder="senha" autocomplete="new-password">
+          <button type="button" class="toggle-pw" onclick="togglePwAcesso(this)"><i class="ti ti-eye"></i></button>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button onclick="salvarAcesso()" style="flex:1;background:var(--gold);color:var(--on-gold,#1A1A18);border:none;border-radius:var(--rs);padding:9px;font-size:12px;font-weight:700;font-family:inherit;cursor:pointer">Salvar</button>
+        <button onclick="cancelarFormAcesso()" style="background:none;border:1px solid var(--border);border-radius:var(--rs);padding:9px 14px;font-size:12px;color:var(--text-muted);font-family:inherit;cursor:pointer">Cancelar</button>
+      </div>
+      <div id="acesso-erro" style="display:none;font-size:11px;color:var(--bad-text);margin-top:8px"></div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL TROCA DE ESCALA -->
+<div class="modal-overlay" id="modal-troca" onclick="if(event.target===this)fecharTroca()">
+  <div class="modal-box" style="max-width:440px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem">
+      <div>
+        <div style="font-size:15px;font-weight:700"><i class="ti ti-arrows-exchange" style="color:var(--gold);margin-right:6px"></i>Solicitar troca</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:2px">Somente sábados · Bloqueado na sexta-feira</div>
+      </div>
+      <button onclick="fecharTroca()" style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:20px;padding:4px"><i class="ti ti-x"></i></button>
+    </div>
+    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);padding:12px;margin-bottom:14px">
+      <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px">Seu sábado</div>
+      <div style="font-size:14px;font-weight:700;color:var(--gold)" id="troca-dia-meu"></div>
+    </div>
+    <div style="margin-bottom:14px">
+      <label style="font-size:11px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:6px">Trocar com</label>
+      <select id="troca-consultor" onchange="carregarSabadosAlvo()" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);padding:9px 12px;font-size:13px;color:var(--text);font-family:inherit">
+        <option value="">Selecione o consultor…</option>
+      </select>
+    </div>
+    <div style="margin-bottom:16px">
+      <label style="font-size:11px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:6px">Sábado do colega</label>
+      <select id="troca-dia-alvo" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);padding:9px 12px;font-size:13px;color:var(--text);font-family:inherit">
+        <option value="">Selecione o consultor primeiro…</option>
+      </select>
+    </div>
+    <div id="troca-erro" style="display:none;font-size:11px;color:var(--bad-text);margin-bottom:10px"></div>
+    <div style="display:flex;gap:8px">
+      <button onclick="enviarTroca()" style="flex:1;background:var(--gold);color:#1A1A18;border:none;border-radius:var(--rs);padding:10px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer">Solicitar troca</button>
+      <button onclick="fecharTroca()" style="background:none;border:1px solid var(--border);border-radius:var(--rs);padding:10px 14px;font-size:12px;color:var(--text-muted);font-family:inherit;cursor:pointer">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL RESPONDER TROCA -->
+<div class="modal-overlay" id="modal-troca-pendente" onclick="if(event.target===this)fecharTrocaPendente()">
+  <div class="modal-box" style="max-width:420px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem">
+      <div style="font-size:15px;font-weight:700"><i class="ti ti-bell" style="color:var(--gold);margin-right:6px"></i>Troca pendente</div>
+      <button onclick="fecharTrocaPendente()" style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:20px;padding:4px"><i class="ti ti-x"></i></button>
+    </div>
+    <div id="troca-pendente-lista" style="display:flex;flex-direction:column;gap:10px;max-height:320px;overflow-y:auto"></div>
+  </div>
+</div>
+
+<!-- MODAL HISTÓRICO AUDITORIAS -->
+<div class="modal-overlay" id="modal-auditorias" onclick="if(event.target===this)fecharHistoricoAuditoria()">
+  <div class="modal-box" style="max-width:520px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem">
+      <div>
+        <div style="font-size:15px;font-weight:700"><i class="ti ti-clipboard-list" style="color:var(--gold);margin-right:6px"></i>Auditorias</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:2px" id="audit-modal-periodo"></div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <div id="audit-modal-nota" style="font-size:22px;font-weight:800"></div>
+        <button onclick="fecharHistoricoAuditoria()" style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:20px;padding:4px"><i class="ti ti-x"></i></button>
+      </div>
+    </div>
+    <div id="audit-modal-lista" style="display:flex;flex-direction:column;gap:8px;max-height:420px;overflow-y:auto;padding-right:2px"></div>
+  </div>
+</div>
+
+<button class="fab" id="fab-btn" onclick="abrirSugestao()">
+  <i class="ti ti-bulb"></i> Enviar sugestão
+</button>
+
+<script>
+  // Injetado pelo servidor a partir da sessão — não existe mais tela de login
+  // nesta página, o hub já autenticou o usuário antes de chegar aqui.
+  window.USUARIO_SESSAO = <%- JSON.stringify(usuarioAtual) %>;
+  window.OUTROS_COLABORADORES = <%- JSON.stringify(outrosColaboradores) %>;
+</script>
+<script src="/js/painel-sac.js"></script>
+</body>
+</html>

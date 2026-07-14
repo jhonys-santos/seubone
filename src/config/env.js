@@ -1,0 +1,33 @@
+const path = require('path');
+require('dotenv').config();
+
+function required(name, fallback) {
+  const value = process.env[name];
+  if (value === undefined || value === '') return fallback;
+  return value;
+}
+
+module.exports = {
+  port: Number(required('PORT', 3000)),
+  sessionSecret: required('SESSION_SECRET', 'dev-secret-troque-isso'),
+  isProduction: process.env.NODE_ENV === 'production',
+
+  // Onde ficam usuarios.json e as sessões. Em produção (Render), aponte
+  // DATA_DIR para o disco persistente montado (ex: /data) — senão esses
+  // arquivos são apagados a cada novo deploy. Localmente usa a pasta data/
+  // dentro do próprio projeto, sem precisar configurar nada.
+  dataDir: required('DATA_DIR', path.join(__dirname, '..', '..', 'data')),
+
+  appsScriptSharedSecret: required('APPS_SCRIPT_SHARED_SECRET', ''),
+
+  wallacAppsScriptUrl: required('WALLAC_APPS_SCRIPT_URL', ''),
+  pedidosUrgentesAppsScriptUrl: required('PEDIDOS_URGENTES_APPS_SCRIPT_URL', ''),
+  painelSacAppsScriptUrl: required('PAINEL_SAC_APPS_SCRIPT_URL', ''),
+
+  rankingSacCsvUrls: {
+    atd: required('RANKING_SAC_CSV_ATD', ''),
+    rsl: required('RANKING_SAC_CSV_RSL', ''),
+    kpi: required('RANKING_SAC_CSV_KPI', ''),
+    agenda: required('RANKING_SAC_CSV_AGENDA', ''),
+  },
+};

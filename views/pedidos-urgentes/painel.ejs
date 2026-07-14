@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<%- include('../partials/head') %>
+<title>Painel do Estoque — SeuBoné</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/pedidos-urgentes.css">
+</head>
+<body>
+<%- include('../partials/nav') %>
+<%- include('_subnav', { pagina: 'painel' }) %>
+
+<div class="pu-scope">
+<div class="pu-container">
+  <div style="font-size:12px;color:var(--text-hint);margin-bottom:14px;">Atualiza a cada 15s</div>
+  <button id="btnAtivarSom" onclick="ativarSom()" style="margin-bottom:16px; background:var(--surface-2); color:var(--text); border:1px solid var(--border); display:flex; align-items:center; gap:8px;"><i class="ti ti-bell-ringing" aria-hidden="true"></i> Clique aqui pra ativar o som de alerta</button>
+
+  <div class="stats">
+    <div class="stat"><div class="n" id="statTotal">-</div><div class="l">pedidos na fila</div></div>
+    <div class="stat danger"><div class="n" id="statAtrasado">-</div><div class="l">atrasados</div></div>
+    <div class="stat ok"><div class="n" id="statNoPrazo">-</div><div class="l">dentro do prazo</div></div>
+  </div>
+
+  <div id="lista"></div>
+</div>
+</div>
+
+<div id="lightbox" class="lightbox" onclick="fecharImagem()">
+  <img id="lightboxImg" src="" alt="OS ampliada">
+</div>
+
+<audio id="somAlerta" src="/audio/alerta.mp3" preload="auto"></audio>
+
+<script src="/js/pedidos-urgentes-painel.js"></script>
+</body>
+</html>

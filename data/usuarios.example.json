@@ -1,0 +1,25 @@
+{
+  "_comentario": "Este arquivo é só um exemplo da estrutura. O arquivo real, data/usuarios.json, é gerado/atualizado com 'npm run criar-usuario' e nunca deve ser commitado (contém hashes de senha reais).",
+  "usuarios": [
+    {
+      "id": "u-daniel",
+      "usuario": "daniel",
+      "senhaHash": "$2a$10$exemploNaoUseEsteHashDeVerdade....................",
+      "nome": "Daniel Silva",
+      "slug": "daniel",
+      "role": "gestor",
+      "tipo": "sac",
+      "paineis": null
+    },
+    {
+      "id": "u-gabrielle",
+      "usuario": "gabrielle",
+      "senhaHash": "$2a$10$exemploNaoUseEsteHashDeVerdade....................",
+      "nome": "Gabrielle Souza",
+      "slug": "gabrielle",
+      "role": "colaborador",
+      "tipo": "ppf",
+      "paineis": ["painel-sac"]
+    }
+  ]
+}

@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<%- include('partials/head') %>
+<title>Entrar — SeuBoné</title>
+</head>
+<body>
+<div class="login-page">
+  <div class="login-card">
+    <div class="login-logo">
+      <div class="login-logo-mark"><img src="/img/logo-seubone.png" alt="SeuBoné"></div>
+      <div class="login-logo-text"><span class="gold">SeuBoné</span></div>
+      <div class="login-sub">Acesse com seu usuário e senha</div>
+    </div>
+    <form action="/login" method="POST">
+      <div class="field">
+        <label>Usuário</label>
+        <div class="field-wrap">
+          <i class="ti ti-user fi" aria-hidden="true"></i>
+          <input type="text" name="usuario" autocomplete="username" required autofocus>
+        </div>
+      </div>
+      <div class="field">
+        <label>Senha</label>
+        <div class="field-wrap">
+          <i class="ti ti-lock fi" aria-hidden="true"></i>
+          <input type="password" name="senha" autocomplete="current-password" required>
+        </div>
+      </div>
+      <button type="submit" class="btn-login">Entrar <i class="ti ti-arrow-right" aria-hidden="true"></i></button>
+    </form>
+    <% if (erro) { %>
+      <div class="login-erro"><i class="ti ti-alert-circle" aria-hidden="true"></i> <%= erro %></div>
+    <% } %>
+    <div class="login-footer">Painel interno · acesso restrito à equipe SeuBoné</div>
+  </div>
+</div>
+</body>
+</html>
