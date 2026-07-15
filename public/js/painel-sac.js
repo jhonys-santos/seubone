@@ -1124,4 +1124,15 @@ try {
 } catch(e) {}
 popularSeletorSemanas(mesAtual, anoHoje);
 document.getElementById('week-select-wrap').classList.add('show');
-carregarPainel();
+
+// Gestor sem indicadores próprios (cargo administrativo, sem KPIs mapeados
+// na planilha) já abre vendo um colaborador de verdade, em vez de uma tela
+// "em construção" vazia — ele não tem indicadores pessoais pra ver mesmo.
+if (indicadoresPendentesAtivo && usuarioLogado.role === 'gestor' && outrosColaboradores.length) {
+  const primeiro = outrosColaboradores.find((c) => !c.indicadoresPendentes) || outrosColaboradores[0];
+  const select = document.getElementById('ver-como-select');
+  if (select) select.value = primeiro.slug;
+  trocarVerComo(primeiro.slug);
+} else {
+  carregarPainel();
+}
