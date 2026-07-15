@@ -15,16 +15,14 @@ const limiter = rateLimit({
   legacyHeaders: false,
 });
 
-router.use(limiter);
-
-router.get('/setup', (req, res) => {
+router.get('/setup', limiter, (req, res) => {
   if (!env.setupToken) {
     return res.status(404).send('Não encontrado.');
   }
   res.render('setup', { erro: null, sucesso: null, usuarioCriado: null });
 });
 
-router.post('/setup', async (req, res) => {
+router.post('/setup', limiter, async (req, res) => {
   if (!env.setupToken) {
     return res.status(404).send('Não encontrado.');
   }
