@@ -95,6 +95,25 @@ async function criarOuAtualizarUsuario({ usuario, senha, nome, slug, role, tipo,
   return registro;
 }
 
+async function alterarSenha(usuario, senhaAtual, senhaNova) {
+  const existente = buscarPorUsuario(usuario);
+  if (!existente) return { ok: false, erro: 'Usuário não encontrado.' };
+
+  const senhaOk = await bcrypt.compare(String(senhaAtual || ''), existente.senhaHash);
+  if (!senhaOk) return { ok: false, erro: 'Senha atual incorreta.' };
+
+  const senhaHash = await bcrypt.hash(senhaNova, 10);
+  const registro = { ...existente, senhaHash };
+
+  await chamarAppsScript(env.painelSacAppsScriptUrl, {
+    method: 'POST',
+    body: { action: 'hubSalvarUsuario', ...registro },
+  });
+
+  Object.assign(existente, registro);
+  return { ok: true };
+}
+
 module.exports = {
   inicializar,
   listarUsuarios,
@@ -104,4 +123,5 @@ module.exports = {
   sessaoPublica,
   podeAcessarPainel,
   criarOuAtualizarUsuario,
+  alterarSenha,
 };

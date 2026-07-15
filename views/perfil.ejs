@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<%- include('partials/head') %>
+<title>Meu perfil — SeuBoné</title>
+</head>
+<body>
+<%- include('partials/nav') %>
+<div class="hub-container" style="max-width:480px;">
+  <div class="hub-welcome">
+    <h1>Meu perfil</h1>
+    <p><%= usuario.nome %> · <%= usuario.role %></p>
+  </div>
+
+  <div class="login-card" style="width:100%;">
+    <div class="login-logo" style="margin-bottom:1.25rem;">
+      <div class="login-sub" style="margin-top:0;">Trocar minha senha</div>
+    </div>
+
+    <form action="/perfil/senha" method="POST">
+      <div class="field">
+        <label>Senha atual</label>
+        <div class="field-wrap">
+          <i class="ti ti-lock fi" aria-hidden="true"></i>
+          <input type="password" name="senhaAtual" required autocomplete="current-password">
+        </div>
+      </div>
+      <div class="field">
+        <label>Nova senha</label>
+        <div class="field-wrap">
+          <i class="ti ti-lock-open fi" aria-hidden="true"></i>
+          <input type="password" name="senhaNova" required minlength="6" autocomplete="new-password">
+        </div>
+      </div>
+      <div class="field">
+        <label>Confirmar nova senha</label>
+        <div class="field-wrap">
+          <i class="ti ti-lock-check fi" aria-hidden="true"></i>
+          <input type="password" name="senhaNovaConfirmar" required minlength="6" autocomplete="new-password">
+        </div>
+      </div>
+      <button type="submit" class="btn-login">Salvar nova senha <i class="ti ti-device-floppy" aria-hidden="true"></i></button>
+    </form>
+
+    <% if (erro) { %>
+      <div class="login-erro"><i class="ti ti-alert-circle" aria-hidden="true"></i> <%= erro %></div>
+    <% } %>
+    <% if (sucesso) { %>
+      <div class="login-erro" style="background:var(--ok-bg);border-color:rgba(52,199,123,0.3);color:var(--ok);">
+        <i class="ti ti-circle-check" aria-hidden="true"></i> <%= sucesso %>
+      </div>
+    <% } %>
+  </div>
+</div>
+</body>
+</html>
