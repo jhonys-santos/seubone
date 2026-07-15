@@ -74,7 +74,11 @@
           <input type="text" name="paineis" placeholder="ex: painel-sac,wallac — vazio libera todos">
         </div>
       </div>
-      <button type="submit" class="btn-login">Salvar usuário <i class="ti ti-device-floppy" aria-hidden="true"></i></button>
+      <label style="display:flex; align-items:center; gap:8px; margin:16px 0 0; font-size:13px; color:var(--text-muted); cursor:pointer;">
+        <input type="checkbox" name="indicadoresPendentes" style="width:auto;">
+        Indicadores ainda em construção (mostra "em construção" no lugar dos KPIs)
+      </label>
+      <button type="submit" class="btn-login" style="margin-top:18px;">Salvar usuário <i class="ti ti-device-floppy" aria-hidden="true"></i></button>
     </form>
 
     <% if (erro) { %>

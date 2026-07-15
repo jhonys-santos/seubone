@@ -1,24 +1,33 @@
-const fs = require('fs');
-const path = require('path');
 const bcrypt = require('bcryptjs');
 const env = require('../config/env');
+const { chamarAppsScript } = require('./appsScriptClient');
 
-const DB_PATH = path.join(env.dataDir, 'usuarios.json');
+// Os usuários do hub (login, senha, papel, slug, painéis liberados) ficam
+// numa aba própria ("HubUsuarios") da planilha do Painel SAC, em vez de um
+// arquivo local — assim sobrevivem a qualquer redeploy no Render, que não
+// tem disco persistente no plano free. Fica em cache na memória do processo:
+// carregado uma vez no boot (ver inicializar() em server.js) e atualizado a
+// cada criação/edição, pra não bater no Apps Script em toda requisição.
+let cache = [];
 
-function lerBanco() {
-  if (!fs.existsSync(DB_PATH)) return { usuarios: [] };
-  const bruto = fs.readFileSync(DB_PATH, 'utf-8');
-  if (!bruto.trim()) return { usuarios: [] };
-  return JSON.parse(bruto);
+async function inicializar() {
+  cache = await buscarUsuariosRemoto();
 }
 
-function salvarBanco(banco) {
-  fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
-  fs.writeFileSync(DB_PATH, JSON.stringify(banco, null, 2), 'utf-8');
+async function buscarUsuariosRemoto() {
+  const json = await chamarAppsScript(env.painelSacAppsScriptUrl, {
+    params: { action: 'hubListarUsuarios' },
+  });
+  if (!json || !Array.isArray(json.usuarios)) {
+    throw new Error(
+      'Não foi possível carregar os usuários do hub via Apps Script' + (json && json.erro ? ': ' + json.erro : '')
+    );
+  }
+  return json.usuarios;
 }
 
 function listarUsuarios() {
-  return lerBanco().usuarios;
+  return cache;
 }
 
 function buscarPorUsuario(usuario) {
@@ -46,7 +55,7 @@ function sessaoPublica(registro) {
     slug: registro.slug,
     role: registro.role,
     tipo: registro.tipo,
-    paineis: registro.paineis || null, // null = acesso a todos os painéis
+    paineis: registro.paineis && registro.paineis.length ? registro.paineis : null, // null = acesso a todos os painéis
     indicadoresPendentes: !!registro.indicadoresPendentes, // true = ainda não tem KPIs mapeados na planilha
   };
 }
@@ -56,10 +65,9 @@ function podeAcessarPainel(usuarioSessao, painel) {
   return usuarioSessao.paineis.includes(painel);
 }
 
-async function criarOuAtualizarUsuario({ usuario, senha, nome, slug, role, tipo, paineis }) {
-  const banco = lerBanco();
+async function criarOuAtualizarUsuario({ usuario, senha, nome, slug, role, tipo, paineis, indicadoresPendentes }) {
+  const existente = buscarPorUsuario(usuario);
   const senhaHash = await bcrypt.hash(senha, 10);
-  const existente = banco.usuarios.find((u) => u.usuario.toLowerCase() === usuario.toLowerCase());
 
   const registro = {
     id: existente ? existente.id : `u-${slug}`,
@@ -68,21 +76,27 @@ async function criarOuAtualizarUsuario({ usuario, senha, nome, slug, role, tipo,
     nome,
     slug,
     role,
-    tipo,
-    paineis: paineis && paineis.length ? paineis : undefined,
+    tipo: tipo || null,
+    paineis: paineis && paineis.length ? paineis : [],
+    indicadoresPendentes: !!indicadoresPendentes,
   };
+
+  await chamarAppsScript(env.painelSacAppsScriptUrl, {
+    method: 'POST',
+    body: { action: 'hubSalvarUsuario', ...registro },
+  });
 
   if (existente) {
     Object.assign(existente, registro);
   } else {
-    banco.usuarios.push(registro);
+    cache.push(registro);
   }
 
-  salvarBanco(banco);
   return registro;
 }
 
 module.exports = {
+  inicializar,
   listarUsuarios,
   buscarPorUsuario,
   buscarPorSlug,

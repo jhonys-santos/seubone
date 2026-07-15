@@ -28,7 +28,7 @@ router.post('/setup', async (req, res) => {
   if (!env.setupToken) {
     return res.status(404).send('Não encontrado.');
   }
-  const { token, usuario, senha, nome, slug, role, tipo, paineis } = req.body;
+  const { token, usuario, senha, nome, slug, role, tipo, paineis, indicadoresPendentes } = req.body;
 
   if (token !== env.setupToken) {
     return res.status(403).render('setup', { erro: 'Código de acesso incorreto.', sucesso: null, usuarioCriado: null });
@@ -53,6 +53,7 @@ router.post('/setup', async (req, res) => {
     role,
     tipo: tipo ? tipo.trim() : null,
     paineis: paineisArr,
+    indicadoresPendentes: indicadoresPendentes === 'on',
   });
 
   res.render('setup', {

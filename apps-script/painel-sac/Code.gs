@@ -61,6 +61,13 @@ function doGet(e) {
         const ano = parseInt(p.ano);
         resp = { sabados: listarSabados(p.alvo, mes, ano) };
       }
+    } else if (action === 'hubListarUsuarios') {
+      // Uso interno do próprio hub (servidor-a-servidor) pra guardar os
+      // usuários/senhas/permissões do hub numa aba própria desta planilha,
+      // em vez de um arquivo local que se perde a cada deploy no Render.
+      // Só o segredo compartilhado autoriza — nunca é chamado pelo navegador.
+      if (p.segredo !== SEGREDO_HUB) { resp = { erro: 'Nao autorizado' }; }
+      else { resp = { usuarios: hubListarUsuarios() }; }
     }
   } catch(err) {
     resp = { erro: err.message };
@@ -102,6 +109,12 @@ function doPost(e) {
       const u = validarUsuario(body.usuario, body.senha_auth || '', body.segredo || '');
       if (!u) return out({ ok: false, erro: 'Nao autorizado' });
       return out(responderTroca(body.id_troca, body.aceitar, body.usuario));
+    }
+    if (body.action === 'hubSalvarUsuario') {
+      // Mesma lógica do hubListarUsuarios: só server-to-server, só com o
+      // segredo compartilhado, nunca chamado direto pelo navegador.
+      if (body.segredo !== SEGREDO_HUB) return out({ ok: false, erro: 'Nao autorizado' });
+      return out(hubSalvarUsuario(body));
     }
   } catch(err) {
     return out({ ok: false, erro: err.message });
@@ -775,6 +788,61 @@ function excluirAcessoSheet(usuario, editIdx) {
   if (editIdx >= 0 && editIdx < userRows.length) {
     aba.deleteRow(userRows[editIdx]);
   }
+}
+
+function getAbaHubUsuarios(ss) {
+  let aba = ss.getSheetByName('HubUsuarios');
+  if (!aba) {
+    aba = ss.insertSheet('HubUsuarios');
+    aba.appendRow(['id', 'usuario', 'senhaHash', 'nome', 'slug', 'role', 'tipo', 'paineis', 'indicadoresPendentes']);
+  }
+  return aba;
+}
+
+function hubListarUsuarios() {
+  const ss   = SpreadsheetApp.openById(SHEET_ID);
+  const aba  = getAbaHubUsuarios(ss);
+  const rows = aba.getDataRange().getValues().slice(1);
+  return rows
+    .filter(r => String(r[1]).trim() !== '')
+    .map(r => ({
+      id:      String(r[0]),
+      usuario: String(r[1]),
+      senhaHash: String(r[2]),
+      nome:    String(r[3]),
+      slug:    String(r[4]),
+      role:    String(r[5]),
+      tipo:    r[6] ? String(r[6]) : null,
+      paineis: r[7] ? String(r[7]).split(',').map(s => s.trim()).filter(Boolean) : [],
+      indicadoresPendentes: String(r[8]).toLowerCase().trim() === 'true',
+    }));
+}
+
+function hubSalvarUsuario(u) {
+  const ss   = SpreadsheetApp.openById(SHEET_ID);
+  const aba  = getAbaHubUsuarios(ss);
+  const rows = aba.getDataRange().getValues();
+  let linhaIdx = -1;
+  for (let i = 1; i < rows.length; i++) {
+    if (String(rows[i][1]).toLowerCase().trim() === String(u.usuario).toLowerCase().trim()) { linhaIdx = i + 1; break; }
+  }
+  const linha = [
+    u.id || ('u-' + u.slug),
+    u.usuario,
+    u.senhaHash,
+    u.nome,
+    u.slug,
+    u.role,
+    u.tipo || '',
+    Array.isArray(u.paineis) ? u.paineis.join(',') : (u.paineis || ''),
+    u.indicadoresPendentes ? 'true' : 'false',
+  ];
+  if (linhaIdx > -1) {
+    aba.getRange(linhaIdx, 1, 1, linha.length).setValues([linha]);
+  } else {
+    aba.appendRow(linha);
+  }
+  return { ok: true };
 }
 
 function getAbaTrocas(ss) {

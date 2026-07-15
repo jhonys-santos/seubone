@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 /* eslint-disable no-console */
 const readline = require('readline');
-const { criarOuAtualizarUsuario } = require('../src/services/usuarios.service');
+const usuariosService = require('../src/services/usuarios.service');
+const { criarOuAtualizarUsuario } = usuariosService;
 
 // Não usamos rl.question() encadeado: com múltiplas perguntas sequenciais,
 // se a entrada chegar em um único bloco (comum quando o terminal recebe
@@ -26,6 +27,8 @@ function criarPrompter() {
 }
 
 async function main() {
+  await usuariosService.inicializar();
+
   const p = criarPrompter();
 
   console.log('=== Criar/atualizar usuário do SeuBoné Hub ===\n');
@@ -66,7 +69,7 @@ async function main() {
     paineis,
   });
 
-  console.log('\nUsuário salvo com sucesso em data/usuarios.json:');
+  console.log('\nUsuário salvo com sucesso na planilha (aba HubUsuarios):');
   console.log({ ...registro, senhaHash: '(oculto)' });
 }
 

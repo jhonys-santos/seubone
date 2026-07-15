@@ -6,6 +6,7 @@ const FileStore = require('session-file-store')(session);
 const helmet = require('helmet');
 
 const env = require('./src/config/env');
+const usuariosService = require('./src/services/usuarios.service');
 
 // A pasta de sessões não é versionada (fica no .gitignore) — em um deploy
 // novo (ex: Render) ela simplesmente não existe ainda. Sem isso, a store
@@ -84,6 +85,17 @@ app.use((req, res) => {
   });
 });
 
-app.listen(env.port, () => {
-  console.log(`SeuBoné Hub rodando em http://localhost:${env.port}`);
-});
+usuariosService
+  .inicializar()
+  .then(() => {
+    app.listen(env.port, () => {
+      console.log(`SeuBoné Hub rodando em http://localhost:${env.port}`);
+    });
+  })
+  .catch((err) => {
+    // Sem a lista de usuários carregada, ninguém consegue logar — melhor
+    // falhar alto e cedo (logs do Render deixam claro o motivo) do que
+    // subir o servidor com todo login quebrado silenciosamente.
+    console.error('Falha ao carregar usuários do hub na inicialização:', err.message);
+    process.exit(1);
+  });
