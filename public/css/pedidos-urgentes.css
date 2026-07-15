@@ -118,7 +118,8 @@ button { cursor: pointer; font-family: inherit; font-weight: 700; border: none; 
 .empty { text-align: center; padding: 60px 20px; color: var(--text-hint); }
 .empty .big { font-size: 32px; margin-bottom: 8px; color: var(--gold); }
 
-table { width: 100%; border-collapse: collapse; font-size: 13px; background: var(--surface); border-radius: var(--radius); overflow: hidden; border: 1px solid var(--border); }
+#tabela { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+table { width: 100%; min-width: 600px; border-collapse: collapse; font-size: 13px; background: var(--surface); border-radius: var(--radius); overflow: hidden; border: 1px solid var(--border); }
 th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border); }
 th { background: var(--surface-2); color: var(--text-muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; }
 td { color: var(--text); }
