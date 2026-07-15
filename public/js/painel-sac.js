@@ -681,6 +681,27 @@ async function enviarSugestao() {
 }
 
 // ── FILTROS ───────────────────────────────────────────────────
+function mostrarAtualizando() {
+  document.getElementById('dash-refresh-bar').classList.add('show');
+  document.getElementById('dash-content').classList.add('refreshing');
+}
+function esconderAtualizando() {
+  document.getElementById('dash-refresh-bar').classList.remove('show');
+  document.getElementById('dash-content').classList.remove('refreshing');
+}
+
+async function atualizarComLoading() {
+  mostrarAtualizando();
+  try {
+    const dados = await fetchDados();
+    renderTudo(dados);
+  } catch (e) {
+    await hubAlert('Erro ao atualizar indicadores: ' + e.message, 'erro');
+  } finally {
+    esconderAtualizando();
+  }
+}
+
 async function setPeriodo(p, btn) {
   periodo = p;
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
@@ -692,8 +713,7 @@ async function setPeriodo(p, btn) {
   } else {
     wrap.classList.remove('show');
   }
-  const dados = await fetchDados();
-  renderTudo(dados);
+  await atualizarComLoading();
 }
 
 async function setMes(m) {
@@ -701,14 +721,12 @@ async function setMes(m) {
   if (periodo === 'semana') {
     popularSeletorSemanas(mesAtual, anoHoje, semanaIdx);
   }
-  const dados = await fetchDados();
-  renderTudo(dados);
+  await atualizarComLoading();
 }
 
 async function setSemana(idx) {
   semanaIdx = idx;
-  const dados = await fetchDados();
-  renderTudo(dados);
+  await atualizarComLoading();
 }
 
 // ── TROCAS DE ESCALA ─────────────────────────────────────────
