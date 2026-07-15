@@ -18,6 +18,10 @@ module.exports = {
   // dentro do próprio projeto, sem precisar configurar nada.
   dataDir: required('DATA_DIR', path.join(__dirname, '..', '..', 'data')),
 
+  // Protege a tela /setup (criar/atualizar usuário pelo navegador, sem Shell).
+  // Defina uma string longa e aleatória — sem ela, /setup fica desativada.
+  setupToken: required('SETUP_TOKEN', ''),
+
   appsScriptSharedSecret: required('APPS_SCRIPT_SHARED_SECRET', ''),
 
   wallacAppsScriptUrl: required('WALLAC_APPS_SCRIPT_URL', ''),

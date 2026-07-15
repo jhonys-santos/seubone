@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<%- include('partials/head') %>
+<title>Criar usuário — SeuBoné</title>
+</head>
+<body>
+<div class="login-page">
+  <div class="login-card" style="max-width:440px;">
+    <div class="login-logo">
+      <div class="login-logo-mark"><img src="/img/logo-seubone.png" alt="SeuBoné"></div>
+      <div class="login-logo-text"><span class="gold">SeuBoné</span></div>
+      <div class="login-sub">Criar ou atualizar usuário do hub</div>
+    </div>
+
+    <form action="/setup" method="POST">
+      <div class="field">
+        <label>Código de acesso</label>
+        <div class="field-wrap">
+          <i class="ti ti-shield-lock fi" aria-hidden="true"></i>
+          <input type="password" name="token" required autofocus>
+        </div>
+      </div>
+      <div class="field">
+        <label>Usuário (login)</label>
+        <div class="field-wrap">
+          <i class="ti ti-user fi" aria-hidden="true"></i>
+          <input type="text" name="usuario" required>
+        </div>
+      </div>
+      <div class="field">
+        <label>Senha</label>
+        <div class="field-wrap">
+          <i class="ti ti-lock fi" aria-hidden="true"></i>
+          <input type="password" name="senha" required>
+        </div>
+      </div>
+      <div class="field">
+        <label>Nome completo</label>
+        <div class="field-wrap">
+          <i class="ti ti-id-badge-2 fi" aria-hidden="true"></i>
+          <input type="text" name="nome" required>
+        </div>
+      </div>
+      <div class="field">
+        <label>Slug (identificador na planilha)</label>
+        <div class="field-wrap">
+          <i class="ti ti-tag fi" aria-hidden="true"></i>
+          <input type="text" name="slug" placeholder="ex: nathalia" required>
+        </div>
+      </div>
+      <div class="field">
+        <label>Papel</label>
+        <div class="field-wrap">
+          <i class="ti ti-users-group fi" aria-hidden="true"></i>
+          <select name="role" required style="width:100%;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:14px;padding:11px 13px 11px 40px;font-family:inherit;">
+            <option value="colaborador">colaborador</option>
+            <option value="gestor">gestor</option>
+          </select>
+        </div>
+      </div>
+      <div class="field">
+        <label>Tipo/time (opcional)</label>
+        <div class="field-wrap">
+          <i class="ti ti-category fi" aria-hidden="true"></i>
+          <input type="text" name="tipo" placeholder="sac, ppf ou deixe em branco">
+        </div>
+      </div>
+      <div class="field">
+        <label>Painéis liberados (opcional)</label>
+        <div class="field-wrap">
+          <i class="ti ti-layout-grid fi" aria-hidden="true"></i>
+          <input type="text" name="paineis" placeholder="ex: painel-sac,wallac — vazio libera todos">
+        </div>
+      </div>
+      <button type="submit" class="btn-login">Salvar usuário <i class="ti ti-device-floppy" aria-hidden="true"></i></button>
+    </form>
+
+    <% if (erro) { %>
+      <div class="login-erro"><i class="ti ti-alert-circle" aria-hidden="true"></i> <%= erro %></div>
+    <% } %>
+    <% if (sucesso) { %>
+      <div class="login-erro" style="background:var(--ok-bg);border-color:rgba(52,199,123,0.3);color:var(--ok);">
+        <i class="ti ti-circle-check" aria-hidden="true"></i> <%= sucesso %>
+      </div>
+    <% } %>
+
+    <div class="login-footer">
+      <a href="/login" style="color:var(--gold);text-decoration:none;">← Voltar para o login</a>
+    </div>
+  </div>
+</div>
+</body>
+</html>

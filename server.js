@@ -6,6 +6,7 @@ const helmet = require('helmet');
 
 const env = require('./src/config/env');
 const authRoutes = require('./src/routes/auth.routes');
+const setupRoutes = require('./src/routes/setup.routes');
 const hubRoutes = require('./src/routes/hub.routes');
 const painelSacRoutes = require('./src/routes/painelSac.routes');
 const wallacRoutes = require('./src/routes/wallac.routes');
@@ -56,6 +57,7 @@ app.use((req, res, next) => {
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.use(authRoutes);
+app.use(setupRoutes);
 app.use(hubRoutes);
 app.use('/painel-sac', painelSacRoutes);
 app.use('/wallac', wallacRoutes);

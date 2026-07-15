@@ -78,14 +78,15 @@ chamada se `APPS_SCRIPT_SHARED_SECRET` estiver definido no `.env`.
 
 O plano **gratuito** da Render tem duas limitações: "dorme" depois de ~15 min
 sem acesso (o primeiro acesso depois disso demora uns 30-50s pra responder),
-e não permite disco persistente — ou seja, `data/usuarios.json` e as sessões
-salvas só sobrevivem enquanto o serviço não passa por um novo deploy. Como
-os deploys são raros (só quando eu mudo o código), isso é tranquilo: depois
-de um deploy, basta recriar os usuários uma vez (passo 6).
+e não tem Shell/terminal nem disco persistente — ou seja, `data/usuarios.json`
+e as sessões salvas só sobrevivem enquanto o serviço não passa por um novo
+deploy. Como os deploys são raros (só quando o código muda), isso é
+tranquilo: depois de um deploy, é só recriar os usuários pela tela `/setup`
+(passo 6) — não precisa de terminal nenhum.
 
 1. Crie um repositório no GitHub com este projeto (sem `.env`, `data/usuarios.json` nem `data/sessions/` — já estão no `.gitignore`) e dê `git push`.
 2. Crie uma conta em https://render.com e clique em "New +" → "Web Service", apontando para esse repositório.
 3. Build Command: `npm install` — Start Command: `node server.js` — Plano: **Free**.
-4. Na aba "Environment", cadastre as mesmas variáveis do seu `.env` (não precisa de `DATA_DIR` — sem disco persistente, o padrão já serve).
+4. Na aba "Environment", cadastre as mesmas variáveis do seu `.env` (incluindo `SETUP_TOKEN`; não precisa de `DATA_DIR` — sem disco persistente, o padrão já serve).
 5. **Evite que o serviço durma**: crie uma conta grátis em https://cron-job.org (ou similar), e configure um "cron job" para acessar `https://SEU-APP.onrender.com` a cada 10 minutos. Isso mantém o hub sempre acordado, de graça.
-6. Depois de cada deploy (inclusive o primeiro), abra o "Shell" do serviço no Render e rode `npm run criar-usuario` ali dentro, uma vez por pessoa, pra recriar os usuários.
+6. Depois de cada deploy (inclusive o primeiro), acesse `https://SEU-APP.onrender.com/setup` no navegador — pede o código de acesso (`SETUP_TOKEN`) e os dados da pessoa, sem precisar de terminal. Repita uma vez por colaborador.
