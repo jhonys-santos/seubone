@@ -194,6 +194,16 @@ i.ti { line-height: 1; }
 }
 .hub-card:hover .hub-card-footer { color: var(--gold); }
 
+.hub-card { position: relative; }
+.hub-card-external-badge {
+  position: absolute; top: 14px; right: 14px;
+  color: var(--text-hint); font-size: 14px;
+}
+.hub-section-label {
+  font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--text-hint); margin: 28px 0 10px;
+}
+
 .hub-empty {
   text-align: center; padding: 3rem 1rem; color: var(--text-hint); font-size: 13px;
 }

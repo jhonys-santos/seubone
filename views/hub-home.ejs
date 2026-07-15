@@ -28,23 +28,29 @@
         <div class="hub-card-footer">Abrir <i class="ti ti-arrow-right" aria-hidden="true"></i></div>
       </a>
     <% }); %>
+  </div>
+
+  <div class="hub-section-label">Atalhos externos</div>
+  <div class="hub-grid">
     <% if (paineis.some(function(p) { return p.chave === 'painel-sac'; })) { %>
       <a class="hub-card" href="https://tourmaline-quartz-cf5.notion.site/Base-de-Conhecimento-SAC-8216ddb8fcf74707b0fcd57d75b4fe72" target="_blank" rel="noopener">
+        <span class="hub-card-external-badge"><i class="ti ti-external-link" aria-hidden="true"></i></span>
         <div class="hub-card-icon"><i class="ti ti-book" aria-hidden="true"></i></div>
         <div>
           <h3>Base de Conhecimento</h3>
           <p>Guias e procedimentos do SAC</p>
         </div>
-        <div class="hub-card-footer">Abrir <i class="ti ti-arrow-right" aria-hidden="true"></i></div>
+        <div class="hub-card-footer">Abrir em nova aba <i class="ti ti-arrow-right" aria-hidden="true"></i></div>
       </a>
     <% } %>
     <a class="hub-card" href="https://script.google.com/macros/s/AKfycbxhBVqrHmr9xIHQIMNISVOgnHqIRYTwRqXpORF83cLapjQcGYbZOZXq70UO_96-Ygxv/exec" target="_blank" rel="noopener">
+      <span class="hub-card-external-badge"><i class="ti ti-external-link" aria-hidden="true"></i></span>
       <div class="hub-card-icon"><i class="ti ti-file-text" aria-hidden="true"></i></div>
       <div>
         <h3>Gerador de Autorização</h3>
         <p>Autorização de retirada de pedidos nas transportadoras</p>
       </div>
-      <div class="hub-card-footer">Abrir <i class="ti ti-arrow-right" aria-hidden="true"></i></div>
+      <div class="hub-card-footer">Abrir em nova aba <i class="ti ti-arrow-right" aria-hidden="true"></i></div>
     </a>
   </div>
   <% } %>
