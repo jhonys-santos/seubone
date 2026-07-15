@@ -18,7 +18,8 @@
         <label>Código de acesso</label>
         <div class="field-wrap">
           <i class="ti ti-shield-lock fi" aria-hidden="true"></i>
-          <input type="password" name="token" required autofocus>
+          <input type="password" name="token" id="input-token" required autofocus autocomplete="off" style="padding-right:38px;">
+          <button type="button" class="toggle-pw" onclick="var i=document.getElementById('input-token');i.type=i.type==='password'?'text':'password';this.querySelector('i').className=i.type==='password'?'ti ti-eye':'ti ti-eye-off';" style="position:absolute;right:13px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text-hint);padding:2px;"><i class="ti ti-eye" aria-hidden="true"></i></button>
         </div>
       </div>
       <div class="field">
