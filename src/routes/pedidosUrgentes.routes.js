@@ -36,11 +36,16 @@ router.get('/api/list', async (req, res) => {
 
 router.post('/api/despachar', async (req, res) => {
   try {
-    const nome = req.session.user.nome;
-    const { id } = req.body;
+    const { id, nomeDespacho } = req.body;
+    // O login do estoque é compartilhado entre vários colaboradores, então
+    // aceita o nome digitado no modal de despacho em vez de só o nome da
+    // sessão (que seria sempre o mesmo pra todo mundo do time).
+    const despachadoPor = typeof nomeDespacho === 'string' && nomeDespacho.trim()
+      ? nomeDespacho.trim().slice(0, 80)
+      : req.session.user.nome;
     const json = await chamarAppsScript(env.pedidosUrgentesAppsScriptUrl, {
       method: 'POST',
-      body: { action: 'despachar', id, despachadoPor: nome },
+      body: { action: 'despachar', id, despachadoPor },
     });
     res.json(json);
   } catch (err) {

@@ -1,9 +1,12 @@
 // Painel do estoque — portado do painel.html original.
-// Mudança: endpoint agora é /pedidos-urgentes/api/... e o despacho não pede
-// mais o nome via prompt() — o servidor usa o nome da sessão autenticada.
+// Mudança: endpoint agora é /pedidos-urgentes/api/...
+// O login do estoque é compartilhado entre vários colaboradores, então o
+// despacho pede o nome de quem está despachando num modal (em vez de usar
+// o nome da sessão, que seria sempre o mesmo pra todo mundo do time).
 
 let idsConhecidos = new Set();
 let primeiraCarga = true;
+let pendingDespacho = null;
 
 function ativarSom() {
   const audio = document.getElementById('somAlerta');
@@ -54,17 +57,39 @@ function fecharImagem() {
   document.getElementById('lightboxImg').src = '';
 }
 
-async function despachar(id, os) {
-  if (!confirm(`Confirmar despacho do pedido ${os}?`)) return;
+function despachar(id, os) {
+  pendingDespacho = { id, os };
+  document.getElementById('despachoOs').textContent = os;
+  const input = document.getElementById('inputNomeDespacho');
+  input.value = localStorage.getItem('pu-nome-despacho') || '';
+  document.getElementById('modalDespacho').classList.add('aberto');
+  setTimeout(() => input.focus(), 50);
+}
+
+function fecharModalDespacho() {
+  document.getElementById('modalDespacho').classList.remove('aberto');
+  pendingDespacho = null;
+}
+
+async function confirmarDespacho() {
+  const nome = document.getElementById('inputNomeDespacho').value.trim();
+  if (!nome) {
+    alert('Digite o nome de quem está despachando.');
+    return;
+  }
+  if (!pendingDespacho) return;
+  const { id } = pendingDespacho;
   try {
     const resp = await fetch('/pedidos-urgentes/api/despachar', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id }),
+      body: JSON.stringify({ id, nomeDespacho: nome }),
     });
     const data = await resp.json();
     if (data.ok) {
+      localStorage.setItem('pu-nome-despacho', nome);
       idsConhecidos.delete(id);
+      fecharModalDespacho();
       carregar();
     } else {
       alert('Erro: ' + (data.erro || 'não foi possível despachar'));

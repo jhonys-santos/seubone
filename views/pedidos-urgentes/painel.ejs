@@ -29,6 +29,17 @@
   <img id="lightboxImg" src="" alt="OS ampliada">
 </div>
 
+<div id="modalDespacho" class="modal-overlay" onclick="if(event.target===this) fecharModalDespacho()">
+  <div class="modal-box" style="max-width:400px;">
+    <label>Quem está despachando o pedido <span id="despachoOs" class="mono"></span>?</label>
+    <input type="text" id="inputNomeDespacho" placeholder="Seu nome" autocomplete="off">
+    <div style="display:flex; gap:10px; margin-top:20px;">
+      <button class="btn-secondary" style="flex:1;" onclick="fecharModalDespacho()">Cancelar</button>
+      <button class="btn-primary" style="flex:1;margin-top:0;" onclick="confirmarDespacho()"><i class="ti ti-truck-delivery" aria-hidden="true"></i> Confirmar</button>
+    </div>
+  </div>
+</div>
+
 <audio id="somAlerta" src="/audio/alerta.mp3" preload="auto"></audio>
 
 <script src="/js/pedidos-urgentes-painel.js"></script>

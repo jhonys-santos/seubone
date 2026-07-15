@@ -66,6 +66,9 @@ button { cursor: pointer; font-family: inherit; font-weight: 700; border: none; 
 .btn-dispatch { background: var(--gold); color: var(--on-gold); display: flex; align-items: center; gap: 7px; }
 .btn-dispatch:hover { opacity: 0.9; }
 
+.btn-secondary { background: none; border: 1px solid var(--border); color: var(--text-muted); }
+.btn-secondary:hover { border-color: var(--text-muted); color: var(--text); }
+
 .msg { margin-top: 14px; padding: 10px 14px; border-radius: var(--radius-sm); font-size: 13px; display: none; }
 .msg.ok { display: flex; align-items: center; gap: 8px; background: var(--ok-bg); color: var(--ok); }
 .msg.err { display: flex; align-items: center; gap: 8px; background: var(--bad-bg); color: var(--bad); }
