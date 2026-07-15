@@ -74,7 +74,7 @@ function fecharModalDespacho() {
 async function confirmarDespacho() {
   const nome = document.getElementById('inputNomeDespacho').value.trim();
   if (!nome) {
-    alert('Digite o nome de quem está despachando.');
+    await hubAlert('Digite o nome de quem está despachando.', 'erro');
     return;
   }
   if (!pendingDespacho) return;
@@ -92,10 +92,10 @@ async function confirmarDespacho() {
       fecharModalDespacho();
       carregar();
     } else {
-      alert('Erro: ' + (data.erro || 'não foi possível despachar'));
+      await hubAlert('Erro: ' + (data.erro || 'não foi possível despachar'), 'erro');
     }
   } catch (e) {
-    alert('Erro de conexão ao despachar.');
+    await hubAlert('Erro de conexão ao despachar.', 'erro');
   }
 }
 

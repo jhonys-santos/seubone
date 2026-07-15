@@ -671,13 +671,13 @@ function abrirSugestao(){document.getElementById('sug-form').style.display='bloc
 async function enviarSugestao() {
   const titulo=document.getElementById('sug-titulo').value.trim();
   const texto=document.getElementById('sug-texto').value.trim();
-  if(!titulo||!texto){alert('Preencha o título e a sugestão antes de enviar.');return;}
+  if(!titulo||!texto){await hubAlert('Preencha o título e a sugestão antes de enviar.', 'erro');return;}
   try {
     await fetch(`${API_BASE}/sugestao`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ titulo, sugestao: texto }) });
     document.getElementById('sug-nome-ok').textContent=`Obrigado pela contribuição, ${usuarioLogado.nome.split(' ')[0]}.`;
     document.getElementById('sug-form').style.display='none';
     document.getElementById('sug-ok').style.display='block';
-  } catch(e) { alert('Erro ao enviar. Tente novamente.'); }
+  } catch(e) { await hubAlert('Erro ao enviar. Tente novamente.', 'erro'); }
 }
 
 // ── FILTROS ───────────────────────────────────────────────────
@@ -721,7 +721,7 @@ async function abrirTroca(dia, mes, ano, status) {
   const dataSabado = new Date(ano, mes, dia);
   const hojeD = new Date(); hojeD.setHours(0,0,0,0);
   if (dataSabado < hojeD) {
-    alert('Não é possível solicitar troca para um sábado que já passou.');
+    await hubAlert('Não é possível solicitar troca para um sábado que já passou.', 'erro');
     return;
   }
 
@@ -734,11 +734,11 @@ async function abrirTroca(dia, mes, ano, status) {
     try {
       const res  = await fetch(`${API_BASE}/consultores`);
       const json = await res.json();
-      if (json.erro) { alert('Erro ao carregar consultores: ' + json.erro); }
+      if (json.erro) { await hubAlert('Erro ao carregar consultores: ' + json.erro, 'erro'); }
       consultoresCache = (json.consultores || []).filter(c => c.slug !== usuarioLogado.slug);
       if (!consultoresCache.length) console.warn('Nenhum consultor retornado pela API', json);
     } catch(e) {
-      alert('Erro ao buscar consultores: ' + e.message);
+      await hubAlert('Erro ao buscar consultores: ' + e.message, 'erro');
     }
   }
   const sel = document.getElementById('troca-consultor');
@@ -796,7 +796,7 @@ async function enviarTroca() {
     const json = await res.json();
     if (!json.ok) { erroEl.textContent = json.erro || 'Erro ao solicitar.'; erroEl.style.display = 'block'; return; }
     fecharTroca();
-    alert('Solicitação enviada! O colega receberá a notificação no painel.');
+    await hubAlert('Solicitação enviada! O colega receberá a notificação no painel.', 'sucesso');
   } catch(e) {
     erroEl.textContent = e.message; erroEl.style.display = 'block';
   }
@@ -869,16 +869,16 @@ async function responderTroca(idTroca, aceitar) {
   try {
     const res  = await fetch(`${API_BASE}/responder-troca`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
     const json = await res.json();
-    if (!json.ok) { alert('Erro: ' + (json.erro||'tente novamente')); return; }
+    if (!json.ok) { await hubAlert('Erro: ' + (json.erro||'tente novamente'), 'erro'); return; }
     trocasPendentes = trocasPendentes.filter(t => t.id !== idTroca);
     fecharTrocaPendente();
     if (aceitar) {
-      alert('Troca aceita! As escalas foram atualizadas.');
+      await hubAlert('Troca aceita! As escalas foram atualizadas.', 'sucesso');
       await navEscala(0);
     } else {
-      alert('Troca recusada.');
+      await hubAlert('Troca recusada.', 'info');
     }
-  } catch(e) { alert('Erro: ' + e.message); }
+  } catch(e) { await hubAlert('Erro: ' + e.message, 'erro'); }
 }
 
 // ── HISTÓRICO DE AUDITORIAS ───────────────────────────────────
@@ -1080,7 +1080,8 @@ async function salvarAcesso() {
 }
 
 async function excluirAcesso(i) {
-  if (!confirm(`Excluir o acesso "${acessosCache[i]?.ferramenta}"?`)) return;
+  const confirmado = await hubConfirm(`Excluir o acesso "${acessosCache[i]?.ferramenta}"?`, { textoConfirmar: 'Excluir' });
+  if (!confirmado) return;
   const payload = { editIdx: i };
   try {
     const res  = await fetch(`${API_BASE}/acessos/excluir`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
@@ -1089,7 +1090,7 @@ async function excluirAcesso(i) {
     acessosCache = json.acessos || [];
     renderAcessos();
   } catch(e) {
-    alert('Erro: ' + e.message);
+    await hubAlert('Erro: ' + e.message, 'erro');
   }
 }
 
