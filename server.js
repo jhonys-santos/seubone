@@ -23,6 +23,11 @@ const rankingSacRoutes = require('./src/routes/rankingSac.routes');
 
 const app = express();
 
+// Render (e a maioria dos PaaS) termina o HTTPS num proxy antes de chegar
+// no Node — sem isso, o Express acha que a conexão é HTTP simples e nunca
+// envia o cookie de sessão (que exige secure:true em produção).
+app.set('trust proxy', 1);
+
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 
