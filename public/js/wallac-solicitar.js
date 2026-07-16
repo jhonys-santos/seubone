@@ -9,6 +9,15 @@ let produtosDisponiveis = [];
 let logoBase64 = null;
 let logoNome = null;
 
+// Não deixa escolher prazo já vencido (usa data local, não UTC, pra não
+// cair um dia antes perto da meia-noite).
+(function bloquearDatasPassadas() {
+  const hoje = new Date();
+  const hojeISO = hoje.getFullYear() + '-' + String(hoje.getMonth() + 1).padStart(2, '0') + '-' + String(hoje.getDate()).padStart(2, '0');
+  document.getElementById('prazo-producao').min = hojeISO;
+  document.getElementById('prazo-entrega').min = hojeISO;
+})();
+
 async function carregarProdutos() {
   const select = document.getElementById('produto');
   try {

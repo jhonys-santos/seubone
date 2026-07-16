@@ -42,6 +42,9 @@
   border-radius: var(--radius);
   padding: 12px;
   min-height: 200px;
+  max-height: calc(100vh - 210px);
+  display: flex;
+  flex-direction: column;
 }
 
 .coluna-titulo {
@@ -54,11 +57,26 @@
   padding: 0 4px;
   display: flex;
   justify-content: space-between;
+  flex-shrink: 0;
 }
 .coluna-titulo span:last-child {
   background: var(--surface-2); color: var(--text); border-radius: 20px;
   padding: 1px 8px; font-size: 10.5px;
 }
+
+/* Só os cards rolam — o título da coluna fica sempre visível no topo.
+   Scrollbar bem discreta (fina, some quando não tem hover). */
+.cards {
+  flex: 1;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+.cards:hover { scrollbar-color: var(--border-strong) transparent; }
+.cards::-webkit-scrollbar { width: 5px; }
+.cards::-webkit-scrollbar-track { background: transparent; }
+.cards::-webkit-scrollbar-thumb { background: transparent; border-radius: 10px; }
+.cards:hover::-webkit-scrollbar-thumb { background: var(--border-strong); }
 
 .card {
   background: var(--surface-2);
