@@ -147,5 +147,22 @@ COLUNAS.forEach(status => {
   });
 });
 
+// Faz as colunas ocuparem toda a altura disponível da tela (sem sobra em
+// branco no fim), calculando o espaço real em vez de um valor fixo — a
+// altura do nav/header pode variar (ex: quebra de linha em telas menores).
+function ajustarAlturaColunas() {
+  const container = document.querySelector('.wallac-container');
+  const board = document.querySelector('.board');
+  if (!container || !board) return;
+  const topo = board.getBoundingClientRect().top;
+  const paddingBaixo = parseFloat(getComputedStyle(container).paddingBottom) || 0;
+  const disponivel = window.innerHeight - topo - paddingBaixo;
+  document.querySelectorAll('.coluna').forEach((c) => {
+    c.style.height = Math.max(disponivel, 200) + 'px';
+  });
+}
+window.addEventListener('resize', ajustarAlturaColunas);
+ajustarAlturaColunas();
+
 carregarDados();
 setInterval(carregarDados, INTERVALO_POLLING);

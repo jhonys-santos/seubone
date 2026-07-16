@@ -41,8 +41,10 @@
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 12px;
+  /* Altura real é calculada em JS (ajustarAlturaColunas em wallac.js) —
+     depende da altura de nav+header, que varia. min-height é só o piso
+     antes do JS rodar. */
   min-height: 200px;
-  max-height: calc(100vh - 210px);
   display: flex;
   flex-direction: column;
 }
