@@ -5,5 +5,5 @@ module.exports = [
   { chave: 'wallac', titulo: 'Produção SBP', descricao: 'Kanban de pedidos em produção no escritório', url: '/wallac', icone: 'ti-packages' },
   { chave: 'pedidos-urgentes', titulo: 'Pedidos Urgentes', descricao: 'Cadastro, painel do estoque e histórico', url: '/pedidos-urgentes/painel', icone: 'ti-alert-triangle' },
   { chave: 'ranking-sac', titulo: 'Ranking SAC', descricao: 'Painel de corrida entre consultores (tela de TV)', url: '/ranking-sac', icone: 'ti-trophy' },
-  { chave: 'registro-demandas', titulo: 'Registro de Demandas Gerais', descricao: 'Demandas gerais e reembolsos — Grupo SB', url: '/registro-demandas', icone: 'ti-clipboard-text' },
+  { chave: 'registro-demandas', titulo: 'Registro de Demandas Gerais', descricao: 'Demandas gerais e reembolsos solicitados ao financeiro', url: '/registro-demandas', icone: 'ti-clipboard-text' },
 ];
