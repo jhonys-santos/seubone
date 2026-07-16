@@ -1,5 +1,13 @@
 .wallac-container { max-width: 1280px; margin: 0 auto; padding: 24px 24px 60px; }
 
+.historico-lista {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 14px;
+}
+.historico-lista .card { cursor: default; }
+.historico-lista .vazio { grid-column: 1 / -1; padding: 40px 0; }
+
 .wallac-header {
   display: flex;
   align-items: center;
@@ -28,6 +36,26 @@
   text-decoration: none; display: flex; align-items: center; gap: 5px;
 }
 .link-secundario:hover { text-decoration: underline; }
+
+.busca-wrap { position: relative; }
+.busca-wrap .fi {
+  position: absolute; left: 11px; top: 50%; transform: translateY(-50%);
+  font-size: 13px; color: var(--text-hint); pointer-events: none;
+}
+.busca-wrap input {
+  width: 220px; background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); color: var(--text); font-size: 12.5px;
+  padding: 8px 10px 8px 32px; font-family: inherit; outline: none;
+  transition: border-color .15s;
+}
+.busca-wrap input:focus { border-color: var(--gold-dark); }
+.busca-wrap input::placeholder { color: var(--text-hint); }
+
+.aviso-historico {
+  display: block; text-align: center; font-size: 11px; color: var(--gold);
+  text-decoration: none; padding: 8px 4px 2px; flex-shrink: 0;
+}
+.aviso-historico:hover { text-decoration: underline; }
 
 .board {
   display: grid;

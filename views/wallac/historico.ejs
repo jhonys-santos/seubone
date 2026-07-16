@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<%- include('../partials/head') %>
+<title>Histórico — Produção SBP — SeuBoné</title>
+<link rel="stylesheet" href="/css/wallac.css">
+</head>
+<body>
+<%- include('../partials/nav') %>
+
+<div class="wallac-container">
+  <div class="wallac-header">
+    <h2><i class="ti ti-history" aria-hidden="true"></i> Histórico — Produção SBP</h2>
+    <div style="display:flex; align-items:center; gap:16px; flex-wrap:wrap;">
+      <div class="busca-wrap">
+        <i class="ti ti-search fi" aria-hidden="true"></i>
+        <input type="text" id="busca-historico" placeholder="Buscar por ID, cliente ou produto..." oninput="buscarHistorico(this.value)">
+      </div>
+      <a class="link-secundario" href="/wallac"><i class="ti ti-arrow-left" aria-hidden="true"></i> Voltar ao painel</a>
+    </div>
+  </div>
+
+  <div class="historico-lista" id="historico-lista"></div>
+</div>
+
+<div class="wallac-lightbox" id="lightbox" onclick="fecharLogo()">
+  <img id="lightboxImg" src="" alt="logo ampliado">
+</div>
+
+<script src="/js/wallac-historico.js"></script>
+</body>
+</html>

@@ -13,6 +13,11 @@
   <div class="wallac-header">
     <h2><i class="ti ti-packages" aria-hidden="true"></i> Painel de Produção SBP Escritório</h2>
     <div style="display:flex; align-items:center; gap:16px; flex-wrap:wrap;">
+      <div class="busca-wrap">
+        <i class="ti ti-search fi" aria-hidden="true"></i>
+        <input type="text" id="busca-kanban" placeholder="Buscar por ID, cliente ou produto..." oninput="buscarCards(this.value)">
+      </div>
+      <a class="link-secundario" href="/wallac/historico"><i class="ti ti-history" aria-hidden="true"></i> Histórico</a>
       <% if (usuario.slug === 'wallac') { %>
         <a class="link-secundario" href="/wallac/estoque"><i class="ti ti-boxes" aria-hidden="true"></i> Gestão de estoque</a>
       <% } %>
@@ -36,6 +41,7 @@
     <div class="coluna" data-status="Finalizado">
       <div class="coluna-titulo"><span>Finalizado</span><span id="contagem-Finalizado">0</span></div>
       <div class="cards" id="col-Finalizado"></div>
+      <a href="/wallac/historico" id="aviso-historico" class="aviso-historico" style="display:none;"></a>
     </div>
   </div>
 </div>

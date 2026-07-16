@@ -10,6 +10,13 @@ router.get('/', requireAuth, requirePainel('wallac'), (req, res) => {
   res.render('wallac/index');
 });
 
+// Histórico de finalizados — mesma fonte de dados do kanban (/api/cards),
+// só filtrando por status no cliente (essa planilha não tem uma ação
+// separada de histórico no Apps Script).
+router.get('/historico', requireAuth, requirePainel('wallac'), (req, res) => {
+  res.render('wallac/historico');
+});
+
 router.get('/api/cards', requireAuth, requirePainel('wallac'), async (req, res) => {
   try {
     const json = await chamarAppsScript(env.wallacAppsScriptUrl);

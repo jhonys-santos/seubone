@@ -21,7 +21,10 @@ const TEXTO_BOTAO = {
 };
 
 const INTERVALO_POLLING = 20000; // 20s
+const MAX_FINALIZADOS_NO_BOARD = 8; // resto fica só no histórico (/wallac/historico)
 let arrastando = false;
+let cardsAtuais = [];
+let termoBusca = '';
 
 function diasRestantes(prazoISO) {
   if (!prazoISO) return null;
@@ -113,6 +116,13 @@ function renderizarBoard(cards) {
   const porColuna = { 'A chegar': [], 'Recebido': [], 'Em produção': [], 'Finalizado': [] };
   cards.forEach(c => { if (porColuna[c.status]) porColuna[c.status].push(c); });
 
+  // "Finalizado" só cresce e nunca esvazia — sem uma busca ativa, mostra só
+  // os mais recentes no board; o resto fica disponível em /wallac/historico.
+  const totalFinalizados = porColuna['Finalizado'].length;
+  if (!termoBusca && totalFinalizados > MAX_FINALIZADOS_NO_BOARD) {
+    porColuna['Finalizado'] = porColuna['Finalizado'].slice(-MAX_FINALIZADOS_NO_BOARD);
+  }
+
   COLUNAS.forEach(status => {
     const container = document.getElementById('col-' + status);
     container.innerHTML = '';
@@ -123,6 +133,32 @@ function renderizarBoard(cards) {
     }
     document.getElementById('contagem-' + status).textContent = porColuna[status].length;
   });
+
+  const avisoHistorico = document.getElementById('aviso-historico');
+  if (avisoHistorico) {
+    const escondidos = totalFinalizados - porColuna['Finalizado'].length;
+    avisoHistorico.style.display = escondidos > 0 ? 'block' : 'none';
+    if (escondidos > 0) {
+      avisoHistorico.textContent = `+ ${escondidos} finalizado(s) mais antigo(s) no histórico`;
+    }
+  }
+}
+
+function renderizarBoardFiltrado() {
+  const termo = termoBusca.trim().toLowerCase();
+  const cards = !termo
+    ? cardsAtuais
+    : cardsAtuais.filter((c) =>
+        String(c.id_venda || '').toLowerCase().includes(termo) ||
+        String(c.nome_card || '').toLowerCase().includes(termo) ||
+        String(c.produto || '').toLowerCase().includes(termo)
+      );
+  renderizarBoard(cards);
+}
+
+function buscarCards(valor) {
+  termoBusca = valor;
+  renderizarBoardFiltrado();
 }
 
 async function carregarDados() {
@@ -131,7 +167,8 @@ async function carregarDados() {
     const resp = await fetch(`${API_BASE}/cards`);
     const dados = await resp.json();
     if (dados.ok) {
-      renderizarBoard(dados.cards);
+      cardsAtuais = dados.cards;
+      renderizarBoardFiltrado();
       document.getElementById('status-conexao').textContent =
         'Atualizado às ' + new Date().toLocaleTimeString('pt-BR');
     } else {
