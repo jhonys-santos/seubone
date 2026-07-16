@@ -147,7 +147,15 @@ button.acao:active { transform: scale(0.98); }
 .card-logo-thumb {
   max-width: 56px; max-height: 56px; border-radius: var(--radius-sm);
   margin: 6px 0; display: block; border: 1px solid var(--border);
+  cursor: zoom-in; object-fit: cover;
 }
+
+.wallac-lightbox {
+  display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.88);
+  z-index: 100; align-items: center; justify-content: center; cursor: zoom-out; padding: 30px;
+}
+.wallac-lightbox.aberto { display: flex; }
+.wallac-lightbox img { max-width: 100%; max-height: 100%; border-radius: var(--radius-sm); }
 
 @media (max-width: 900px) { .board { grid-template-columns: 1fr; } }
 

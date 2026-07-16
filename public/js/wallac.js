@@ -46,6 +46,27 @@ function formatarDataBR(iso) {
   return `${dia}/${mes}`;
 }
 
+// Logo vem como link do Google Drive (ex: .../uc?id=XXX), que o Drive às
+// vezes recusa exibir direto como <img> (hotlink). O endpoint /thumbnail
+// funciona de verdade pra isso — mesmo padrão já usado no Pedidos Urgentes.
+function driveIdDeUrl(url) {
+  const m = String(url || '').match(/[-\w]{25,}/);
+  return m ? m[0] : null;
+}
+function thumbDrive(url, tamanho) {
+  const id = driveIdDeUrl(url);
+  return id ? `https://drive.google.com/thumbnail?id=${id}&sz=${tamanho}` : url;
+}
+
+function abrirLogo(url) {
+  document.getElementById('lightboxImg').src = thumbDrive(url, 'w1000');
+  document.getElementById('lightbox').classList.add('aberto');
+}
+function fecharLogo() {
+  document.getElementById('lightbox').classList.remove('aberto');
+  document.getElementById('lightboxImg').src = '';
+}
+
 function renderizarCard(card) {
   const cor = corUrgencia(card);
   const dias = diasRestantes(card.prazo_entrega);
@@ -72,7 +93,7 @@ function renderizarCard(card) {
   const seloOrigem = card.origem === 'estoque' ? `<span class="selo-origem">estoque</span>` : '';
   const linhaObs = card.observacoes ? `<div class="card-obs">${card.observacoes}</div>` : '';
   const linhaLogo = card.logo_url
-    ? `<a href="${card.logo_url}" target="_blank"><img src="${card.logo_url}" class="card-logo-thumb" alt="logo"></a>`
+    ? `<img src="${thumbDrive(card.logo_url, 'w100')}" class="card-logo-thumb" alt="logo" onclick="abrirLogo('${card.logo_url}')">`
     : '';
 
   div.innerHTML = `
