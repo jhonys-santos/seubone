@@ -12,7 +12,13 @@
 <div class="wallac-container">
   <div class="wallac-header">
     <h2><i class="ti ti-packages" aria-hidden="true"></i> Painel de Produção SBP Escritório</h2>
-    <div id="status-conexao">Carregando...</div>
+    <div style="display:flex; align-items:center; gap:16px; flex-wrap:wrap;">
+      <a class="link-secundario" href="/wallac/solicitar" target="_blank"><i class="ti ti-plus" aria-hidden="true"></i> Solicitar personalização</a>
+      <% if (usuario.slug === 'wallac') { %>
+        <a class="link-secundario" href="/wallac/estoque"><i class="ti ti-boxes" aria-hidden="true"></i> Gestão de estoque</a>
+      <% } %>
+      <div id="status-conexao">Carregando...</div>
+    </div>
   </div>
 
   <div class="board">

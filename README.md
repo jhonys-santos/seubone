@@ -4,7 +4,7 @@ Painel único com login, para colaboradores verem seus próprios indicadores e
 gestores verem de todos. Reúne 4 painéis que antes eram HTMLs soltos:
 
 - **Meus Indicadores** (`/painel-sac`) — indicadores pessoais, escala, trocas de sábado, sugestões
-- **Produção — Wallac** (`/wallac`) — kanban de pedidos em produção
+- **Produção SBP — Wallac** (`/wallac`) — kanban de pedidos em produção; inclui `/wallac/estoque` (gestão de estoque, só o login do Wallac) e `/wallac/solicitar` (pedido de personalização, página **pública** — pode ser compartilhada com quem não tem login no hub)
 - **Pedidos Urgentes** (`/pedidos-urgentes/*`) — cadastro, painel do estoque e histórico
 - **Ranking SAC** (`/ranking-sac`) — painel de TV com o "ranking de corrida" entre consultores
 

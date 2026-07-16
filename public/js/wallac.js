@@ -1,8 +1,9 @@
-// Kanban de produção Wallac — portado de Wallac/index.html original.
-// Única mudança real: os endpoints agora são /wallac/api/... (proxy do hub)
-// em vez do Apps Script direto, então a resposta do POST já vem legível
-// (sem precisar de mode:'no-cors', que só existia por causa do fetch direto
-// do navegador para o domínio do Google).
+// Kanban de produção Wallac — portado da nova versão do painel (nova
+// planilha/Apps Script, identificador do card agora é "chave" em vez de
+// "linha_ltv"). Endpoints continuam em /wallac/api/... (proxy do hub) em
+// vez do Apps Script direto, então a resposta do POST já vem legível (sem
+// precisar de mode:'no-cors', que só existia por causa do fetch direto do
+// navegador para o domínio do Google).
 
 const API_BASE = '/wallac/api';
 
@@ -50,7 +51,7 @@ function renderizarCard(card) {
   const dias = diasRestantes(card.prazo_entrega);
   const div = document.createElement('div');
   div.className = `card status-${cor}`;
-  div.dataset.linha = card.linha_ltv;
+  div.dataset.chave = card.chave;
   div.dataset.status = card.status;
 
   let tagTexto = '';
@@ -65,14 +66,22 @@ function renderizarCard(card) {
   }
 
   const botao = PROXIMO_STATUS[card.status]
-    ? `<button class="acao" onclick="mudarStatus(${card.linha_ltv}, '${PROXIMO_STATUS[card.status]}')">${TEXTO_BOTAO[card.status]} <i class="ti ti-arrow-right" aria-hidden="true"></i></button>`
+    ? `<button class="acao" onclick="mudarStatus('${card.chave}', '${PROXIMO_STATUS[card.status]}')">${TEXTO_BOTAO[card.status]} <i class="ti ti-arrow-right" aria-hidden="true"></i></button>`
+    : '';
+
+  const seloOrigem = card.origem === 'estoque' ? `<span class="selo-origem">estoque</span>` : '';
+  const linhaObs = card.observacoes ? `<div class="card-obs">${card.observacoes}</div>` : '';
+  const linhaLogo = card.logo_url
+    ? `<a href="${card.logo_url}" target="_blank"><img src="${card.logo_url}" class="card-logo-thumb" alt="logo"></a>`
     : '';
 
   div.innerHTML = `
-    <div class="card-id">#${card.id_venda} - ${card.nome_card || ''}</div>
+    <div class="card-id">#${card.id_venda} ${card.nome_card ? '- ' + card.nome_card : ''}${seloOrigem}</div>
     <div class="card-produto">${card.produto || ''} · Qtd: ${card.quantidade || '-'}</div>
     <div class="card-linha"><span>Produção até</span><span>${formatarDataBR(card.prazo_producao)}</span></div>
     <div class="card-linha"><span>Entrega cliente</span><span>${formatarDataBR(card.prazo_entrega)}</span></div>
+    ${linhaObs}
+    ${linhaLogo}
     <span class="tag-urgencia ${cor === 'finalizado' ? 'verde' : cor}">${tagTexto}</span>
     ${botao}
   `;
@@ -112,11 +121,11 @@ async function carregarDados() {
   }
 }
 
-function mudarStatus(linhaLtv, novoStatus) {
+function mudarStatus(chave, novoStatus) {
   fetch(`${API_BASE}/status`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ linha_ltv: linhaLtv, novo_status: novoStatus })
+    body: JSON.stringify({ chave: chave, novo_status: novoStatus })
   }).finally(() => setTimeout(carregarDados, 600));
 }
 
@@ -130,9 +139,9 @@ COLUNAS.forEach(status => {
     onEnd: (evt) => {
       arrastando = false;
       const novoStatus = evt.to.closest('.coluna').dataset.status;
-      const linha = evt.item.dataset.linha;
+      const chave = evt.item.dataset.chave;
       if (novoStatus !== evt.item.dataset.status) {
-        mudarStatus(Number(linha), novoStatus);
+        mudarStatus(chave, novoStatus);
       }
     }
   });

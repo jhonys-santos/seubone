@@ -4,13 +4,16 @@ const usuariosService = require('../services/usuarios.service');
 
 const router = express.Router();
 
-router.use(requireAuth);
-
-router.get('/perfil', (req, res) => {
+// requireAuth precisa ser middleware de ROTA (não router.use()): esse router
+// é montado na raiz do app, então router.use() sem caminho intercepta TODA
+// requisição que passa por ele — inclusive rotas de outros módulos que
+// deveriam ser públicas, como /wallac/solicitar (mesma classe de bug já
+// corrigida antes no rate limiter do /setup).
+router.get('/perfil', requireAuth, (req, res) => {
   res.render('perfil', { erro: null, sucesso: null });
 });
 
-router.post('/perfil/senha', async (req, res) => {
+router.post('/perfil/senha', requireAuth, async (req, res) => {
   const { senhaAtual, senhaNova, senhaNovaConfirmar } = req.body;
 
   if (!senhaAtual || !senhaNova || !senhaNovaConfirmar) {

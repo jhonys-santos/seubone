@@ -23,6 +23,12 @@
   content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--ok);
 }
 
+.link-secundario {
+  font-size: 12px; font-weight: 600; color: var(--gold);
+  text-decoration: none; display: flex; align-items: center; gap: 5px;
+}
+.link-secundario:hover { text-decoration: underline; }
+
 .board {
   display: grid;
   grid-template-columns: repeat(4, minmax(260px, 1fr));
@@ -108,4 +114,87 @@ button.acao:active { transform: scale(0.98); }
 
 .vazio { font-size: 12px; color: var(--text-hint); text-align: center; padding: 24px 0; }
 
+.selo-origem {
+  font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
+  color: var(--gold); background: var(--gold-dim); border: 1px solid var(--gold-dark);
+  padding: 1px 6px; border-radius: 4px; margin-left: 5px;
+}
+
+.card-obs {
+  font-size: 11.5px; color: var(--text-muted); font-style: italic; margin: 4px 0;
+}
+
+.card-logo-thumb {
+  max-width: 56px; max-height: 56px; border-radius: var(--radius-sm);
+  margin: 6px 0; display: block; border: 1px solid var(--border);
+}
+
 @media (max-width: 900px) { .board { grid-template-columns: 1fr; } }
+
+/* ── GESTÃO DE ESTOQUE ───────────────────────────────────────── */
+.estoque-container { max-width: 640px; margin: 0 auto; padding: 24px 24px 60px; }
+.estoque-container h2 { font-size: 17px; font-weight: 700; margin: 0 0 4px; display: flex; align-items: center; gap: 9px; }
+.estoque-container h2 i { color: var(--gold); font-size: 19px; }
+.estoque-sub { font-size: 12.5px; color: var(--text-muted); margin-bottom: 20px; }
+
+table.estoque-tabela {
+  width: 100%; border-collapse: collapse; font-size: 13px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  overflow: hidden;
+}
+table.estoque-tabela th {
+  text-align: left; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--text-muted); padding: 10px 12px; border-bottom: 1px solid var(--border);
+}
+table.estoque-tabela td { padding: 8px 12px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+table.estoque-tabela tr:last-child td { border-bottom: none; }
+table.estoque-tabela input[type="text"], table.estoque-tabela input[type="number"] {
+  width: 100%; background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 6px 8px; color: var(--text);
+  font-size: 13px; font-family: inherit;
+}
+table.estoque-tabela input:focus { outline: none; border-color: var(--gold-dark); }
+td.col-qtd { width: 90px; }
+td.col-acoes { width: 140px; white-space: nowrap; }
+
+.estoque-tabela button { border: none; border-radius: var(--radius-sm); padding: 6px 10px; font-size: 12px; font-weight: 700; cursor: pointer; margin-right: 4px; font-family: inherit; }
+.estoque-tabela button.salvar { background: var(--gold); color: var(--on-gold); }
+.estoque-tabela button.remover { background: var(--bad-bg); color: var(--bad); }
+
+.linha-nova td { background: var(--gold-dim); }
+button.adicionar { background: var(--gold); color: var(--on-gold); width: 100%; padding: 10px; margin-top: 14px; border: none; border-radius: var(--radius-sm); font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; }
+
+/* ── SOLICITAR PERSONALIZAÇÃO (pública) ─────────────────────── */
+.solicitar-page { min-height: calc(100vh - 60px); display: flex; justify-content: center; padding: 32px 20px; }
+.solicitar-container { width: 100%; max-width: 480px; }
+.solicitar-container h1 { font-size: 18px; color: var(--gold); margin-bottom: 4px; }
+.solicitar-sub { font-size: 12.5px; color: var(--text-muted); margin-bottom: 20px; }
+.solicitar-container form {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 20px;
+}
+.solicitar-container label {
+  display: block; font-size: 11px; font-weight: 600; color: var(--text-muted);
+  text-transform: uppercase; letter-spacing: 0.06em; margin: 14px 0 6px;
+}
+.solicitar-container label:first-of-type { margin-top: 0; }
+.solicitar-container select, .solicitar-container input, .solicitar-container textarea {
+  width: 100%; background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 10px 12px; color: var(--text);
+  font-size: 14px; font-family: inherit;
+}
+.solicitar-container select:focus, .solicitar-container input:focus, .solicitar-container textarea:focus {
+  outline: none; border-color: var(--gold-dark); box-shadow: 0 0 0 3px var(--gold-dim);
+}
+.solicitar-container textarea { resize: vertical; min-height: 60px; }
+#qtd-disponivel { font-size: 11px; color: var(--text-hint); margin-top: 3px; }
+#preview-logo { max-width: 100px; max-height: 100px; border-radius: var(--radius-sm); margin-top: 8px; display: none; border: 1px solid var(--border); }
+.solicitar-container button[type="submit"] {
+  width: 100%; margin-top: 20px; background: var(--gold); color: var(--on-gold);
+  border: none; border-radius: var(--radius-sm); padding: 12px; font-size: 14px; font-weight: 700;
+  cursor: pointer; font-family: inherit;
+}
+.solicitar-container button[type="submit"]:disabled { opacity: 0.6; cursor: not-allowed; }
+.solicitar-container #mensagem { margin-top: 14px; font-size: 13px; padding: 10px 12px; border-radius: var(--radius-sm); display: none; }
+.solicitar-container #mensagem.sucesso { background: var(--ok-bg); color: var(--ok); display: block; }
+.solicitar-container #mensagem.erro { background: var(--bad-bg); color: var(--bad); display: block; }

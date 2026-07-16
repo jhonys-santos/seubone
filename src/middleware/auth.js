@@ -33,4 +33,20 @@ function requirePainel(painel) {
   };
 }
 
-module.exports = { requireAuth, requireRole, requirePainel };
+// Restringe a UM usuário específico (pelo slug), não por papel/painéis —
+// usado em telas administrativas de uso pessoal (ex: gestão de estoque do
+// Wallac), que não fazem sentido no modelo geral de permissões do hub.
+function requireSlug(slug) {
+  return (req, res, next) => {
+    if (!req.session.user || req.session.user.slug !== slug) {
+      return res.status(403).render('erro', {
+        titulo: 'Acesso negado',
+        mensagem: 'Você não tem permissão para acessar esta página.',
+        usuario: req.session.user || null,
+      });
+    }
+    next();
+  };
+}
+
+module.exports = { requireAuth, requireRole, requirePainel, requireSlug };

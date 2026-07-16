@@ -1,17 +1,16 @@
 const express = require('express');
-const { requireAuth, requirePainel } = require('../middleware/auth');
+const { requireAuth, requirePainel, requireSlug } = require('../middleware/auth');
 const { chamarAppsScript } = require('../services/appsScriptClient');
 const env = require('../config/env');
 
 const router = express.Router();
 
-router.use(requireAuth, requirePainel('wallac'));
-
-router.get('/', (req, res) => {
+// ── Painel de produção (kanban) — precisa estar logado e ter acesso ao painel wallac ──
+router.get('/', requireAuth, requirePainel('wallac'), (req, res) => {
   res.render('wallac/index');
 });
 
-router.get('/api/cards', async (req, res) => {
+router.get('/api/cards', requireAuth, requirePainel('wallac'), async (req, res) => {
   try {
     const json = await chamarAppsScript(env.wallacAppsScriptUrl);
     res.json(json);
@@ -20,18 +19,106 @@ router.get('/api/cards', async (req, res) => {
   }
 });
 
-router.post('/api/status', async (req, res) => {
+router.post('/api/status', requireAuth, requirePainel('wallac'), async (req, res) => {
   try {
-    const { linha_ltv, novo_status } = req.body;
-    // A chamada servidor→Apps Script não precisa de no-cors (isso só existe
-    // no navegador); aqui já conseguimos ler a resposta real do Google.
+    const { chave, novo_status } = req.body;
     const json = await chamarAppsScript(env.wallacAppsScriptUrl, {
       method: 'POST',
-      body: { linha_ltv, novo_status },
+      body: { acao: 'mudar_status', chave, novo_status },
     });
     res.json(json && typeof json === 'object' ? json : { ok: true });
   } catch (err) {
     res.status(502).json({ ok: false, erro: 'Falha ao atualizar status: ' + err.message });
+  }
+});
+
+// ── Gestão de estoque — só o login do Wallac, ninguém mais ────────────────
+router.get('/estoque', requireAuth, requireSlug('wallac'), (req, res) => {
+  res.render('wallac/estoque');
+});
+
+router.get('/api/estoque-admin', requireAuth, requireSlug('wallac'), async (req, res) => {
+  try {
+    const json = await chamarAppsScript(env.wallacAppsScriptUrl, { params: { acao: 'estoque_admin' } });
+    res.json(json);
+  } catch (err) {
+    res.status(502).json({ ok: false, erro: 'Falha ao buscar estoque: ' + err.message });
+  }
+});
+
+router.post('/api/estoque/adicionar', requireAuth, requireSlug('wallac'), async (req, res) => {
+  try {
+    const { produto, quantidade } = req.body;
+    const json = await chamarAppsScript(env.wallacAppsScriptUrl, {
+      method: 'POST',
+      body: { acao: 'estoque_adicionar', produto, quantidade },
+    });
+    res.json(json);
+  } catch (err) {
+    res.status(502).json({ ok: false, erro: 'Falha ao adicionar produto: ' + err.message });
+  }
+});
+
+router.post('/api/estoque/editar', requireAuth, requireSlug('wallac'), async (req, res) => {
+  try {
+    const { linha, produto, quantidade } = req.body;
+    const json = await chamarAppsScript(env.wallacAppsScriptUrl, {
+      method: 'POST',
+      body: { acao: 'estoque_editar', linha, produto, quantidade },
+    });
+    res.json(json);
+  } catch (err) {
+    res.status(502).json({ ok: false, erro: 'Falha ao editar produto: ' + err.message });
+  }
+});
+
+router.post('/api/estoque/remover', requireAuth, requireSlug('wallac'), async (req, res) => {
+  try {
+    const { linha } = req.body;
+    const json = await chamarAppsScript(env.wallacAppsScriptUrl, {
+      method: 'POST',
+      body: { acao: 'estoque_remover', linha },
+    });
+    res.json(json);
+  } catch (err) {
+    res.status(502).json({ ok: false, erro: 'Falha ao remover produto: ' + err.message });
+  }
+});
+
+// ── Solicitar personalização — página pública, sem login. Pode ser
+// compartilhada com gente de fora do hub (outro setor); por isso mesmo o
+// navegador continua sem falar direto com o Apps Script — passa pelo
+// servidor, que é quem guarda a URL/segredo.
+router.get('/solicitar', (req, res) => {
+  res.render('wallac/solicitar');
+});
+
+router.get('/api/estoque-publico', async (req, res) => {
+  try {
+    const json = await chamarAppsScript(env.wallacAppsScriptUrl, { params: { acao: 'estoque' } });
+    res.json(json);
+  } catch (err) {
+    res.status(502).json({ ok: false, erro: 'Falha ao buscar estoque: ' + err.message });
+  }
+});
+
+router.post('/api/solicitar', async (req, res) => {
+  try {
+    const {
+      produto, eh_outro, quantidade, id_venda_cliente,
+      prazo_producao, prazo_entrega, observacoes, logo_base64, logo_nome,
+    } = req.body;
+    const json = await chamarAppsScript(env.wallacAppsScriptUrl, {
+      method: 'POST',
+      body: {
+        acao: 'solicitar_personalizacao',
+        produto, eh_outro, quantidade, id_venda_cliente,
+        prazo_producao, prazo_entrega, observacoes, logo_base64, logo_nome,
+      },
+    });
+    res.json(json);
+  } catch (err) {
+    res.status(502).json({ ok: false, erro: 'Falha ao enviar solicitação: ' + err.message });
   }
 });
 

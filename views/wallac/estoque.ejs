@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<%- include('../partials/head') %>
+<title>Gestão de Estoque — SBP — SeuBoné</title>
+<link rel="stylesheet" href="/css/wallac.css">
+</head>
+<body>
+<%- include('../partials/nav') %>
+
+<div class="estoque-container">
+  <h2><i class="ti ti-boxes" aria-hidden="true"></i> Gestão de Estoque — SBP</h2>
+  <div class="estoque-sub">Adicionar, editar ou remover produtos disponíveis para personalização.</div>
+
+  <table class="estoque-tabela">
+    <thead>
+      <tr>
+        <th>Produto</th>
+        <th>Quantidade</th>
+        <th>Ações</th>
+      </tr>
+    </thead>
+    <tbody id="corpo-tabela">
+      <tr><td colspan="3" class="vazio">Carregando...</td></tr>
+    </tbody>
+    <tbody>
+      <tr class="linha-nova">
+        <td><input type="text" id="novo-produto" placeholder="Nome do produto novo"></td>
+        <td class="col-qtd"><input type="number" id="nova-quantidade" min="0" value="0"></td>
+        <td class="col-acoes"><button class="adicionar" onclick="adicionarProduto()">+ Adicionar</button></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div id="mensagem"></div>
+</div>
+
+<script src="/js/wallac-estoque.js"></script>
+</body>
+</html>

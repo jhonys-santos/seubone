@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<%- include('../partials/head') %>
+<title>Solicitar Personalização — SeuBoné</title>
+<link rel="stylesheet" href="/css/wallac.css">
+</head>
+<body>
+<%- include('../partials/nav') %>
+
+<div class="solicitar-page">
+<div class="solicitar-container">
+  <h1>Solicitar Personalização</h1>
+  <div class="solicitar-sub">Só aparecem produtos com quantidade disponível em estoque.</div>
+
+  <form id="form-solicitacao">
+    <label for="produto">Produto</label>
+    <select id="produto" required>
+      <option value="">Carregando produtos...</option>
+    </select>
+    <div id="qtd-disponivel"></div>
+
+    <div id="grupo-outros" style="display:none;">
+      <label for="produto-outros">Digite o produto</label>
+      <input type="text" id="produto-outros" placeholder="Nome do produto">
+    </div>
+
+    <label for="quantidade">Quantidade</label>
+    <input type="number" id="quantidade" min="1" required>
+
+    <label for="id-venda-cliente">ID venda / Cliente</label>
+    <input type="text" id="id-venda-cliente" placeholder="Ex: 95213 ou nome do cliente" required>
+
+    <label for="prazo-producao">Prazo de produção</label>
+    <input type="date" id="prazo-producao" required>
+
+    <label for="prazo-entrega">Prazo de entrega ao cliente</label>
+    <input type="date" id="prazo-entrega" required>
+
+    <label for="observacoes">Observações</label>
+    <textarea id="observacoes" placeholder="Detalhes da personalização, cores, posição do logo, etc."></textarea>
+
+    <label for="logo">Logo (imagem)</label>
+    <input type="file" id="logo" accept="image/*" required>
+    <img id="preview-logo" alt="preview">
+
+    <button type="submit" id="botao-enviar">Enviar solicitação</button>
+    <div id="mensagem"></div>
+  </form>
+</div>
+</div>
+
+<script src="/js/wallac-solicitar.js"></script>
+</body>
+</html>
