@@ -128,15 +128,6 @@ function popularSeletorSemanas(mes, ano, idxParaManter) {
 
 document.getElementById('month-select').value = mesHoje;
 
-function toggleTema() {
-  const isLight = document.body.classList.toggle('light');
-  const icon = document.getElementById('theme-icon');
-  const lbl  = document.getElementById('theme-label');
-  if (icon) icon.className   = isLight ? 'ti ti-moon' : 'ti ti-sun';
-  if (lbl)  lbl.textContent  = isLight ? 'Escuro' : 'Claro';
-  try { localStorage.setItem('sb_tema', isLight ? 'light' : 'dark'); } catch(e) {}
-}
-
 // ── EM CONSTRUÇÃO (colaborador ainda sem KPIs mapeados na planilha) ──
 function mostrarEmConstrucao() {
   document.getElementById('loading-screen').classList.remove('show');
@@ -1113,15 +1104,8 @@ async function excluirAcesso(i) {
 }
 
 // ── Init ───────────────────────────────────────────────────────
-try {
-  if (localStorage.getItem('sb_tema') === 'light') {
-    document.body.classList.add('light');
-    const icon = document.getElementById('theme-icon');
-    const lbl  = document.getElementById('theme-label');
-    if (icon) icon.className  = 'ti ti-moon';
-    if (lbl)  lbl.textContent = 'Escuro';
-  }
-} catch(e) {}
+// O tema claro/escuro agora é aplicado globalmente por /js/ui.js (mesma
+// chave 'sb_tema'), antes deste script rodar — nada a fazer aqui.
 popularSeletorSemanas(mesAtual, anoHoje);
 document.getElementById('week-select-wrap').classList.add('show');
 

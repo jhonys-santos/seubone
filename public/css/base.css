@@ -31,6 +31,26 @@
   --shadow-sm: 0 2px 10px rgba(0,0,0,0.25);
 }
 
+/* ── MODO CLARO ───────────────────────────────────────────── */
+/* A classe fica em <html> (não <body>) pra aplicar antes do body existir
+   e evitar o flash de tema errado ao carregar a página. */
+html.light {
+  --bg: #F5F5F2;
+  --surface: #FFFFFF;
+  --surface-2: #EEEEE8;
+  --surface-3: #E4E4DC;
+  --border: rgba(0,0,0,0.1);
+  --border-strong: rgba(0,0,0,0.18);
+
+  --gold: #A88600;
+  --gold-dark: #7A6200;
+  --gold-dim: rgba(168,134,0,0.12);
+
+  --text: #1A1A18;
+  --text-muted: #515150;
+  --text-hint: #8A8A84;
+}
+
 * { box-sizing: border-box; }
 
 html, body {
@@ -73,7 +93,7 @@ i.ti { line-height: 1; }
 .hub-brand-text .gold { color: var(--gold); }
 .hub-brand-text .sub { color: var(--text-hint); font-weight: 400; margin-left: 6px; font-size: 12.5px; }
 
-.hub-user { display: flex; align-items: center; gap: 12px; }
+.hub-user { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; justify-content: flex-end; }
 .hub-user-info { display: flex; align-items: center; gap: 10px; }
 .hub-avatar {
   width: 32px; height: 32px; border-radius: 50%;
@@ -93,6 +113,13 @@ i.ti { line-height: 1; }
   font-family: inherit; display: flex; align-items: center; gap: 6px; transition: all .15s;
 }
 .hub-logout:hover { border-color: var(--bad); color: var(--bad); background: var(--bad-bg); }
+
+.hub-theme-toggle {
+  background: none; border: 1px solid var(--border); color: var(--text-muted);
+  border-radius: var(--radius-sm); padding: 7px 13px; font-size: 12px; cursor: pointer;
+  font-family: inherit; display: flex; align-items: center; gap: 6px; transition: all .15s;
+}
+.hub-theme-toggle:hover { border-color: var(--gold-dark); color: var(--gold); }
 
 .hub-container { max-width: 1080px; margin: 0 auto; padding: 32px 24px 64px; }
 

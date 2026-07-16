@@ -12,6 +12,7 @@
         <span class="hub-role-badge"><%= usuario.role %></span>
       </div>
     </div>
+    <button type="button" class="hub-theme-toggle" onclick="alternarTema()"><i class="ti ti-sun" data-tema-icon aria-hidden="true"></i> <span data-tema-label>Claro</span></button>
     <a href="/perfil" class="hub-logout" style="text-decoration:none;"><i class="ti ti-user-cog" aria-hidden="true"></i> Perfil</a>
     <form action="/logout" method="POST" style="margin:0;">
       <button type="submit" class="hub-logout"><i class="ti ti-logout-2" aria-hidden="true"></i> Sair</button>

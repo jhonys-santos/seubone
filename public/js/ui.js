@@ -1,3 +1,46 @@
+// Alternador de tema claro/escuro — global, carregado em toda página.
+// A classe fica em <html> (não <body>) e roda aqui no <head>, antes do
+// <body> existir, pra aplicar o tema salvo sem dar flash da cor errada.
+// Mesma classe/localStorage que o Painel SAC já usava no seu próprio botão
+// (agora unificado): document.documentElement.classList + 'sb_tema'.
+(function () {
+  const CHAVE_TEMA = 'sb_tema';
+
+  function estaClaro() {
+    return document.documentElement.classList.contains('light');
+  }
+
+  function atualizarBotoes() {
+    const claro = estaClaro();
+    document.querySelectorAll('[data-tema-icon]').forEach((el) => {
+      el.className = 'ti ' + (claro ? 'ti-moon' : 'ti-sun');
+    });
+    document.querySelectorAll('[data-tema-label]').forEach((el) => {
+      el.textContent = claro ? 'Escuro' : 'Claro';
+    });
+  }
+
+  function aplicarTemaSalvo() {
+    try {
+      if (localStorage.getItem(CHAVE_TEMA) === 'light') {
+        document.documentElement.classList.add('light');
+      }
+    } catch (e) {}
+  }
+
+  function alternarTema() {
+    const claro = document.documentElement.classList.toggle('light');
+    try { localStorage.setItem(CHAVE_TEMA, claro ? 'light' : 'dark'); } catch (e) {}
+    atualizarBotoes();
+  }
+
+  aplicarTemaSalvo();
+  window.alternarTema = alternarTema;
+  // Os botões só existem depois que o <body> é parseado — atualiza os
+  // ícones/labels assim que o DOM estiver pronto.
+  document.addEventListener('DOMContentLoaded', atualizarBotoes);
+})();
+
 // Substitui os alert()/confirm() nativos do navegador (que bloqueiam a
 // página inteira e destoam do resto do visual) por um diálogo no mesmo
 // padrão do hub. Carregado em toda página via partials/head.
