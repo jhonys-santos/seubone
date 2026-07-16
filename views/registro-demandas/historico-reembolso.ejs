@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<%- include('../partials/head') %>
+<title>Histórico de Reembolsos — SeuBoné</title>
+<link rel="stylesheet" href="/css/pedidos-urgentes.css">
+</head>
+<body>
+<%- include('../partials/nav') %>
+<%- include('_subnav', { pagina: 'historico-reembolso' }) %>
+
+<div class="pu-scope">
+<div class="pu-container">
+  <div class="filters">
+    <div>
+      <label>De</label>
+      <input type="date" id="ft-de">
+    </div>
+    <div>
+      <label>Até</label>
+      <input type="date" id="ft-ate">
+    </div>
+    <div>
+      <label>Status</label>
+      <select id="ft-status">
+        <option value="">Todos</option>
+        <option value="Pendente">Pendentes</option>
+        <option value="Feito">Feitos</option>
+      </select>
+    </div>
+    <div>
+      <label>Banco</label>
+      <select id="ft-banco">
+        <option value="">Todos</option>
+        <option>Banco do Brasil</option>
+        <option>Itaú</option>
+        <option>Bradesco</option>
+        <option>Santander</option>
+        <option>Caixa Econômica Federal</option>
+        <option>Nubank</option>
+        <option>Banco Inter</option>
+        <option>C6 Bank</option>
+        <option>Sicoob</option>
+        <option>Sicredi</option>
+        <option>Outro</option>
+      </select>
+    </div>
+    <div>
+      <label>Empresa</label>
+      <select id="ft-empresa">
+        <option value="">Todas</option>
+        <option>SeuBoné</option>
+      </select>
+    </div>
+    <div>
+      <label>Buscar (ID, cliente ou CPF/CNPJ)</label>
+      <input type="text" id="ft-busca" placeholder="Digite pra filtrar">
+    </div>
+    <div>
+      <button class="btn-primary" id="btn-filtrar" style="margin-top:0;width:auto;"><i class="ti ti-filter" aria-hidden="true"></i> Filtrar</button>
+    </div>
+  </div>
+
+  <div id="tabela">
+    <table>
+      <thead>
+        <tr>
+          <th>Vencimento</th>
+          <th>ID</th>
+          <th>CPF/CNPJ</th>
+          <th>Cliente</th>
+          <th>Motivo</th>
+          <th>Banco</th>
+          <th>Agência</th>
+          <th>Conta</th>
+          <th>Pix</th>
+          <th>Valor</th>
+          <th>Empresa</th>
+          <th>Anexos</th>
+          <th>Status</th>
+          <th>Feito por</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+    <div class="empty" id="empty" style="display:none">Nenhuma solicitação de reembolso encontrada no período.</div>
+  </div>
+</div>
+</div>
+
+<script src="/js/registro-demandas-historico-reembolso.js"></script>
+</body>
+</html>

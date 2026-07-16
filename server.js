@@ -22,6 +22,7 @@ const painelSacRoutes = require('./src/routes/painelSac.routes');
 const wallacRoutes = require('./src/routes/wallac.routes');
 const pedidosUrgentesRoutes = require('./src/routes/pedidosUrgentes.routes');
 const rankingSacRoutes = require('./src/routes/rankingSac.routes');
+const registroDemandasRoutes = require('./src/routes/registroDemandas.routes');
 
 const app = express();
 
@@ -79,6 +80,7 @@ app.use('/painel-sac', painelSacRoutes);
 app.use('/wallac', wallacRoutes);
 app.use('/pedidos-urgentes', pedidosUrgentesRoutes);
 app.use('/ranking-sac', rankingSacRoutes);
+app.use('/registro-demandas', registroDemandasRoutes);
 
 app.use((req, res) => {
   res.status(404).render('erro', {

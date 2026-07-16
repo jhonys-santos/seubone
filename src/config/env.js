@@ -27,6 +27,7 @@ module.exports = {
   wallacAppsScriptUrl: required('WALLAC_APPS_SCRIPT_URL', ''),
   pedidosUrgentesAppsScriptUrl: required('PEDIDOS_URGENTES_APPS_SCRIPT_URL', ''),
   painelSacAppsScriptUrl: required('PAINEL_SAC_APPS_SCRIPT_URL', ''),
+  registroDemandasAppsScriptUrl: required('REGISTRO_DEMANDAS_APPS_SCRIPT_URL', ''),
 
   rankingSacCsvUrls: {
     atd: required('RANKING_SAC_CSV_ATD', ''),

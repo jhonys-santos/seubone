@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<%- include('../partials/head') %>
+<title>Reembolso — SeuBoné</title>
+<link rel="stylesheet" href="/css/pedidos-urgentes.css">
+</head>
+<body>
+<%- include('../partials/nav') %>
+<%- include('_subnav', { pagina: 'reembolso' }) %>
+
+<div class="pu-scope">
+<div class="pu-container">
+  <div class="card">
+    <div class="row2">
+      <div>
+        <label>ID *</label>
+        <input type="text" id="r-id" placeholder="Inserir número">
+      </div>
+      <div>
+        <label>Data de vencimento *</label>
+        <input type="date" id="r-vencimento">
+      </div>
+    </div>
+
+    <div class="row2">
+      <div>
+        <label>CPF/CNPJ *</label>
+        <input type="text" id="r-cpfcnpj" placeholder="Inserir texto">
+      </div>
+      <div>
+        <label>Seu e-mail *</label>
+        <input type="email" id="r-email" placeholder="Inserir e-mail">
+      </div>
+    </div>
+
+    <label>Motivo do reembolso *</label>
+    <textarea id="r-motivo" rows="3" placeholder="Inserir texto"></textarea>
+
+    <div class="row2">
+      <div>
+        <label>Razão social do cliente *</label>
+        <input type="text" id="r-razaosocial" placeholder="Inserir texto">
+      </div>
+      <div>
+        <label>Banco *</label>
+        <select id="r-banco">
+          <option value="">Selecionar opção...</option>
+          <option>Banco do Brasil</option>
+          <option>Itaú</option>
+          <option>Bradesco</option>
+          <option>Santander</option>
+          <option>Caixa Econômica Federal</option>
+          <option>Nubank</option>
+          <option>Banco Inter</option>
+          <option>C6 Bank</option>
+          <option>Sicoob</option>
+          <option>Sicredi</option>
+          <option>Outro</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="row2">
+      <div>
+        <label>Agência *</label>
+        <input type="text" id="r-agencia" placeholder="Inserir número">
+      </div>
+      <div>
+        <label>Conta *</label>
+        <input type="text" id="r-conta" placeholder="Inserir texto">
+      </div>
+    </div>
+
+    <div class="row2">
+      <div>
+        <label>Chave pix *</label>
+        <input type="text" id="r-chavepix" placeholder="Inserir texto">
+      </div>
+      <div>
+        <label>Tipo de chave</label>
+        <select id="r-tipochave">
+          <option value="">Selecionar opção...</option>
+          <option>CPF</option>
+          <option>CNPJ</option>
+          <option>E-mail</option>
+          <option>Telefone</option>
+          <option>Aleatória</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="row2">
+      <div>
+        <label>Valor *</label>
+        <input type="text" id="r-valor" placeholder="Inserir moeda">
+      </div>
+      <div>
+        <label>Empresa Responsável *</label>
+        <select id="r-empresa">
+          <option value="">Selecionar opção...</option>
+          <option>SeuBoné</option>
+        </select>
+      </div>
+    </div>
+
+    <label>Anexos</label>
+    <div style="font-size:12px;color:var(--text-muted);margin:0 0 6px;">Adicione, se houver, comprovantes ou notas para a solicitação</div>
+    <input type="file" id="r-anexos" multiple>
+    <div style="font-size:12px;color:var(--text-muted);margin-top:6px;">Pode selecionar mais de um arquivo. Prefira arquivos de até 5 MB cada.</div>
+
+    <button class="btn-primary" id="btn-registrar"><i class="ti ti-send" aria-hidden="true"></i> Registrar solicitação</button>
+    <div class="msg" id="form-msg"></div>
+  </div>
+</div>
+</div>
+
+<script src="/js/registro-demandas-reembolso.js"></script>
+</body>
+</html>

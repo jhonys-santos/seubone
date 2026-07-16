@@ -237,6 +237,12 @@ i.ti { line-height: 1; }
 .hub-dialog-icon.sucesso { color: var(--ok); }
 .hub-dialog-icon.info { color: var(--gold); }
 .hub-dialog-msg { font-size: 14px; color: var(--text); line-height: 1.5; margin-bottom: 20px; white-space: pre-line; }
+.hub-dialog-input {
+  width: 100%; background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); color: var(--text); font-size: 14px;
+  padding: 10px 12px; font-family: inherit; outline: none; margin-bottom: 16px;
+}
+.hub-dialog-input:focus { border-color: var(--gold-dark); box-shadow: 0 0 0 3px var(--gold-dim); }
 .hub-dialog-actions { display: flex; gap: 10px; }
 .hub-dialog-actions button {
   flex: 1; cursor: pointer; font-family: inherit; font-weight: 700; border: none;

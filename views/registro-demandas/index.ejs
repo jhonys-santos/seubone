@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<%- include('../partials/head') %>
+<title>Registro de Demandas Gerais — SeuBoné</title>
+<link rel="stylesheet" href="/css/pedidos-urgentes.css">
+</head>
+<body>
+<%- include('../partials/nav') %>
+<%- include('_subnav', { pagina: 'index' }) %>
+
+<div class="pu-scope">
+<div class="pu-container">
+  <div class="card">
+    <label>Nome do Solicitante *</label>
+    <input type="text" id="f-solicitante" placeholder="Colocar seu nome e sobrenome">
+
+    <div class="row2">
+      <div>
+        <label>Empresa solicitante *</label>
+        <select id="f-empresa">
+          <option value="">Selecionar opção...</option>
+          <option>SeuBoné</option>
+        </select>
+      </div>
+      <div>
+        <label>Número Corporativo</label>
+        <input type="tel" id="f-numero" placeholder="Inserir telefone">
+      </div>
+    </div>
+
+    <div class="row2">
+      <div>
+        <label>Data da solicitação *</label>
+        <input type="date" id="f-data">
+      </div>
+      <div>
+        <label>Tipo de demanda *</label>
+        <select id="f-tipo">
+          <option value="">Selecionar opção...</option>
+          <option>Avulsa</option>
+        </select>
+      </div>
+    </div>
+
+    <label>Demanda solicitada *</label>
+    <select id="f-demanda">
+      <option value="">Selecionar opção...</option>
+      <option>NF Urgente</option>
+      <option>Nota de Remessa</option>
+      <option>Baixa de comprovante</option>
+      <option>Análise de termo de compromisso</option>
+      <option>Nota de Conta e Ordem</option>
+      <option>Link de pagamento</option>
+      <option>Orçamento - Extrema/MG</option>
+      <option>Ajuste de nota fiscal</option>
+      <option>Ajuste de orçamento</option>
+      <option>Envio de boleto</option>
+      <option>Liberação p/envio</option>
+      <option>Nota de Devolução</option>
+      <option>Amostras</option>
+      <option>Nota de Brinde</option>
+      <option>Manifesto</option>
+      <option>Cancelamento de Boleto</option>
+      <option>Pedidos retidos</option>
+      <option>Outros</option>
+    </select>
+
+    <label>Descrição da demanda *</label>
+    <textarea id="f-descricao" rows="3" placeholder="Descreva de forma detalhada a sua solicitação"></textarea>
+
+    <div class="row2">
+      <div>
+        <label>Data de vencimento *</label>
+        <input type="date" id="f-vencimento">
+      </div>
+      <div>
+        <label>E-mail do solicitante *</label>
+        <input type="email" id="f-email" placeholder="Inserir e-mail">
+      </div>
+    </div>
+
+    <div class="row2">
+      <div>
+        <label>ID da venda *</label>
+        <input type="text" id="f-idvenda" placeholder="Inserir número">
+      </div>
+      <div>
+        <label>Link do card no Bitrix *</label>
+        <input type="text" id="f-link" placeholder="Inserir URL">
+      </div>
+    </div>
+
+    <label>Anexos</label>
+    <input type="file" id="f-anexos" multiple>
+    <div style="font-size:12px;color:var(--text-muted);margin-top:6px;">Pode selecionar mais de um arquivo. Prefira arquivos de até 5 MB cada.</div>
+
+    <button class="btn-primary" id="btn-registrar"><i class="ti ti-send" aria-hidden="true"></i> Registrar solicitação</button>
+    <div class="msg" id="form-msg"></div>
+  </div>
+</div>
+</div>
+
+<script src="/js/registro-demandas.js"></script>
+</body>
+</html>

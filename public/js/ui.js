@@ -52,6 +52,32 @@
     });
   }
 
+  function hubPrompt(mensagem, opts) {
+    opts = opts || {};
+    garantirDom();
+    return new Promise((resolve) => {
+      caixa.innerHTML =
+        '<div class="hub-dialog-msg"></div>' +
+        '<input type="text" class="hub-dialog-input" id="hub-dialog-input-valor">' +
+        '<div class="hub-dialog-actions">' +
+        '<button class="hub-dialog-btn-secondary" data-v="cancelar">Cancelar</button>' +
+        '<button class="hub-dialog-btn-primary" data-v="ok">' + (opts.textoConfirmar || 'Confirmar') + '</button>' +
+        '</div>';
+      caixa.querySelector('.hub-dialog-msg').textContent = mensagem;
+      const input = caixa.querySelector('#hub-dialog-input-valor');
+      input.placeholder = opts.placeholder || '';
+      input.value = opts.valorInicial || '';
+      const fechar = (valor) => { overlay.classList.remove('aberto'); resolve(valor); };
+      caixa.querySelector('.hub-dialog-btn-secondary').onclick = () => fechar(null);
+      caixa.querySelector('.hub-dialog-btn-primary').onclick = () => fechar(input.value.trim() || null);
+      input.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); fechar(input.value.trim() || null); } };
+      overlay.onclick = (e) => { if (e.target === overlay) fechar(null); };
+      overlay.classList.add('aberto');
+      setTimeout(() => input.focus(), 50);
+    });
+  }
+
   window.hubAlert = hubAlert;
   window.hubConfirm = hubConfirm;
+  window.hubPrompt = hubPrompt;
 })();
