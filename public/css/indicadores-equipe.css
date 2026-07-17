@@ -55,44 +55,39 @@
 .ie-metrica-total { font-size: 11px; color: var(--text-muted); margin-bottom: 14px; }
 .ie-metrica-total strong { color: var(--gold); font-weight: 700; }
 
-/* Legenda por consultor — cor consistente em todas as métricas. */
+/* Legenda por consultor — cor consistente em toda métrica. A "Equipe" tem
+   um traço tracejado em vez de bolinha, pra já indicar que ela aparece
+   como linha de referência, não como mais uma série igual às outras. */
 .ie-legend { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 14px; }
 .ie-legend-item { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-muted); }
 .ie-legend-dot { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
+.ie-legend-linha { width: 16px; height: 0; border-top: 2px solid; flex-shrink: 0; }
+.ie-legend-linha.ie-c-equipe { border-top-style: dashed; border-top-width: 2.5px; border-color: var(--gold) !important; }
 
-/* Gráfico de barras agrupadas: um grupo por dia, uma barra por consultor. */
-.ie-chart { display: flex; align-items: flex-end; gap: 10px; height: 140px; overflow-x: auto; padding-bottom: 2px; }
-.ie-chart::-webkit-scrollbar { height: 5px; }
-.ie-chart::-webkit-scrollbar-track { background: transparent; }
-.ie-chart::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 10px; }
-.ie-day-group { display: flex; flex-direction: column; align-items: center; flex-shrink: 0; min-width: 44px; }
-.ie-bars-row { display: flex; align-items: flex-end; gap: 3px; height: 108px; }
-.ie-bar-col { position: relative; width: 10px; display: flex; align-items: flex-end; }
-.ie-bar-col .ie-bar { width: 100%; border-radius: 3px 3px 0 0; min-height: 2px; transition: height .3s ease; }
-.ie-bar-tooltip {
-  display: none; position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%);
-  margin-bottom: 4px; background: rgba(20,20,18,0.96); border: 1px solid var(--border-strong);
-  border-radius: 6px; padding: 3px 7px; font-size: 10px; font-weight: 700; color: var(--text);
-  white-space: nowrap; pointer-events: none; z-index: 5;
-}
-.ie-bar-col:hover .ie-bar-tooltip { display: block; }
-.ie-day-label { font-size: 9.5px; color: var(--text-hint); margin-top: 6px; white-space: nowrap; }
+/* Gráfico de linhas: uma linha por consultor + uma linha tracejada da
+   equipe (média/total do dia), sobrepostas — em vez de barra, pra não
+   distorcer a escala quando a métrica é soma (equipe sempre > indivíduo). */
+.ie-chart-scroll { overflow-x: auto; padding-bottom: 2px; }
+.ie-chart-scroll::-webkit-scrollbar { height: 5px; }
+.ie-chart-scroll::-webkit-scrollbar-track { background: transparent; }
+.ie-chart-scroll::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 10px; }
+.ie-chart-inner { position: relative; height: 150px; }
+.ie-chart-svg { display: block; width: 100%; height: 122px; overflow: visible; }
+.ie-chart-svg circle { transition: r .15s; }
+.ie-chart-labels { position: relative; height: 20px; margin-top: 4px; }
+.ie-day-label { position: absolute; top: 0; transform: translateX(-50%); font-size: 9.5px; color: var(--text-hint); white-space: nowrap; }
 .ie-day-label.hoje { color: var(--gold); font-weight: 700; }
+.ie-chart-inner.ie-chart-denso .ie-day-label { font-size: 8px; }
 
-/* Visão de mês: uma única barra por dia (média/total da equipe), como a
-   planilha já mostra pra esse recorte — menos denso, mais legível. */
-.ie-chart.ie-chart-mes .ie-day-group { min-width: 20px; }
-.ie-chart.ie-chart-mes .ie-bars-row { width: 14px; }
-.ie-chart.ie-chart-mes .ie-bar-col { width: 100%; }
-.ie-chart.ie-chart-mes .ie-day-label { font-size: 8.5px; }
-
-/* Paleta por consultor — mesma cor em todo card/legenda/barra da página. */
-.ie-c-0 { background: var(--gold); }
-.ie-c-1 { background: #4C8DFF; }
-.ie-c-2 { background: #3DAF72; }
-.ie-c-3 { background: #9c6cd4; }
-.ie-c-4 { background: #E8618C; }
-.ie-c-5 { background: #F0954D; }
+/* Paleta por consultor — reservei o dourado só pra linha da Equipe, pra
+   nunca ficar ambíguo com a cor de alguém em ie-c-0. */
+.ie-c-0 { background: #4C8DFF; }
+.ie-c-1 { background: #3DAF72; }
+.ie-c-2 { background: #9c6cd4; }
+.ie-c-3 { background: #E8618C; }
+.ie-c-4 { background: #F0954D; }
+.ie-c-5 { background: #4FD1C5; }
+.ie-c-equipe { background: var(--gold); }
 
 .ie-empty { font-size: 12px; color: var(--text-hint); text-align: center; padding: 2rem; }
 

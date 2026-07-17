@@ -3,7 +3,17 @@
 // (gerados aqui mesmo) só pra validar o layout — a integração com a
 // planilha real é o próximo passo, depois que o visual for aprovado.
 
-const IE_CORES = ['ie-c-0', 'ie-c-1', 'ie-c-2', 'ie-c-3', 'ie-c-4', 'ie-c-5'];
+// Cor por consultor: classe (usada no avatar/legenda) + valor real (usado
+// no stroke do SVG, que não lê classe CSS). Dourado fica reservado pra
+// linha da Equipe — nunca é a cor de um consultor, pra não ambiguar.
+const IE_SERIES = [
+  { classe: 'ie-c-0', cor: '#4C8DFF' },
+  { classe: 'ie-c-1', cor: '#3DAF72' },
+  { classe: 'ie-c-2', cor: '#9c6cd4' },
+  { classe: 'ie-c-3', cor: '#E8618C' },
+  { classe: 'ie-c-4', cor: '#F0954D' },
+  { classe: 'ie-c-5', cor: '#4FD1C5' },
+];
 
 function ieFormatMinutos(mins) {
   if (mins == null) return '—';
@@ -137,7 +147,7 @@ function ieRenderResumo() {
     }).join('');
     return `<div class="ie-resumo-card">
       <div class="ie-resumo-head">
-        <div class="ie-resumo-avatar ${IE_CORES[i % IE_CORES.length]}">${iniciais}</div>
+        <div class="ie-resumo-avatar ${IE_SERIES[i % IE_SERIES.length].classe}">${iniciais}</div>
         <div class="ie-resumo-nome">${nome}</div>
       </div>
       <div class="ie-resumo-stats">${stats}</div>
@@ -145,33 +155,66 @@ function ieRenderResumo() {
   }).join('');
 }
 
+// Quebra a série em segmentos contínuos, cortando nos dias sem dado — uma
+// linha reta por cima de um buraco sugeriria um valor que não existe.
+function ieSegmentos(serie) {
+  const segs = [];
+  let atual = [];
+  serie.forEach((v, i) => {
+    if (v == null) { if (atual.length) segs.push(atual); atual = []; return; }
+    atual.push([i, v]);
+  });
+  if (atual.length) segs.push(atual);
+  return segs;
+}
+
 function ieRenderMetricas() {
-  const denso = ieDiasAtuais.length > 10; // mês ou intervalo personalizado longo — 1 barra por dia, sem agrupar por consultor
+  const denso = ieDiasAtuais.length > 10; // mês ou intervalo personalizado longo — rótulos mais compactos
+  const n = ieDiasAtuais.length;
+  const larguraX = Math.max(1, n - 1);
   const cont = document.getElementById('ie-metricas');
+
   cont.innerHTML = ieConfig.metricas.map((m) => {
-    const totalEquipe = ieAgregar(
-      ieDiasAtuais.map((_, di) => {
-        const valsNoDia = ieConfig.consultores.map((nome) => ieDados[nome][m.key][di]).filter((v) => v != null);
-        return valsNoDia.length ? (m.agregacao === 'soma' ? valsNoDia.reduce((a, b) => a + b, 0) : valsNoDia.reduce((a, b) => a + b, 0) / valsNoDia.length) : null;
-      }),
-      m.agregacao === 'soma' ? 'soma' : 'media'
-    );
+    // Série da Equipe por dia — média se a métrica é média, soma se é soma.
+    const equipeSerie = ieDiasAtuais.map((_, di) => {
+      const valsNoDia = ieConfig.consultores.map((nome) => ieDados[nome][m.key][di]).filter((v) => v != null);
+      if (!valsNoDia.length) return null;
+      const soma = valsNoDia.reduce((a, b) => a + b, 0);
+      return m.agregacao === 'soma' ? soma : soma / valsNoDia.length;
+    });
+    const totalEquipe = ieAgregar(equipeSerie, m.agregacao);
 
-    const maxVal = Math.max(1, ...ieConfig.consultores.flatMap((nome) => ieDados[nome][m.key].filter((v) => v != null)));
+    // Escala inclui a Equipe — senão a linha dela poderia vazar do gráfico
+    // nas métricas de soma, onde ela é sempre maior que qualquer indivíduo.
+    const maxVal = Math.max(1, ...[
+      ...ieConfig.consultores.flatMap((nome) => ieDados[nome][m.key]),
+      ...equipeSerie,
+    ].filter((v) => v != null));
 
-    const legend = ieConfig.consultores.map((nome, i) => `<div class="ie-legend-item"><div class="ie-legend-dot ${IE_CORES[i % IE_CORES.length]}"></div>${nome}</div>`).join('');
+    const pontoY = (v) => 5 + (1 - Math.min(1, v / maxVal)) * 90;
 
-    const dias = ieDiasAtuais.map((dia, di) => {
-      const bars = ieConfig.consultores.map((nome, i) => {
-        const v = ieDados[nome][m.key][di];
-        const alturaPct = v == null ? 0 : Math.max(2, Math.round((v / maxVal) * 100));
-        return `<div class="ie-bar-col"><div class="ie-bar ${IE_CORES[i % IE_CORES.length]}" style="height:${alturaPct}%"></div><div class="ie-bar-tooltip">${nome.split(' ')[0]}: ${ieFormatValor(v, m.unidade)}</div></div>`;
-      }).join('');
-      return `<div class="ie-day-group">
-        <div class="ie-bars-row">${bars}</div>
-        <div class="ie-day-label ${dia.hoje ? 'hoje' : ''}">${dia.label}</div>
-      </div>`;
+    const linhaSVG = (serie, cor, largura, tracejado) => ieSegmentos(serie).map((seg) => {
+      const pontos = seg.map(([i, v]) => `${i},${pontoY(v).toFixed(1)}`).join(' ');
+      const linha = seg.length > 1
+        ? `<polyline points="${pontos}" fill="none" style="stroke:${cor}" stroke-width="${largura}" ${tracejado ? 'stroke-dasharray="4 3"' : ''} stroke-linecap="round" stroke-linejoin="round" />`
+        : '';
+      const pontosCirculo = seg.map(([i, v]) => `<circle cx="${i}" cy="${pontoY(v).toFixed(1)}" r="1.7" style="fill:${cor}"><title>${ieFormatValor(v, m.unidade)}</title></circle>`).join('');
+      return linha + pontosCirculo;
     }).join('');
+
+    const linhasConsultores = ieConfig.consultores.map((nome, i) =>
+      linhaSVG(ieDados[nome][m.key], IE_SERIES[i % IE_SERIES.length].cor, 1.6, false)
+    ).join('');
+    const linhaEquipe = linhaSVG(equipeSerie, 'var(--gold)', 2.4, true);
+
+    const legendConsultores = ieConfig.consultores.map((nome, i) =>
+      `<div class="ie-legend-item"><div class="ie-legend-linha ${IE_SERIES[i % IE_SERIES.length].classe}" style="border-color:${IE_SERIES[i % IE_SERIES.length].cor}"></div>${nome}</div>`
+    ).join('');
+    const legendEquipe = `<div class="ie-legend-item"><div class="ie-legend-linha ie-c-equipe"></div><strong style="color:var(--text)">Equipe</strong></div>`;
+
+    const labels = ieDiasAtuais.map((dia, di) =>
+      `<div class="ie-day-label ${dia.hoje ? 'hoje' : ''}" style="left:${(di / larguraX) * 100}%">${dia.label}</div>`
+    ).join('');
 
     return `<div class="ie-metrica">
       <div class="ie-metrica-head">
@@ -179,8 +222,17 @@ function ieRenderMetricas() {
         <div class="ie-metrica-meta">${m.meta ? 'Meta: ' + (m.meta.direcao === 'menor' ? '&lt;' : '&gt;') + ' ' + ieFormatValor(m.meta.valor, m.unidade) : ''}</div>
       </div>
       <div class="ie-metrica-total">Equipe no período: <strong>${ieFormatValor(totalEquipe, m.unidade)}</strong></div>
-      <div class="ie-legend">${legend}</div>
-      <div class="ie-chart ${denso ? 'ie-chart-mes' : ''}">${dias}</div>
+      <div class="ie-legend">${legendConsultores}${legendEquipe}</div>
+      <div class="ie-chart-scroll">
+        <div class="ie-chart-inner ${denso ? 'ie-chart-denso' : ''}" style="min-width:${denso ? n * 16 : n * 60}px">
+          <svg class="ie-chart-svg" viewBox="0 0 ${larguraX} 100" preserveAspectRatio="none">
+            <line x1="0" y1="95" x2="${larguraX}" y2="95" style="stroke:var(--border)" stroke-width="0.5" />
+            ${linhasConsultores}
+            ${linhaEquipe}
+          </svg>
+          <div class="ie-chart-labels">${labels}</div>
+        </div>
+      </div>
     </div>`;
   }).join('');
 }
