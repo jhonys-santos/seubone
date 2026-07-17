@@ -349,3 +349,24 @@ i.ti { line-height: 1; }
 .sidebar-bottom .hub-logout { width: 100%; justify-content: center; }
 
 .app-main { flex: 1; min-width: 0; }
+
+/* ── POPUP GENÉRICO (avisos, confirmações pontuais) ──────────
+   Base compartilhada entre páginas — cada popup só define o que
+   for específico dele (cor do ícone, botões próprios). */
+.popup-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.72); backdrop-filter: blur(5px); z-index: 200; display: none; align-items: center; justify-content: center; padding: 1rem; }
+.popup-overlay.open { display: flex; animation: fadeIn .2s ease; }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+.popup-box { background: var(--surface); border-radius: 18px; max-width: 460px; width: 100%; padding: 1.75rem; animation: slideUp .25s ease; }
+@keyframes slideUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+.popup-icon-row { display: flex; align-items: center; gap: 10px; margin-bottom: 1rem; }
+.popup-icon { width: 42px; height: 42px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.popup-title-text { font-size: 17px; font-weight: 700; line-height: 1.3; }
+.popup-body-text { font-size: 13px; color: var(--text-muted); line-height: 1.65; margin-bottom: 1.25rem; }
+.popup-body-text strong { color: var(--text); font-weight: 600; }
+.popup-footer { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.popup-meta { font-size: 11px; color: var(--text-hint); }
+.popup-btn-primary { background: var(--gold); color: var(--on-gold, #1A1A18); border: none; border-radius: var(--radius-sm); padding: 10px 24px; font-size: 13px; font-weight: 700; font-family: inherit; cursor: pointer; transition: opacity .15s; }
+.popup-btn-primary:hover { opacity: .88; }
+
+#popup-aviso .popup-icon { background: rgba(245,195,0,0.15); border: 1px solid var(--gold-dark); }
+#popup-aviso .popup-title-text { color: var(--gold); }

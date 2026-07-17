@@ -33,6 +33,21 @@ router.get('/', (req, res) => {
   });
 });
 
+// ── Aviso (banner exibido na home, logo após o login) ──────────────────
+// Sempre usa o slug da própria sessão — o aviso é de quem está logado, não
+// de quem um gestor esteja "vendo como". Reaproveita a action 'dados' do
+// Apps Script (que já traz o aviso junto) pra não precisar de uma rota nova lá.
+router.get('/api/aviso', async (req, res) => {
+  try {
+    const json = await chamarAppsScript(env.painelSacAppsScriptUrl, {
+      params: { action: 'dados', usuario: req.session.user.slug },
+    });
+    res.json({ aviso: json.aviso || null });
+  } catch (err) {
+    res.status(502).json({ aviso: null });
+  }
+});
+
 // ── Indicadores pessoais (respeita resolveSlug: colaborador só vê o próprio slug) ──
 router.get('/api/dados', resolveSlug, async (req, res) => {
   try {

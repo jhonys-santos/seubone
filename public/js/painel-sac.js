@@ -179,9 +179,6 @@ async function carregarPainel() {
       document.getElementById(id).style.display = '';
     });
     renderTudo(dados);
-    if (dados.aviso && dados.aviso.ativo) {
-      setTimeout(() => abrirAviso(dados.aviso), 700);
-    }
   } catch(e) {
     ls.classList.remove('show');
     document.getElementById('dash').classList.add('show');
@@ -654,9 +651,8 @@ function rvItem(lbl, valStr, prizeNum, status, meta) {
 }
 
 // ── POP-UPS ───────────────────────────────────────────────────
-function tocarSom(){try{const ctx=new(window.AudioContext||window.webkitAudioContext)();[880,1046,1318].forEach((f,i)=>{const o=ctx.createOscillator(),g=ctx.createGain();o.connect(g);g.connect(ctx.destination);o.type='sine';o.frequency.value=f;const t=ctx.currentTime+i*.13;g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(.15,t+.05);g.gain.linearRampToValueAtTime(0,t+.2);o.start(t);o.stop(t+.22);});}catch(e){}}
-function fecharPopup(id){const el=document.getElementById(id);el.style.opacity='0';el.style.transition='opacity .18s';setTimeout(()=>{el.classList.remove('open');el.style.opacity='';el.style.transition='';},180);}
-function abrirAviso(av){document.getElementById('av-titulo').textContent=av.titulo||'';document.getElementById('av-corpo').innerHTML=(av.corpo||'').replace(/\n/g,'<br>');document.getElementById('av-meta').textContent=`De: ${av.de||'Jhonys Santos'} · ${av.data||''}`;document.getElementById('popup-aviso').classList.add('open');setTimeout(tocarSom,200);}
+// tocarSom/fecharPopup/abrirAviso agora vivem em ui.js (aviso saiu daqui e
+// abre na home, mas fecharPopup ainda é usado pelo popup de sugestão abaixo).
 function abrirSugestao(){document.getElementById('sug-form').style.display='block';document.getElementById('sug-ok').style.display='none';document.getElementById('sug-titulo').value='';document.getElementById('sug-texto').value='';document.getElementById('popup-sugestao').classList.add('open');}
 
 async function enviarSugestao() {

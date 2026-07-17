@@ -52,5 +52,26 @@
 </div>
 </div>
 </div>
+
+<% if (paineisVisiveis.some(function (p) { return p.chave === 'painel-sac'; })) { %>
+<div class="popup-overlay" id="popup-aviso">
+  <div class="popup-box">
+    <div class="popup-icon-row">
+      <div class="popup-icon"><i class="ti ti-bell-ringing" style="font-size:20px;color:var(--gold)"></i></div>
+      <div class="popup-title-text" id="av-titulo"></div>
+    </div>
+    <div class="popup-body-text" id="av-corpo"></div>
+    <div class="popup-footer">
+      <span class="popup-meta" id="av-meta"></span>
+      <button class="popup-btn-primary" onclick="fecharPopup('popup-aviso')">Entendido ✓</button>
+    </div>
+  </div>
+</div>
+<script>
+  fetch('/painel-sac/api/aviso').then(function (r) { return r.json(); }).then(function (d) {
+    if (d.aviso && d.aviso.ativo) setTimeout(function () { abrirAviso(d.aviso); }, 700);
+  }).catch(function () {});
+</script>
+<% } %>
 </body>
 </html>
