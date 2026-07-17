@@ -220,8 +220,9 @@ td.col-acoes { width: 140px; white-space: nowrap; }
 .linha-nova td { background: var(--gold-dim); }
 button.adicionar { background: var(--gold); color: var(--on-gold); width: 100%; padding: 10px; margin-top: 14px; border: none; border-radius: var(--radius-sm); font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; }
 
-/* ── SOLICITAR PERSONALIZAÇÃO (pública) ─────────────────────── */
-.solicitar-page { min-height: calc(100vh - 60px); display: flex; justify-content: center; padding: 32px 20px; }
+/* ── SOLICITAR PERSONALIZAÇÃO (também acessível sem login — link
+   avulso compartilhado com outras equipes) ────────────────────── */
+.solicitar-page { min-height: 100vh; display: flex; justify-content: center; padding: 32px 20px; }
 .solicitar-container { width: 100%; max-width: 480px; }
 .solicitar-container h1 { font-size: 18px; color: var(--gold); margin-bottom: 4px; }
 .solicitar-sub { font-size: 12.5px; color: var(--text-muted); margin-bottom: 20px; }
