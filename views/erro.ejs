@@ -5,7 +5,10 @@
 <title><%= titulo %> — SeuBoné</title>
 </head>
 <body>
-<%- include('partials/nav') %>
+<div class="app-shell">
+<%- include('partials/sidebar') %>
+<div class="app-main">
+
 <div class="hub-container">
   <div class="hub-error-state">
     <i class="ti ti-shield-lock" aria-hidden="true"></i>
@@ -13,6 +16,9 @@
     <p><%= mensagem %></p>
     <a href="/"><i class="ti ti-arrow-left" aria-hidden="true"></i> Voltar para o hub</a>
   </div>
+</div>
+
+</div>
 </div>
 </body>
 </html>

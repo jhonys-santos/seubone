@@ -7,7 +7,9 @@
 <link rel="stylesheet" href="/css/wallac.css">
 </head>
 <body>
-<%- include('../partials/nav') %>
+<div class="app-shell">
+<%- include('../partials/sidebar') %>
+<div class="app-main">
 
 <div class="wallac-container">
   <div class="wallac-header">
@@ -17,10 +19,6 @@
         <i class="ti ti-search fi" aria-hidden="true"></i>
         <input type="text" id="busca-kanban" placeholder="Buscar por ID, cliente ou produto..." oninput="buscarCards(this.value)">
       </div>
-      <a class="link-secundario" href="/wallac/historico"><i class="ti ti-history" aria-hidden="true"></i> Histórico</a>
-      <% if (usuario.slug === 'wallac') { %>
-        <a class="link-secundario" href="/wallac/estoque"><i class="ti ti-boxes" aria-hidden="true"></i> Gestão de estoque</a>
-      <% } %>
       <div id="status-conexao">Carregando...</div>
     </div>
   </div>
@@ -44,6 +42,9 @@
       <a href="/wallac/historico" id="aviso-historico" class="aviso-historico" style="display:none;"></a>
     </div>
   </div>
+</div>
+
+</div>
 </div>
 
 <div class="wallac-lightbox" id="lightbox" onclick="fecharLogo()">

@@ -6,8 +6,9 @@
 <link rel="stylesheet" href="/css/pedidos-urgentes.css">
 </head>
 <body>
-<%- include('../partials/nav') %>
-<%- include('_subnav', { pagina: 'index' }) %>
+<div class="app-shell">
+<%- include('../partials/sidebar') %>
+<div class="app-main">
 
 <div class="pu-scope">
 <div class="pu-container">
@@ -98,6 +99,9 @@
     <button class="btn-primary" id="btn-registrar"><i class="ti ti-send" aria-hidden="true"></i> Registrar solicitação</button>
     <div class="msg" id="form-msg"></div>
   </div>
+</div>
+</div>
+
 </div>
 </div>
 

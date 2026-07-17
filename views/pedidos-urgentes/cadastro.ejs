@@ -7,8 +7,9 @@
 <link rel="stylesheet" href="/css/pedidos-urgentes.css">
 </head>
 <body>
-<%- include('../partials/nav') %>
-<%- include('_subnav', { pagina: 'cadastro' }) %>
+<div class="app-shell">
+<%- include('../partials/sidebar') %>
+<div class="app-main">
 
 <div class="pu-scope">
 <div class="pu-container">
@@ -95,6 +96,9 @@
 
     <div class="msg" id="msg"></div>
   </div>
+</div>
+</div>
+
 </div>
 </div>
 

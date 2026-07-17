@@ -6,8 +6,6 @@
 <link rel="stylesheet" href="/css/painel-sac.css">
 </head>
 <body>
-<%- include('../partials/nav') %>
-
 <!-- LOADING PAINEL -->
 <div class="loading-screen show" id="loading-screen">
   <div class="loading-logo">
@@ -57,6 +55,10 @@
     </div>
   </div>
 </div>
+
+<div class="app-shell">
+<%- include('../partials/sidebar') %>
+<div class="app-main">
 
 <!-- PAINEL -->
 <div class="dash" id="dash">
@@ -136,6 +138,9 @@
     </div>
   </div>
   </div>
+</div>
+
+</div>
 </div>
 
 <!-- MODAL ACESSOS -->

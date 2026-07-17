@@ -7,8 +7,9 @@
 <link rel="stylesheet" href="/css/pedidos-urgentes.css">
 </head>
 <body>
-<%- include('../partials/nav') %>
-<%- include('_subnav', { pagina: 'painel' }) %>
+<div class="app-shell">
+<%- include('../partials/sidebar') %>
+<div class="app-main">
 
 <div class="pu-scope">
 <div class="pu-container">
@@ -22,6 +23,9 @@
   </div>
 
   <div id="lista"></div>
+</div>
+</div>
+
 </div>
 </div>
 

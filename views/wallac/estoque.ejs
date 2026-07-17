@@ -6,7 +6,9 @@
 <link rel="stylesheet" href="/css/wallac.css">
 </head>
 <body>
-<%- include('../partials/nav') %>
+<div class="app-shell">
+<%- include('../partials/sidebar') %>
+<div class="app-main">
 
 <div class="estoque-container">
   <h2><i class="ti ti-boxes" aria-hidden="true"></i> Gestão de Estoque — SBP</h2>
@@ -33,6 +35,9 @@
   </table>
 
   <div id="mensagem"></div>
+</div>
+
+</div>
 </div>
 
 <script src="/js/wallac-estoque.js"></script>

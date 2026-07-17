@@ -5,20 +5,22 @@
 <title>SeuBoné</title>
 </head>
 <body>
-<%- include('partials/nav') %>
+<div class="app-shell">
+<%- include('partials/sidebar') %>
+<div class="app-main">
 <div class="hub-container">
   <div class="hub-welcome">
     <h1>Olá, <%= usuario.nome.split(' ')[0] %></h1>
     <p>Painéis disponíveis para o seu acesso.</p>
   </div>
-  <% if (paineis.length === 0) { %>
+  <% if (paineisVisiveis.length === 0) { %>
     <div class="hub-empty">
       <i class="ti ti-lock" aria-hidden="true"></i>
       Nenhum painel liberado para o seu usuário ainda. Fale com seu gestor.
     </div>
   <% } else { %>
   <div class="hub-grid">
-    <% paineis.forEach(function(p) { %>
+    <% paineisVisiveis.forEach(function(p) { %>
       <a class="hub-card" href="<%= p.url %>">
         <div class="hub-card-icon"><i class="ti <%= p.icone %>" aria-hidden="true"></i></div>
         <div>
@@ -28,40 +30,27 @@
         <div class="hub-card-footer">Abrir <i class="ti ti-arrow-right" aria-hidden="true"></i></div>
       </a>
     <% }); %>
-    <a class="hub-card" href="/wallac/solicitar">
-      <div class="hub-card-icon"><i class="ti ti-brush" aria-hidden="true"></i></div>
-      <div>
-        <h3>Solicitar Personalização</h3>
-        <p>Pedido de personalização de produto (SBP)</p>
-      </div>
-      <div class="hub-card-footer">Abrir <i class="ti ti-arrow-right" aria-hidden="true"></i></div>
-    </a>
   </div>
 
-  <div class="hub-section-label">Atalhos externos</div>
+  <% if (atalhosVisiveis.length) { %>
+  <div class="hub-section-label">Atalhos</div>
   <div class="hub-grid">
-    <% if (paineis.some(function(p) { return p.chave === 'painel-sac'; })) { %>
-      <a class="hub-card" href="https://tourmaline-quartz-cf5.notion.site/Base-de-Conhecimento-SAC-8216ddb8fcf74707b0fcd57d75b4fe72" target="_blank" rel="noopener">
-        <span class="hub-card-external-badge"><i class="ti ti-external-link" aria-hidden="true"></i></span>
-        <div class="hub-card-icon"><i class="ti ti-book" aria-hidden="true"></i></div>
+    <% atalhosVisiveis.forEach(function(a) { %>
+      <a class="hub-card" href="<%= a.url %>" <% if (a.novaAba) { %>target="_blank" rel="noopener"<% } %>>
+        <% if (a.novaAba) { %><span class="hub-card-external-badge"><i class="ti ti-external-link" aria-hidden="true"></i></span><% } %>
+        <div class="hub-card-icon"><i class="ti <%= a.icone %>" aria-hidden="true"></i></div>
         <div>
-          <h3>Base de Conhecimento</h3>
-          <p>Guias e procedimentos do SAC</p>
+          <h3><%= a.titulo %></h3>
+          <p><%= a.descricao %></p>
         </div>
-        <div class="hub-card-footer">Abrir em nova aba <i class="ti ti-arrow-right" aria-hidden="true"></i></div>
+        <div class="hub-card-footer"><%= a.novaAba ? 'Abrir em nova aba' : 'Abrir' %> <i class="ti ti-arrow-right" aria-hidden="true"></i></div>
       </a>
-    <% } %>
-    <a class="hub-card" href="https://script.google.com/macros/s/AKfycbxhBVqrHmr9xIHQIMNISVOgnHqIRYTwRqXpORF83cLapjQcGYbZOZXq70UO_96-Ygxv/exec" target="_blank" rel="noopener">
-      <span class="hub-card-external-badge"><i class="ti ti-external-link" aria-hidden="true"></i></span>
-      <div class="hub-card-icon"><i class="ti ti-file-text" aria-hidden="true"></i></div>
-      <div>
-        <h3>Gerador de Autorização</h3>
-        <p>Autorização de retirada de pedidos nas transportadoras</p>
-      </div>
-      <div class="hub-card-footer">Abrir em nova aba <i class="ti ti-arrow-right" aria-hidden="true"></i></div>
-    </a>
+    <% }); %>
   </div>
   <% } %>
+  <% } %>
+</div>
+</div>
 </div>
 </body>
 </html>

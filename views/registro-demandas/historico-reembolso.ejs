@@ -6,8 +6,9 @@
 <link rel="stylesheet" href="/css/pedidos-urgentes.css">
 </head>
 <body>
-<%- include('../partials/nav') %>
-<%- include('_subnav', { pagina: 'historico-reembolso' }) %>
+<div class="app-shell">
+<%- include('../partials/sidebar') %>
+<div class="app-main">
 
 <div class="pu-scope">
 <div class="pu-container">
@@ -86,6 +87,9 @@
     </table>
     <div class="empty" id="empty" style="display:none">Nenhuma solicitação de reembolso encontrada no período.</div>
   </div>
+</div>
+</div>
+
 </div>
 </div>
 

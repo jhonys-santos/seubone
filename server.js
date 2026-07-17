@@ -7,6 +7,8 @@ const helmet = require('helmet');
 
 const env = require('./src/config/env');
 const usuariosService = require('./src/services/usuarios.service');
+const catalogoPaineis = require('./src/config/paineis');
+const catalogoAtalhos = require('./src/config/atalhos');
 
 // A pasta de sessões não é versionada (fica no .gitignore) — em um deploy
 // novo (ex: Render) ela simplesmente não existe ainda. Sem isso, a store
@@ -65,8 +67,21 @@ app.use(
   })
 );
 
+// Deixa a sidebar (renderizada em toda página autenticada) disponível sem
+// que cada rota precise montar essa lista na mão — mesmo filtro de
+// permissões que a home já usava (podeAcessarPainel), só que agora
+// centralizado aqui em vez de só em hub.routes.js.
 app.use((req, res, next) => {
-  res.locals.usuario = req.session.user || null;
+  const usuario = req.session.user || null;
+  res.locals.usuario = usuario;
+  res.locals.rotaAtual = req.path;
+  if (usuario) {
+    res.locals.paineisVisiveis = catalogoPaineis.filter((p) => usuariosService.podeAcessarPainel(usuario, p.chave));
+    res.locals.atalhosVisiveis = catalogoAtalhos.filter((a) => !a.requerPainel || usuariosService.podeAcessarPainel(usuario, a.requerPainel));
+  } else {
+    res.locals.paineisVisiveis = [];
+    res.locals.atalhosVisiveis = [];
+  }
   next();
 });
 

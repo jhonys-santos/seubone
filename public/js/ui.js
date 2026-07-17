@@ -41,6 +41,17 @@
   document.addEventListener('DOMContentLoaded', atualizarBotoes);
 })();
 
+// Expande/colapsa um grupo de sub-páginas na sidebar (Produção SBP,
+// Pedidos Urgentes, Registro de Demandas). Um grupo por vez fecha os
+// outros, pra sidebar não crescer demais.
+function alternarGrupoSidebar(botao) {
+  const grupo = botao.closest('.sidebar-group');
+  if (!grupo) return;
+  const estavaAberto = grupo.classList.contains('open');
+  document.querySelectorAll('.sidebar-group.open').forEach((g) => g.classList.remove('open'));
+  if (!estavaAberto) grupo.classList.add('open');
+}
+
 // Substitui os alert()/confirm() nativos do navegador (que bloqueiam a
 // página inteira e destoam do resto do visual) por um diálogo no mesmo
 // padrão do hub. Carregado em toda página via partials/head.

@@ -1,0 +1,84 @@
+<aside class="app-sidebar">
+  <a href="/" class="sidebar-brand">
+    <img src="/img/logo-seubone.png" alt="SeuBoné">
+    <span class="sidebar-brand-text">Seu<span class="gold">Boné</span></span>
+  </a>
+
+  <% if (typeof usuario !== 'undefined' && usuario) { %>
+  <div class="sidebar-user">
+    <div class="hub-avatar"><%= usuario.nome.split(' ').filter(Boolean).slice(0,2).map(w => w[0]).join('').toUpperCase() %></div>
+    <div class="sidebar-user-text">
+      <span class="sidebar-user-name"><%= usuario.nome %></span>
+      <span class="sidebar-role-badge"><%= usuario.role %></span>
+    </div>
+  </div>
+  <% } %>
+
+  <nav class="sidebar-nav">
+    <a href="/" class="sidebar-item <%= rotaAtual === '/' ? 'active' : '' %>">
+      <i class="ti ti-home" aria-hidden="true"></i> Home
+    </a>
+
+    <% if (paineisVisiveis.length) { %>
+      <div class="sidebar-label">Painéis</div>
+      <% paineisVisiveis.forEach(function (p) { %>
+        <%
+          var subVisiveis = (p.subpaginas || []).filter(function (s) { return !s.somenteSlug || s.somenteSlug === usuario.slug; });
+          var subAtiva = subVisiveis.some(function (s) { return rotaAtual === s.url; });
+        %>
+        <% if (subVisiveis.length) { %>
+          <div class="sidebar-group <%= subAtiva ? 'open' : '' %>">
+            <div class="sidebar-item-row">
+              <a href="<%= p.url %>" class="sidebar-item <%= !subAtiva && rotaAtual === p.url ? 'active' : '' %>">
+                <i class="ti <%= p.icone %>" aria-hidden="true"></i> <%= p.titulo %>
+              </a>
+              <button type="button" class="sidebar-chev" onclick="alternarGrupoSidebar(this)" aria-label="Expandir <%= p.titulo %>">
+                <i class="ti ti-chevron-right" aria-hidden="true"></i>
+              </button>
+            </div>
+            <div class="sidebar-sub">
+              <div class="sidebar-sub-inner">
+                <% subVisiveis.forEach(function (s) { %>
+                  <a href="<%= s.url %>" class="sidebar-item sidebar-subitem <%= rotaAtual === s.url ? 'active' : '' %>"><%= s.titulo %></a>
+                <% }); %>
+              </div>
+            </div>
+          </div>
+        <% } else { %>
+          <a href="<%= p.url %>" class="sidebar-item <%= rotaAtual === p.url ? 'active' : '' %>">
+            <i class="ti <%= p.icone %>" aria-hidden="true"></i> <%= p.titulo %>
+          </a>
+        <% } %>
+      <% }); %>
+    <% } %>
+
+    <% if (atalhosVisiveis.length) { %>
+      <div class="sidebar-label">Atalhos</div>
+      <% atalhosVisiveis.forEach(function (a) { %>
+        <a href="<%= a.url %>" class="sidebar-item" <% if (a.novaAba) { %>target="_blank" rel="noopener"<% } %>>
+          <i class="ti <%= a.icone %>" aria-hidden="true"></i> <%= a.titulo %>
+        </a>
+      <% }); %>
+    <% } %>
+
+    <% if (typeof usuario !== 'undefined' && usuario) { %>
+    <div class="sidebar-label">Conta</div>
+    <a href="/perfil" class="sidebar-item <%= rotaAtual === '/perfil' ? 'active' : '' %>">
+      <i class="ti ti-user-cog" aria-hidden="true"></i> Perfil
+    </a>
+    <% } %>
+  </nav>
+
+  <div class="sidebar-bottom">
+    <button type="button" class="hub-theme-toggle" onclick="alternarTema()">
+      <i class="ti ti-sun" data-tema-icon aria-hidden="true"></i> <span data-tema-label>Claro</span>
+    </button>
+    <% if (typeof usuario !== 'undefined' && usuario) { %>
+    <form action="/logout" method="POST" style="margin:0;">
+      <button type="submit" class="hub-logout">
+        <i class="ti ti-logout-2" aria-hidden="true"></i> Sair
+      </button>
+    </form>
+    <% } %>
+  </div>
+</aside>
