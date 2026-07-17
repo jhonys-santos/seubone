@@ -4,6 +4,9 @@
 // planilha real é o próximo passo, depois que o visual for aprovado.
 
 const IE_CORES = ['ie-c-0', 'ie-c-1', 'ie-c-2', 'ie-c-3', 'ie-c-4', 'ie-c-5'];
+// Mesmas cores de IE_CORES, mas em valor literal — usado na linha de
+// tendência (SVG), que não lê classe CSS.
+const IE_CORES_HEX = ['#4C8DFF', '#3DAF72', '#9c6cd4', '#E8618C', '#F0954D', '#4FD1C5'];
 
 function ieFormatMinutos(mins) {
   if (mins == null) return '—';
@@ -153,11 +156,66 @@ function ieBarCol(valor, maxVal, corClasse, tooltip) {
   return `<div class="ie-bar-col"><div class="ie-bar ${corClasse || ''}" style="height:${alturaPct}%"></div><div class="ie-bar-tooltip">${tooltip}</div></div>`;
 }
 
+// Regressão linear simples sobre a série (ignorando dias sem dado) — mesma
+// conta que Meus Indicadores já usa nos gráficos de evolução.
+function ieCalcTrend(valores) {
+  const pontos = valores.map((v, i) => (v != null ? { x: i, y: v } : null)).filter(Boolean);
+  if (pontos.length < 2) return null;
+  const n = pontos.length;
+  const sx = pontos.reduce((a, p) => a + p.x, 0), sy = pontos.reduce((a, p) => a + p.y, 0);
+  const sxy = pontos.reduce((a, p) => a + p.x * p.y, 0), sxx = pontos.reduce((a, p) => a + p.x * p.x, 0);
+  const denom = n * sxx - sx * sx;
+  if (!denom) return null;
+  const m = (n * sxy - sx * sy) / denom, b = (sy - m * sx) / n;
+  return (x) => m * x + b;
+}
+
+// Desenha a linha tracejada de tendência por cima de uma coluna específica
+// (colIndex) dentro de cada .ie-day-group de um gráfico já renderizado —
+// precisa medir posição real na tela, por isso só roda depois do innerHTML
+// já estar no DOM (chamado via requestAnimationFrame no fim do render).
+function ieDesenharTendencia(chartEl, valores, maxVal, colIndex, cor) {
+  const trendFn = ieCalcTrend(valores);
+  if (!trendFn) return;
+  const grupos = chartEl.querySelectorAll('.ie-day-group');
+  if (grupos.length < 2) return;
+  const chartRect = chartEl.getBoundingClientRect();
+  const pts = [];
+  grupos.forEach((grupo, i) => {
+    const row = grupo.querySelector('.ie-bars-row');
+    const col = row.children[colIndex];
+    if (!col) return;
+    const colRect = col.getBoundingClientRect();
+    const rowRect = row.getBoundingClientRect();
+    const x = colRect.left - chartRect.left + colRect.width / 2;
+    const yVal = Math.max(0, Math.min(maxVal, trendFn(i)));
+    const y = (rowRect.bottom - chartRect.top) - (yVal / maxVal) * rowRect.height;
+    pts.push(x.toFixed(1) + ',' + y.toFixed(1));
+  });
+  if (pts.length < 2) return;
+
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('class', 'ie-trend-svg');
+  svg.style.cssText = `position:absolute;top:0;left:0;width:${chartEl.scrollWidth}px;height:100%;pointer-events:none;overflow:visible;`;
+  const linha = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+  linha.setAttribute('points', pts.join(' '));
+  linha.setAttribute('fill', 'none');
+  linha.style.stroke = cor;
+  linha.setAttribute('stroke-width', '1.5');
+  linha.setAttribute('stroke-dasharray', '4 3');
+  linha.setAttribute('stroke-linecap', 'round');
+  svg.appendChild(linha);
+  chartEl.style.position = 'relative';
+  chartEl.appendChild(svg);
+}
+
 function ieRenderMetricas() {
   const denso = ieDiasAtuais.length > 10; // mês ou intervalo personalizado longo — 1 barra por dia, sem agrupar por consultor
   const cont = document.getElementById('ie-metricas');
-  cont.innerHTML = ieConfig.metricas.map((m) => {
-    // Série da Equipe por dia — média se a métrica é média, soma se é soma.
+
+  // Calcula tudo uma vez só — o mesmo objeto alimenta o HTML e, depois que
+  // ele estiver no DOM, o desenho das linhas de tendência.
+  const porMetrica = ieConfig.metricas.map((m) => {
     const equipeSerie = ieDiasAtuais.map((_, di) => {
       const valsNoDia = ieConfig.consultores.map((nome) => ieDados[nome][m.key][di]).filter((v) => v != null);
       if (!valsNoDia.length) return null;
@@ -165,14 +223,16 @@ function ieRenderMetricas() {
       return m.agregacao === 'soma' ? soma : soma / valsNoDia.length;
     });
     const totalEquipe = ieAgregar(equipeSerie, m.agregacao);
-
     // Escala do gráfico por consultor NÃO inclui a Equipe — ela vira um
     // gráfico próprio, com a própria escala, bem abaixo. Numa métrica de
     // soma a Equipe é sempre maior que qualquer indivíduo; misturando as
     // duas escalas as barras de cada pessoa ficariam pequenas/achatadas.
     const maxVal = Math.max(1, ...ieConfig.consultores.flatMap((nome) => ieDados[nome][m.key].filter((v) => v != null)));
     const maxValEquipe = Math.max(1, ...equipeSerie.filter((v) => v != null));
+    return { m, equipeSerie, totalEquipe, maxVal, maxValEquipe };
+  });
 
+  cont.innerHTML = porMetrica.map(({ m, equipeSerie, totalEquipe, maxVal, maxValEquipe }) => {
     const legend = ieConfig.consultores.map((nome, i) => `<div class="ie-legend-item"><div class="ie-legend-dot ${IE_CORES[i % IE_CORES.length]}"></div>${nome}</div>`).join('');
 
     const dias = ieDiasAtuais.map((dia, di) => {
@@ -210,6 +270,24 @@ function ieRenderMetricas() {
       </div>
     </div>`;
   }).join('');
+
+  // Linhas de tendência só depois que as barras já estão no DOM (precisa
+  // medir posição/altura renderizada de verdade). setTimeout em vez de
+  // requestAnimationFrame — o mesmo padrão que Meus Indicadores já usa,
+  // porque rAF fica pausado em aba em segundo plano/minimizada.
+  setTimeout(() => {
+    const blocos = cont.querySelectorAll('.ie-metrica');
+    porMetrica.forEach(({ m, equipeSerie, maxVal, maxValEquipe }, mi) => {
+      const bloco = blocos[mi];
+      if (!bloco) return;
+      const chartConsultores = bloco.querySelector('.ie-chart:not(.ie-chart-equipe)');
+      const chartEquipe = bloco.querySelector('.ie-chart-equipe');
+      ieConfig.consultores.forEach((nome, i) => {
+        ieDesenharTendencia(chartConsultores, ieDados[nome][m.key], maxVal, i, IE_CORES_HEX[i % IE_CORES_HEX.length]);
+      });
+      ieDesenharTendencia(chartEquipe, equipeSerie, maxValEquipe, 0, 'var(--gold)');
+    });
+  }, 60);
 }
 
 function ieRenderPeriodo() {
