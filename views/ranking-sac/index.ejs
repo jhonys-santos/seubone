@@ -1,92 +1,42 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SeuBoné / SAC Dashboard</title>
-<style>@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');</style>
+<%- include('../partials/head') %>
+<title>Ranking SAC — SeuBoné</title>
 <link rel="stylesheet" href="/css/ranking-sac.css">
 </head>
 <body>
+<div class="app-shell">
+<%- include('../partials/sidebar') %>
+<div class="app-main">
 
-<a href="/" class="hub-back-link">← Hub</a>
-
-<div class="topbar">
-  <div class="logo-area">
-    <div class="logo-icon"><img src="/img/logo-seubone.png" style="width:28px;height:28px;object-fit:contain;" /></div>
-    <div class="logo-text">Seu<span class="gold">Boné</span><span class="sub">/ SAC Dashboard</span></div>
+<div class="rk-wrap">
+  <div class="rk-header">
+    <h1><i class="ti ti-trophy" aria-hidden="true"></i> Ranking SAC</h1>
+    <p>Ranking por Score · Sexta → Quinta</p>
   </div>
-  <div class="topbar-right">
-    <div class="semana-tag">Semana · Sexta → Quinta</div>
-    <div class="badge-setor">Operação SAC</div>
-    <div class="clock" id="clock">--:--:--</div>
+
+  <div class="races-grid">
+    <div class="race-panel">
+      <div class="race-header">
+        <div><div class="race-title">🏁 Corrida — Time Atendimento</div><div class="race-subtitle">Ranking por Score · Sexta → Quinta</div></div>
+        <div class="race-badge">3 Consultores</div>
+      </div>
+      <div class="race-fixed"><div class="track-title">Ranking da Semana</div><div id="atd-track"></div></div>
+      <div class="race-body"><div><div class="track-title">Indicadores por dia</div><div id="atd-tabela"></div></div></div>
+    </div>
+    <div class="race-panel">
+      <div class="race-header">
+        <div><div class="race-title">🔧 Corrida — Time Resolução</div><div class="race-subtitle">Ranking por Score · Sexta → Quinta</div></div>
+        <div class="race-badge">2 Consultores</div>
+      </div>
+      <div class="race-fixed"><div class="track-title">Ranking da Semana</div><div id="rsl-track"></div></div>
+      <div class="race-body"><div><div class="track-title">Indicadores por dia</div><div id="rsl-tabela"></div></div></div>
+    </div>
   </div>
 </div>
 
-<div class="main">
-  <div>
-    <div class="section-label">KPIs Gerais da Equipe</div>
-    <div class="kpis-grid">
-      <div class="kpi-card" id="card-tma">
-        <div class="kpi-label">TMA da Equipe</div>
-        <div class="kpi-value" id="val-tma">--<span class="kpi-unit">h</span></div>
-        <div class="kpi-meta">Meta: <span>&lt; 00:30:00h</span></div>
-      </div>
-      <div class="kpi-card" id="card-csat">
-        <div class="kpi-label">CSAT da Equipe</div>
-        <div class="kpi-value" id="val-csat">--<span class="kpi-unit">%</span></div>
-        <div class="kpi-meta">Meta: <span>&gt; 95%</span></div>
-      </div>
-      <div class="kpi-card" id="card-nps">
-        <div class="kpi-label">NPS</div>
-        <div class="kpi-value" id="val-nps">--</div>
-        <div class="kpi-meta">Meta: <span>&gt; 80</span></div>
-      </div>
-      <div class="kpi-card" id="card-refab">
-        <div class="kpi-label">TMR Refabricação</div>
-        <div class="kpi-value" id="val-refab">--<span class="kpi-unit">h</span></div>
-        <div class="kpi-meta">Meta: <span>&lt; 84:00:00h</span></div>
-      </div>
-      <div class="kpi-card" id="card-ppf">
-        <div class="kpi-label">TMR PPF +1</div>
-        <div class="kpi-value" id="val-ppf">--<span class="kpi-unit">h</span></div>
-        <div class="kpi-meta">Meta: <span>&lt; 24:00:00h</span></div>
-      </div>
-    </div>
-  </div>
-  <div class="content-rows">
-    <div class="races-grid">
-      <div class="race-panel">
-        <div class="race-header">
-          <div><div class="race-title">🏁 Corrida — Time Atendimento</div><div class="race-subtitle">Ranking por Score · Sexta → Quinta</div></div>
-          <div class="race-badge">3 Consultores</div>
-        </div>
-        <div class="race-fixed"><div class="track-title">Ranking da Semana</div><div id="atd-track"></div></div>
-        <div class="race-body"><div><div class="track-title">Indicadores por dia</div><div id="atd-tabela"></div></div></div>
-      </div>
-      <div class="race-panel">
-        <div class="race-header">
-          <div><div class="race-title">🔧 Corrida — Time Resolução</div><div class="race-subtitle">Ranking por Score · Sexta → Quinta</div></div>
-          <div class="race-badge">2 Consultores</div>
-        </div>
-        <div class="race-fixed"><div class="track-title">Ranking da Semana</div><div id="rsl-track"></div></div>
-        <div class="race-body"><div><div class="track-title">Indicadores por dia</div><div id="rsl-tabela"></div></div></div>
-      </div>
-    </div>
-    <div class="bottom-grid">
-      <div class="agenda-panel">
-        <div class="agenda-header">
-          <div class="agenda-title">📅 Agenda da Semana</div>
-          <div class="agenda-subtitle">Segunda → Sexta</div>
-        </div>
-        <div class="agenda-body"><div class="agenda-dias-grid" id="agenda-grid"></div></div>
-      </div>
-      <div class="foco-panel">
-        <div class="foco-header"><div class="foco-header-title">🎯 Foco da Semana</div></div>
-        <div class="foco-body"><div class="foco-texto placeholder" id="foco-texto">Carregando...</div></div>
-      </div>
-    </div>
-  </div>
+</div>
 </div>
 
 <audio id="manifesto-audio" loop>

@@ -16,31 +16,6 @@
   <div class="loading-txt" id="loading-txt">Carregando seu painel...</div>
 </div>
 
-<!-- POPUP SUGESTÃO -->
-<div class="popup-overlay" id="popup-sugestao">
-  <div class="popup-box">
-    <div class="popup-icon-row">
-      <div class="popup-icon"><i class="ti ti-bulb" style="font-size:20px;color:var(--ok-text)"></i></div>
-      <div class="popup-title-text">Enviar sugestão</div>
-    </div>
-    <div id="sug-form">
-      <div class="sug-label">Título</div>
-      <input class="sug-input" id="sug-titulo" type="text" placeholder="Ex: Melhoria no fluxo de refabricação">
-      <div class="sug-label">Sugestão</div>
-      <textarea class="sug-textarea" id="sug-texto" placeholder="Descreva sua sugestão com detalhes..."></textarea>
-      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:1rem;">
-        <button class="btn-ghost" onclick="fecharPopup('popup-sugestao')">Cancelar</button>
-        <button class="btn-primary" onclick="enviarSugestao()"><i class="ti ti-send" style="font-size:13px;margin-right:4px"></i>Enviar</button>
-      </div>
-    </div>
-    <div id="sug-ok" class="sug-enviado" style="display:none">
-      <i class="ti ti-circle-check"></i>
-      <p>Sugestão enviada com sucesso!<br><span id="sug-nome-ok"></span></p>
-      <button class="btn-primary" style="margin-top:1rem" onclick="fecharPopup('popup-sugestao')">Fechar</button>
-    </div>
-  </div>
-</div>
-
 <div class="app-shell">
 <%- include('../partials/sidebar') %>
 <div class="app-main">
@@ -100,28 +75,6 @@
   <div class="detrat-card" id="detrat-block"></div>
   <div class="slabel" id="rv-label" style="display:none">Remuneração variável · mês</div>
   <div class="rv-card" id="rv-block" style="display:none"></div>
-  <div class="card" style="margin-bottom:1.5rem">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2px;flex-wrap:wrap;gap:8px">
-      <div class="slabel" id="escala-title">Escala de serviço</div>
-      <div style="display:flex;align-items:center;gap:6px">
-        <button id="btn-trocas" onclick="abrirTrocasPendentes()" style="background:var(--gold-dim);border:1px solid var(--gold-dark);border-radius:8px;padding:5px 12px;cursor:pointer;color:var(--gold);font-size:11px;font-weight:700;font-family:inherit;display:flex;align-items:center;gap:5px">
-          <i class="ti ti-arrows-exchange" style="font-size:13px"></i> Trocas <span id="trocas-count" style="background:var(--gold);color:#1A1A18;border-radius:10px;padding:1px 6px;font-size:10px">0</span>
-        </button>
-        <button onclick="navEscala(-1)" style="background:none;border:1px solid var(--border);border-radius:6px;width:26px;height:26px;cursor:pointer;color:var(--text-muted);font-size:13px;display:flex;align-items:center;justify-content:center;line-height:1">‹</button>
-        <span id="escala-mes-label" style="font-size:12px;font-weight:600;color:var(--text);min-width:90px;text-align:center"></span>
-        <button onclick="navEscala(1)" style="background:none;border:1px solid var(--border);border-radius:6px;width:26px;height:26px;cursor:pointer;color:var(--text-muted);font-size:13px;display:flex;align-items:center;justify-content:center;line-height:1">›</button>
-      </div>
-    </div>
-    <div style="font-size:11px;color:var(--text-muted);margin-bottom:12px" id="escala-horario">08:00 às 18:00 · 5×2</div>
-    <div class="esc-hdr" id="esc-hdr"></div>
-    <div class="esc-grid" id="esc-grid"></div>
-    <div class="esc-legend">
-      <div class="leg"><div class="leg-dot" style="background:rgba(61,175,114,0.3);border:1px solid #3DAF72"></div><span class="leg-lbl">Trabalha</span></div>
-      <div class="leg"><div class="leg-dot" style="background:rgba(212,75,75,0.3);border:1px solid #D44B4B"></div><span class="leg-lbl">Folga</span></div>
-      <div class="leg"><div class="leg-dot" style="background:rgba(212,150,40,0.3);border:1px solid #D49628"></div><span class="leg-lbl">Feriado</span></div>
-      <div class="leg"><div class="leg-dot" style="background:rgba(80,140,220,0.3);border:1px solid #3A7BD5"></div><span class="leg-lbl">Férias/Troca</span></div>
-    </div>
-  </div>
   </div>
 </div>
 
@@ -173,51 +126,6 @@
   </div>
 </div>
 
-<!-- MODAL TROCA DE ESCALA -->
-<div class="modal-overlay" id="modal-troca" onclick="if(event.target===this)fecharTroca()">
-  <div class="modal-box" style="max-width:440px">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem">
-      <div>
-        <div style="font-size:15px;font-weight:700"><i class="ti ti-arrows-exchange" style="color:var(--gold);margin-right:6px"></i>Solicitar troca</div>
-        <div style="font-size:11px;color:var(--text-muted);margin-top:2px">Somente sábados · Bloqueado na sexta-feira</div>
-      </div>
-      <button onclick="fecharTroca()" style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:20px;padding:4px"><i class="ti ti-x"></i></button>
-    </div>
-    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);padding:12px;margin-bottom:14px">
-      <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px">Seu sábado</div>
-      <div style="font-size:14px;font-weight:700;color:var(--gold)" id="troca-dia-meu"></div>
-    </div>
-    <div style="margin-bottom:14px">
-      <label style="font-size:11px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:6px">Trocar com</label>
-      <select id="troca-consultor" onchange="carregarSabadosAlvo()" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);padding:9px 12px;font-size:13px;color:var(--text);font-family:inherit">
-        <option value="">Selecione o consultor…</option>
-      </select>
-    </div>
-    <div style="margin-bottom:16px">
-      <label style="font-size:11px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:6px">Sábado do colega</label>
-      <select id="troca-dia-alvo" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);padding:9px 12px;font-size:13px;color:var(--text);font-family:inherit">
-        <option value="">Selecione o consultor primeiro…</option>
-      </select>
-    </div>
-    <div id="troca-erro" style="display:none;font-size:11px;color:var(--bad-text);margin-bottom:10px"></div>
-    <div style="display:flex;gap:8px">
-      <button onclick="enviarTroca()" style="flex:1;background:var(--gold);color:#1A1A18;border:none;border-radius:var(--rs);padding:10px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer">Solicitar troca</button>
-      <button onclick="fecharTroca()" style="background:none;border:1px solid var(--border);border-radius:var(--rs);padding:10px 14px;font-size:12px;color:var(--text-muted);font-family:inherit;cursor:pointer">Cancelar</button>
-    </div>
-  </div>
-</div>
-
-<!-- MODAL RESPONDER TROCA -->
-<div class="modal-overlay" id="modal-troca-pendente" onclick="if(event.target===this)fecharTrocaPendente()">
-  <div class="modal-box" style="max-width:420px">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem">
-      <div style="font-size:15px;font-weight:700"><i class="ti ti-bell" style="color:var(--gold);margin-right:6px"></i>Troca pendente</div>
-      <button onclick="fecharTrocaPendente()" style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:20px;padding:4px"><i class="ti ti-x"></i></button>
-    </div>
-    <div id="troca-pendente-lista" style="display:flex;flex-direction:column;gap:10px;max-height:320px;overflow-y:auto"></div>
-  </div>
-</div>
-
 <!-- MODAL HISTÓRICO AUDITORIAS -->
 <div class="modal-overlay" id="modal-auditorias" onclick="if(event.target===this)fecharHistoricoAuditoria()">
   <div class="modal-box" style="max-width:520px">
@@ -234,10 +142,6 @@
     <div id="audit-modal-lista" style="display:flex;flex-direction:column;gap:8px;max-height:420px;overflow-y:auto;padding-right:2px"></div>
   </div>
 </div>
-
-<button class="fab" id="fab-btn" onclick="abrirSugestao()">
-  <i class="ti ti-bulb"></i> Enviar sugestão
-</button>
 
 <script>
   // Injetado pelo servidor a partir da sessão — não existe mais tela de login

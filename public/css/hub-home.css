@@ -1,0 +1,165 @@
+/* ── HOME (visão executiva) ──────────────────────────────────
+   KPIs da equipe (Ranking SAC), agenda + foco da semana (Ranking SAC),
+   escala de serviço + trocas + sugestão (Painel SAC) — tudo reunido
+   aqui pra quem loga já ver o que importa, sem precisar abrir painel
+   por painel. */
+
+.hh-wrap { max-width: 1160px; margin: 0 auto; padding: 1.5rem 1.25rem 5rem; }
+
+.hh-header {
+  display: flex; align-items: flex-end; justify-content: space-between;
+  gap: 16px; flex-wrap: wrap; margin-bottom: 1.75rem;
+}
+.hh-header h1 { font-size: 22px; font-weight: 700; letter-spacing: -0.01em; margin: 0 0 4px; }
+.hh-header p { font-size: 13px; color: var(--text-muted); margin: 0; text-transform: capitalize; }
+.hh-header-right { display: flex; align-items: center; gap: 10px; }
+.hh-badge {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--gold); background: var(--gold-dim); border: 1px solid var(--gold-dark);
+  padding: 5px 12px; border-radius: 20px;
+}
+.hh-clock {
+  font-size: 15px; font-weight: 700; color: var(--text); background: var(--surface-2);
+  border: 1px solid var(--border); padding: 5px 14px; border-radius: 20px;
+  font-variant-numeric: tabular-nums;
+}
+
+.hh-section-label {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--text-hint); margin: 0 0 10px; display: flex; align-items: center; gap: 8px;
+}
+.hh-section-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+/* ── KPIs DA EQUIPE ── */
+.hh-kpis-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; margin-bottom: 2rem; }
+.hh-kpi-card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 1rem 1.1rem; position: relative; overflow: hidden;
+}
+.hh-kpi-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: var(--gold); }
+.hh-kpi-card.status-ok::before { background: var(--ok); }
+.hh-kpi-card.status-danger::before { background: var(--bad); }
+.hh-kpi-label { font-size: 10px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-hint); margin-bottom: 6px; }
+.hh-kpi-value { font-size: 26px; font-weight: 800; letter-spacing: -0.02em; color: var(--text); line-height: 1; font-variant-numeric: tabular-nums; }
+.hh-kpi-value.ok { color: var(--ok-text, var(--ok)); }
+.hh-kpi-value.danger { color: var(--bad-text, var(--bad)); }
+.hh-kpi-unit { font-size: 13px; color: var(--text-hint); font-weight: 500; }
+.hh-kpi-meta { font-size: 10.5px; color: var(--text-hint); margin-top: 5px; }
+.hh-kpi-meta span { color: var(--gold); font-weight: 600; }
+
+/* ── FOCO DA SEMANA (banner) ── */
+.hh-foco-banner {
+  display: flex; align-items: center; gap: 14px; margin-bottom: 14px;
+  background: linear-gradient(135deg, rgba(41,121,255,0.12), rgba(41,121,255,0.04));
+  border: 1px solid rgba(41,121,255,0.3); border-radius: var(--radius); padding: 1rem 1.25rem;
+}
+.hh-foco-icon {
+  width: 38px; height: 38px; border-radius: 50%; flex-shrink: 0;
+  background: rgba(41,121,255,0.16); border: 1px solid rgba(41,121,255,0.4);
+  display: flex; align-items: center; justify-content: center; color: #4C8DFF; font-size: 17px;
+}
+.hh-foco-text-wrap { min-width: 0; }
+.hh-foco-label { font-size: 9.5px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #6FA0FF; margin-bottom: 3px; }
+.hh-foco-texto { font-size: 14px; font-weight: 600; color: var(--text); line-height: 1.4; }
+.hh-foco-texto.placeholder { color: var(--text-hint); font-style: italic; font-weight: 400; }
+
+/* ── AGENDA DA SEMANA ── */
+.hh-agenda-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.1rem 1.25rem; margin-bottom: 2rem; }
+.hh-agenda-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 14px; }
+.hh-agenda-head h2 { font-size: 14px; font-weight: 700; margin: 0; }
+.hh-agenda-head span { font-size: 11px; color: var(--text-hint); }
+.hh-agenda-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+.hh-agenda-col { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.hh-agenda-col-head {
+  font-size: 9.5px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--text-hint); text-align: center; padding: 4px 0; border-bottom: 1px solid var(--border);
+}
+.hh-agenda-col-head.hoje { color: var(--gold); border-bottom-color: var(--gold-dark); }
+.hh-evento { border-radius: 6px; padding: 6px 8px; border-left: 3px solid var(--border-strong); background: var(--surface-2); }
+.hh-evento.tipo-11 { background: var(--ok-bg); border-left-color: var(--ok); }
+.hh-evento.tipo-reuniao { background: rgba(41,121,255,0.08); border-left-color: #2979ff; }
+.hh-evento.tipo-evento { background: var(--gold-dim); border-left-color: var(--gold); }
+.hh-evento.tipo-escala { background: rgba(160,100,220,0.1); border-left-color: #9c6cd4; }
+.hh-evento-hora { font-size: 9.5px; font-weight: 700; color: var(--text-hint); }
+.hh-evento-desc { font-size: 11px; font-weight: 600; color: var(--text); margin-top: 1px; line-height: 1.3; }
+.hh-agenda-vazio { font-size: 10.5px; color: var(--text-hint); text-align: center; padding: 10px 0; font-style: italic; }
+
+@media (max-width: 900px) {
+  .hh-agenda-grid { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
+}
+
+/* ── ESCALA DE SERVIÇO (calendário + trocas) ── */
+.hh-escala-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.2rem 1.25rem; margin-bottom: 1.5rem; }
+.hh-escala-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 2px; flex-wrap: wrap; gap: 8px; }
+.hh-escala-title { font-size: 13px; font-weight: 700; color: var(--text); }
+.hh-escala-nav { display: flex; align-items: center; gap: 6px; }
+.hh-btn-trocas {
+  background: var(--gold-dim); border: 1px solid var(--gold-dark); border-radius: var(--radius-sm);
+  padding: 5px 12px; cursor: pointer; color: var(--gold); font-size: 11px; font-weight: 700;
+  font-family: inherit; display: flex; align-items: center; gap: 5px;
+}
+.hh-btn-trocas .hh-trocas-count { background: var(--gold); color: var(--on-gold, #1A1A18); border-radius: 10px; padding: 1px 6px; font-size: 10px; }
+.hh-nav-arrow {
+  background: none; border: 1px solid var(--border); border-radius: 6px; width: 26px; height: 26px;
+  cursor: pointer; color: var(--text-muted); font-size: 13px; display: flex; align-items: center;
+  justify-content: center; line-height: 1;
+}
+.hh-escala-mes-label { font-size: 12px; font-weight: 600; color: var(--text); min-width: 90px; text-align: center; }
+.hh-escala-horario { font-size: 11px; color: var(--text-muted); margin-bottom: 12px; }
+
+.hh-esc-hdr { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; margin-bottom: 4px; }
+.hh-esc-head { text-align: center; font-size: 9px; font-weight: 700; color: var(--text-hint); padding: 2px; }
+.hh-esc-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
+.hh-day-cell { text-align: center; padding: 6px 2px; border-radius: 7px; position: relative; }
+.hh-day-n { font-size: 11px; font-weight: 600; }
+.hh-day-s { font-size: 8px; font-weight: 700; margin-top: 1px; }
+.hh-d-T { background: rgba(61,175,114,0.1); } .hh-d-T .hh-day-n { color: #6DDBA0; } .hh-d-T .hh-day-s { color: #3DAF72; }
+.hh-d-F { background: rgba(212,75,75,0.1); } .hh-d-F .hh-day-n { color: #F07878; } .hh-d-F .hh-day-s { color: #D44B4B; }
+.hh-d-FN, .hh-d-FM { background: rgba(212,150,40,0.1); } .hh-d-FN .hh-day-n, .hh-d-FM .hh-day-n { color: #F0BC5A; } .hh-d-FN .hh-day-s, .hh-d-FM .hh-day-s { color: #D49628; }
+.hh-d-TR, .hh-d-FE { background: rgba(80,140,220,0.1); } .hh-d-TR .hh-day-n, .hh-d-FE .hh-day-n { color: #85B7EB; } .hh-d-TR .hh-day-s, .hh-d-FE .hh-day-s { color: #3A7BD5; }
+.hh-d-today { outline: 2px solid var(--gold); outline-offset: 1px; }
+.hh-esc-legend { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 12px; }
+.hh-leg { display: flex; align-items: center; gap: 5px; }
+.hh-leg-dot { width: 8px; height: 8px; border-radius: 2px; }
+.hh-leg-lbl { font-size: 10px; color: var(--text-muted); }
+
+/* ── FAB "Enviar sugestão" ── */
+.fab {
+  position: fixed; bottom: 1.75rem; right: 1.75rem; background: var(--gold); color: var(--on-gold, #1A1A18);
+  border: none; border-radius: 50px; padding: 12px 20px; font-size: 13px; font-weight: 700;
+  font-family: inherit; cursor: pointer; display: none; align-items: center; gap: 8px;
+  box-shadow: 0 4px 20px rgba(245,184,0,0.35); transition: all .2s; z-index: 100;
+}
+.fab.show { display: flex; }
+.fab:hover { transform: translateY(-2px); box-shadow: 0 6px 28px rgba(245,184,0,0.45); }
+
+/* ── FORM (popup de sugestão) ── */
+.sug-label { font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 6px; }
+.sug-input, .sug-textarea {
+  width: 100%; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm);
+  color: var(--text); font-size: 13px; font-family: inherit; padding: 10px 12px; outline: none;
+  transition: border-color .15s; margin-bottom: 12px;
+}
+.sug-textarea { resize: vertical; min-height: 100px; line-height: 1.55; }
+.sug-input:focus, .sug-textarea:focus { border-color: var(--gold-dark); }
+.btn-primary {
+  background: var(--gold); color: var(--on-gold, #1A1A18); border: none; border-radius: var(--radius-sm);
+  padding: 10px 24px; font-size: 13px; font-weight: 700; font-family: inherit; cursor: pointer; transition: opacity .15s;
+}
+.btn-primary:hover { opacity: .88; }
+.btn-ghost {
+  background: none; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 18px;
+  font-size: 13px; font-weight: 500; font-family: inherit; color: var(--text-muted); cursor: pointer; transition: all .15s;
+}
+.btn-ghost:hover { border-color: var(--text-muted); color: var(--text); }
+.sug-enviado { text-align: center; padding: 1rem 0; }
+.sug-enviado i { font-size: 30px; color: var(--ok-text, var(--ok)); margin-bottom: 10px; display: block; }
+.sug-enviado p { font-size: 13px; color: var(--text-muted); line-height: 1.5; }
+#popup-sugestao .popup-icon { background: rgba(61,175,114,0.12); border: 1px solid rgba(61,175,114,0.3); }
+#popup-sugestao .popup-title-text { color: var(--ok-text, var(--ok)); }
+
+/* ── FALLBACK (sem acesso a nenhum painel de equipe) ── */
+.hh-fallback { max-width: 480px; margin: 4rem auto; text-align: center; }
+.hh-fallback i { font-size: 30px; color: var(--gold); margin-bottom: 12px; display: block; }
+.hh-fallback h1 { font-size: 18px; margin: 0 0 6px; }
+.hh-fallback p { font-size: 13px; color: var(--text-muted); margin: 0; }

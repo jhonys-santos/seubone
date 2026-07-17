@@ -15,7 +15,6 @@ const diaHoje = hoje.getDate(), mesHoje = hoje.getMonth(), anoHoje = hoje.getFul
 const nomeDiaHoje = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'][hoje.getDay()];
 let periodo = 'semana', mesAtual = mesHoje;
 let semanaIdx = 0;
-let escalaMes = mesHoje, escalaAno = anoHoje;
 
 const usuarioLogado = window.USUARIO_SESSAO;
 const outrosColaboradores = window.OUTROS_COLABORADORES || [];
@@ -43,24 +42,7 @@ function trocarVerComo(slug) {
   carregarPainel();
 }
 
-async function navEscala(dir) {
-  escalaMes += dir;
-  if (escalaMes > 11) { escalaMes = 0; escalaAno++; }
-  if (escalaMes < 0)  { escalaMes = 11; escalaAno--; }
-  const url = `${API_BASE}/escala?slug=${encodeURIComponent(slugAtivo)}&mes=${escalaMes}&ano=${escalaAno}`;
-  try {
-    const res  = await fetch(url);
-    const json = await res.json();
-    trocasPendentes = json.trocas_pendentes || [];
-    renderEscala(json.escala || [], escalaMes, escalaAno);
-    document.getElementById('escala-title').textContent = `Escala de serviço · ${MESES[escalaMes].toUpperCase()} ${escalaAno}`;
-  } catch(e) { console.error('navEscala', e); }
-}
-
-function atualizarLabelEscala() {
-  const el = document.getElementById('escala-mes-label');
-  if (el) el.textContent = MESES[escalaMes] + ' ' + escalaAno;
-}
+// Escala/trocas/sugestão saíram daqui — mudaram pra Home (hub-home.js).
 
 // Gera semanas sex-qui que tocam o mês
 function semanasDoMes(mes, ano) {
@@ -133,7 +115,6 @@ function mostrarEmConstrucao() {
   document.getElementById('loading-screen').classList.remove('show');
   document.getElementById('error-banner').style.display = 'none';
   document.getElementById('dash').classList.add('show');
-  document.getElementById('fab-btn').classList.remove('show');
 
   const nome = slugAtivo === usuarioLogado.slug ? usuarioLogado.nome.split(' ')[0] : nomeDoSlug(slugAtivo);
   const sufixo = slugAtivo !== usuarioLogado.slug ? ` de ${nome}` : '';
@@ -154,9 +135,6 @@ function mostrarEmConstrucao() {
   document.getElementById('detrat-block').style.display = 'none';
   document.getElementById('rv-label').style.display = 'none';
   document.getElementById('rv-block').style.display = 'none';
-  document.getElementById('escala-title').textContent = 'Escala de serviço';
-  document.getElementById('esc-hdr').innerHTML = '';
-  document.getElementById('esc-grid').innerHTML = '<div class="empty-state" style="grid-column:1/-1">Escala ainda não disponível.</div>';
 }
 
 // ── CARREGAR PAINEL ───────────────────────────────────────────
@@ -173,7 +151,6 @@ async function carregarPainel() {
     const dados = await fetchDados();
     ls.classList.remove('show');
     document.getElementById('dash').classList.add('show');
-    document.getElementById('fab-btn').classList.add('show');
     // Desfaz o que a tela "em construção" possa ter escondido numa troca de "ver como" anterior.
     ['pico-label','pico-card','audit-block','audit-section-label','detrat-label','detrat-block'].forEach((id) => {
       document.getElementById(id).style.display = '';
@@ -182,7 +159,6 @@ async function carregarPainel() {
   } catch(e) {
     ls.classList.remove('show');
     document.getElementById('dash').classList.add('show');
-    document.getElementById('fab-btn').classList.add('show');
     const b = document.getElementById('error-banner');
     b.style.display = 'block';
     b.innerHTML = `<i class="ti ti-alert-circle"></i> Erro ao carregar dados: ${e.message}`;
@@ -235,7 +211,6 @@ function renderTudo(dados) {
   document.getElementById('kpi-label').textContent = `Indicadores principais · ${MESES[mesAtual]} · ${periodo==='semana'?'Semana':'Mês'}${sufixoVerComo}`;
   document.getElementById('detrat-label').textContent = `Insatisfeitos · CSAT · ${MESES[mesAtual]}`;
   document.getElementById('pico-label').textContent = periodo==='mes'?`Pico de demanda · ${MESES[mesAtual]}`:'Pico de demanda · semana';
-  document.getElementById('escala-horario').textContent = '08:00 às 18:00 · 5×2';
 
   if (tipoAtivo === 'sac') {
     const s1=stTMA(ind.tma||0), s2=stCSAT(ind.csat||0), s3=stTMR(ind.tmr_refab||0);
@@ -294,14 +269,6 @@ function renderTudo(dados) {
   const histAudit = dados.auditorias_historico || { nota: null, itens: [] };
   atualizarBotaoAuditorias(histAudit);
   renderDetratores(ind.insatisfeitos||[]);
-  trocasPendentes = dados.trocas_pendentes || [];
-  if (escalaMes === mesAtual && escalaAno === anoHoje) {
-    renderEscala(dados.escala||[], escalaMes, escalaAno);
-  } else {
-    atualizarLabelEscala();
-    mostrarBadgePendente();
-  }
-  document.getElementById('escala-title').textContent = `Escala de serviço · ${MESES[escalaMes].toUpperCase()} ${escalaAno}`;
   renderRV(dados.indicadores||{});
 }
 
@@ -497,31 +464,6 @@ function copiarID(id, idx) {
   });
 }
 
-function renderEscala(escala, mes, ano) {
-  document.getElementById('esc-hdr').innerHTML=['S','T','Q','Q','S','S','D'].map(d=>`<div class="esc-head">${d}</div>`).join('');
-  const dowPrimeiro = new Date(ano, mes, 1).getDay();
-  const offset = (dowPrimeiro + 6) % 7;
-  const diasNoMes = new Date(ano, mes + 1, 0).getDate();
-  const bloqueado = new Date().getDay() === 5;
-  let html = '';
-  for (let i = 0; i < offset; i++) html += '<div></div>';
-  (escala||[]).forEach(item => {
-    if (item.dia > diasNoMes) return;
-    const isH    = mes === mesHoje && ano === anoHoje && item.dia === diaHoje;
-    const dow    = new Date(ano, mes, item.dia).getDay();
-    const isSab  = dow === 6;
-    const podeClicar = isSab && !bloqueado && slugAtivo === usuarioLogado.slug;
-    const clique = podeClicar ? `onclick="abrirTroca(${item.dia},${mes},${ano},'${item.status}')" style="cursor:pointer"` : '';
-    const trocaBadge = podeClicar ? `<div style="position:absolute;top:3px;right:3px;font-size:8px;color:var(--gold);opacity:0.7"><i class="ti ti-arrows-exchange"></i></div>` : '';
-    html += `<div class="day-cell d-${item.status||'F'} ${isH?'d-today':''}" ${clique} style="position:relative">${trocaBadge}<div class="day-n">${item.dia}</div><div class="day-s">${item.status||'F'}</div></div>`;
-  });
-  document.getElementById('esc-grid').innerHTML = html;
-  escalaMes = mes; escalaAno = ano;
-  document.getElementById('escala-title').textContent = `Escala de serviço · ${MESES[mes].toUpperCase()} ${ano}`;
-  atualizarLabelEscala();
-  mostrarBadgePendente();
-}
-
 function renderRV(ind) {
   const label = document.getElementById('rv-label');
   const block = document.getElementById('rv-block');
@@ -650,22 +592,7 @@ function rvItem(lbl, valStr, prizeNum, status, meta) {
   '</div>';
 }
 
-// ── POP-UPS ───────────────────────────────────────────────────
-// tocarSom/fecharPopup/abrirAviso agora vivem em ui.js (aviso saiu daqui e
-// abre na home, mas fecharPopup ainda é usado pelo popup de sugestão abaixo).
-function abrirSugestao(){document.getElementById('sug-form').style.display='block';document.getElementById('sug-ok').style.display='none';document.getElementById('sug-titulo').value='';document.getElementById('sug-texto').value='';document.getElementById('popup-sugestao').classList.add('open');}
-
-async function enviarSugestao() {
-  const titulo=document.getElementById('sug-titulo').value.trim();
-  const texto=document.getElementById('sug-texto').value.trim();
-  if(!titulo||!texto){await hubAlert('Preencha o título e a sugestão antes de enviar.', 'erro');return;}
-  try {
-    await fetch(`${API_BASE}/sugestao`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ titulo, sugestao: texto }) });
-    document.getElementById('sug-nome-ok').textContent=`Obrigado pela contribuição, ${usuarioLogado.nome.split(' ')[0]}.`;
-    document.getElementById('sug-form').style.display='none';
-    document.getElementById('sug-ok').style.display='block';
-  } catch(e) { await hubAlert('Erro ao enviar. Tente novamente.', 'erro'); }
-}
+// Sugestão saiu daqui — mudou pra Home (hub-home.js).
 
 // ── FILTROS ───────────────────────────────────────────────────
 function mostrarAtualizando() {
@@ -716,175 +643,7 @@ async function setSemana(idx) {
   await atualizarComLoading();
 }
 
-// ── TROCAS DE ESCALA ─────────────────────────────────────────
-let trocasPendentes  = [];
-let trocaDiaMeu = null, trocaMesMeu = null, trocaAnoMeu = null;
-let consultoresCache = [];
-let sabadosAlvoCache = {};
-
-async function abrirTroca(dia, mes, ano, status) {
-  const dataSabado = new Date(ano, mes, dia);
-  const hojeD = new Date(); hojeD.setHours(0,0,0,0);
-  if (dataSabado < hojeD) {
-    await hubAlert('Não é possível solicitar troca para um sábado que já passou.', 'erro');
-    return;
-  }
-
-  trocaDiaMeu = dia; trocaMesMeu = mes; trocaAnoMeu = ano;
-  document.getElementById('troca-dia-meu').textContent = `${dia} de ${MESES[mes]} de ${ano} (${status})`;
-  document.getElementById('troca-erro').style.display = 'none';
-  document.getElementById('troca-dia-alvo').innerHTML = '<option value="">Selecione o consultor primeiro…</option>';
-
-  if (!consultoresCache.length) {
-    try {
-      const res  = await fetch(`${API_BASE}/consultores`);
-      const json = await res.json();
-      if (json.erro) { await hubAlert('Erro ao carregar consultores: ' + json.erro, 'erro'); }
-      consultoresCache = (json.consultores || []).filter(c => c.slug !== usuarioLogado.slug);
-      if (!consultoresCache.length) console.warn('Nenhum consultor retornado pela API', json);
-    } catch(e) {
-      await hubAlert('Erro ao buscar consultores: ' + e.message, 'erro');
-    }
-  }
-  const sel = document.getElementById('troca-consultor');
-  sel.innerHTML = '<option value="">Selecione o consultor…</option>' +
-    consultoresCache.map(c => `<option value="${c.slug}">${c.nome}</option>`).join('');
-
-  document.getElementById('modal-troca').classList.add('show');
-}
-
-function fecharTroca() {
-  document.getElementById('modal-troca').classList.remove('show');
-}
-
-async function carregarSabadosAlvo() {
-  const slug = document.getElementById('troca-consultor').value;
-  if (!slug) return;
-  const sel = document.getElementById('troca-dia-alvo');
-  sel.innerHTML = '<option value="">Carregando…</option>';
-
-  if (!sabadosAlvoCache[slug]) {
-    const url  = `${API_BASE}/sabados-consultor?alvo=${encodeURIComponent(slug)}&mes=${escalaMes}&ano=${escalaAno}`;
-    const res  = await fetch(url);
-    const json = await res.json();
-    sabadosAlvoCache[slug] = (json.sabados || []);
-  }
-
-  const sabados = sabadosAlvoCache[slug];
-  if (!sabados.length) {
-    sel.innerHTML = '<option value="">Nenhum sábado disponível neste mês</option>';
-    return;
-  }
-  const mesesAbrev = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
-  sel.innerHTML = '<option value="">Selecione o sábado…</option>' +
-    sabados.map(s => `<option value="${s.dia}|${escalaMes}|${escalaAno}">${s.dia} ${mesesAbrev[escalaMes]} ${escalaAno} (${s.status})</option>`).join('');
-}
-
-async function enviarTroca() {
-  const erroEl  = document.getElementById('troca-erro');
-  const slug    = document.getElementById('troca-consultor').value;
-  const alvoVal = document.getElementById('troca-dia-alvo').value;
-  erroEl.style.display = 'none';
-
-  if (!slug)    { erroEl.textContent = 'Selecione o consultor.'; erroEl.style.display = 'block'; return; }
-  if (!alvoVal) { erroEl.textContent = 'Selecione o sábado do colega.'; erroEl.style.display = 'block'; return; }
-
-  const [dia_alvo, mes_alvo, ano_alvo] = alvoVal.split('|').map(Number);
-
-  const payload = {
-    dia_solicitante: trocaDiaMeu, mes_solicitante: trocaMesMeu, ano_solicitante: trocaAnoMeu,
-    consultor_alvo: slug,
-    dia_alvo, mes_alvo, ano_alvo,
-  };
-  try {
-    const res  = await fetch(`${API_BASE}/solicitar-troca`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
-    const json = await res.json();
-    if (!json.ok) { erroEl.textContent = json.erro || 'Erro ao solicitar.'; erroEl.style.display = 'block'; return; }
-    fecharTroca();
-    await hubAlert('Solicitação enviada! O colega receberá a notificação no painel.', 'sucesso');
-  } catch(e) {
-    erroEl.textContent = e.message; erroEl.style.display = 'block';
-  }
-}
-
-function mostrarBadgePendente() {
-  const count = document.getElementById('trocas-count');
-  const btn   = document.getElementById('btn-trocas');
-  if (!count || !btn) return;
-  const n = (trocasPendentes || []).length;
-  count.textContent = n;
-  btn.style.opacity = n > 0 ? '1' : '0.5';
-  btn.style.boxShadow = n > 0 ? '0 0 0 2px rgba(245,195,0,0.3)' : 'none';
-}
-
-async function abrirTrocasPendentes() {
-  const lista = document.getElementById('troca-pendente-lista');
-  lista.innerHTML = '<div style="font-size:12px;color:var(--text-muted);text-align:center;padding:16px">Verificando solicitações…</div>';
-  document.getElementById('modal-troca-pendente').classList.add('show');
-
-  try {
-    const url  = `${API_BASE}/escala?slug=${encodeURIComponent(usuarioLogado.slug)}&mes=${escalaMes}&ano=${escalaAno}`;
-    const res  = await fetch(url);
-    const json = await res.json();
-    trocasPendentes = json.trocas_pendentes || [];
-    mostrarBadgePendente();
-  } catch(e) { /* usa cache local se a busca falhar */ }
-
-  if (!consultoresCache.length) {
-    try {
-      const res2  = await fetch(`${API_BASE}/consultores`);
-      const json2 = await res2.json();
-      consultoresCache = json2.consultores || [];
-    } catch(e) {}
-  }
-
-  const mesesAbrev = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
-  const nomes = {};
-  consultoresCache.forEach(c => nomes[c.slug] = c.nome);
-
-  if (!trocasPendentes.length) {
-    lista.innerHTML = '<div style="font-size:12px;color:var(--text-hint);text-align:center;padding:24px"><i class="ti ti-checks" style="font-size:24px;display:block;margin-bottom:8px;color:var(--ok-text)"></i>Nenhuma troca pendente no momento.</div>';
-    return;
-  }
-
-  lista.innerHTML = trocasPendentes.map(t => `
-    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);padding:14px">
-      <div style="font-size:12px;font-weight:700;margin-bottom:6px;color:var(--text)">
-        <i class="ti ti-arrows-exchange" style="color:var(--gold);margin-right:4px"></i>
-        ${nomes[t.solicitante] || t.solicitante} quer trocar com você
-      </div>
-      <div style="font-size:11px;color:var(--text-muted);margin-bottom:10px">
-        Sábado deles: <strong style="color:var(--text)">${t.dia_sol} ${mesesAbrev[t.mes_sol]} ${t.ano_sol}</strong> →
-        Seu sábado: <strong style="color:var(--text)">${t.dia_alvo} ${mesesAbrev[t.mes_alvo]} ${t.ano_alvo}</strong>
-      </div>
-      <div style="display:flex;gap:8px">
-        <button onclick="responderTroca('${t.id}', true)" style="flex:1;background:var(--gold);color:#1A1A18;border:none;border-radius:var(--rs);padding:8px;font-size:12px;font-weight:700;font-family:inherit;cursor:pointer">✓ Aceitar</button>
-        <button onclick="responderTroca('${t.id}', false)" style="background:none;border:1px solid rgba(212,75,75,0.4);border-radius:var(--rs);padding:8px 14px;font-size:12px;color:var(--bad-text);font-family:inherit;cursor:pointer">✕ Recusar</button>
-      </div>
-    </div>
-  `).join('');
-}
-
-function fecharTrocaPendente() {
-  document.getElementById('modal-troca-pendente').classList.remove('show');
-}
-
-async function responderTroca(idTroca, aceitar) {
-  const payload = { id_troca: idTroca, aceitar };
-  try {
-    const res  = await fetch(`${API_BASE}/responder-troca`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
-    const json = await res.json();
-    if (!json.ok) { await hubAlert('Erro: ' + (json.erro||'tente novamente'), 'erro'); return; }
-    trocasPendentes = trocasPendentes.filter(t => t.id !== idTroca);
-    fecharTrocaPendente();
-    if (aceitar) {
-      await hubAlert('Troca aceita! As escalas foram atualizadas.', 'sucesso');
-      await navEscala(0);
-    } else {
-      await hubAlert('Troca recusada.', 'info');
-    }
-  } catch(e) { await hubAlert('Erro: ' + e.message, 'erro'); }
-}
+// Trocas de escala saíram daqui — mudaram pra Home (hub-home.js).
 
 // ── HISTÓRICO DE AUDITORIAS ───────────────────────────────────
 let auditoriasCache = { nota: null, itens: [] };

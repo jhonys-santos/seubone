@@ -1,20 +1,11 @@
-// Ranking SAC (painel de TV) — portado de "index (1).html" original.
-// Única mudança real: os 4 CSVs do Google Sheets agora são buscados via
-// /ranking-sac/api/csv/:chave (proxy do hub, servidor→Google) em vez de
-// fetch direto do navegador — isso elimina a necessidade do fallback
-// corsproxy.io que existia no original. Toda a lógica de parsing, cálculo
-// de score e animação de corrida é preservada literalmente.
+// Ranking SAC — só as corridas (Time Atendimento + Time Resolução) e o
+// alerta de Manifesto. KPIs/Agenda/Foco/relógio migraram pra Home
+// (hub-home.js) — mas a agenda ainda é buscada aqui, porque o alerta de
+// Manifesto depende dela pra saber a hora certa de disparar.
 
 const API_BASE = '/ranking-sac/api';
-
-// ── RELÓGIO
-setInterval(()=>{ document.getElementById('clock').textContent=new Date().toLocaleTimeString('pt-BR'); },1000);
-document.getElementById('clock').textContent=new Date().toLocaleTimeString('pt-BR');
-
-// ── CONFIG
-const REFRESH_INTERVAL=300000;
-
-const SHEET_KEYS = { atd: 'atd', rsl: 'rsl', kpis: 'kpi', agenda: 'agenda' };
+const REFRESH_INTERVAL = 300000;
+const SHEET_KEYS = { atd: 'atd', rsl: 'rsl', agenda: 'agenda' };
 
 // ── UTILS
 function timeStrToMin(s){
@@ -65,7 +56,6 @@ function parseCSV(text){
 
 // ── DATA MODEL
 let DATA={
-  kpis:{tma:'--',csat:'--',nps:'--',refab:'--',ppf:'--'},
   atd:{
     consultores:['Iasmin','Francis','Nathalia'],dias:['Sex','Seg','Ter','Qua','Qui'],
     data:{
@@ -81,7 +71,7 @@ let DATA={
       'Daniel':   {tmrppf:[null,null,null,null,null],tickets:[null,null,null,null,null],score:null},
     }
   },
-  agenda:[],foco:''
+  agenda:[]
 };
 
 // ── PARSE SHEETS
@@ -135,22 +125,8 @@ function parseRSL(rows){
   });
 }
 
-function parseKPIs(rows){
-  rows.forEach(row=>{
-    const label=cleanStr(row[0]).toLowerCase();
-    const val=cleanStr(row[1]);
-    if(label.includes('tma da equipe'))  DATA.kpis.tma  =parseTime(val)||val;
-    if(label.includes('csat da equipe')) DATA.kpis.csat =safeNum(val);
-    if(label.includes('nps da equipe'))  DATA.kpis.nps  =safeNum(val);
-    if(label.includes('refabrica'))      DATA.kpis.refab=parseTime(val)||val;
-    if(label.includes('ppf')&&label.includes('tmr')&&!label.includes('refabri')) DATA.kpis.ppf=parseTime(val)||val;
-  });
-}
-
 function parseAgenda(rows){
-  DATA.agenda=[];DATA.foco='';
-  const fi=rows.findIndex(r=>cleanStr(r[0]).toUpperCase().includes('FOCO DA SEMANA'));
-  if(fi!==-1&&rows[fi+1]) DATA.foco=cleanStr(rows[fi+1][0]);
+  DATA.agenda=[];
   const di=rows.findIndex(r=>cleanStr(r[0]).toLowerCase()==='dia');
   if(di!==-1){
     for(let i=di+1;i<rows.length;i++){
@@ -173,11 +149,10 @@ async function loadAllData(){
   const ind=document.getElementById('refresh-ind');
   ind.textContent='● atualizando...';ind.classList.add('loading');
   try{
-    const [rowsATD,rowsRSL,rowsKPI,rowsAG]=await Promise.all([
-      fetchSheet('atd'),fetchSheet('rsl'),
-      fetchSheet('kpis'),fetchSheet('agenda'),
+    const [rowsATD,rowsRSL,rowsAG]=await Promise.all([
+      fetchSheet('atd'),fetchSheet('rsl'),fetchSheet('agenda'),
     ]);
-    parseATD(rowsATD);parseRSL(rowsRSL);parseKPIs(rowsKPI);parseAgenda(rowsAG);
+    parseATD(rowsATD);parseRSL(rowsRSL);parseAgenda(rowsAG);
     renderAll();
     if(window._restartRaces) window._restartRaces();
     window.dispatchEvent(new Event('dataLoaded'));
@@ -190,21 +165,6 @@ async function loadAllData(){
 }
 
 // ── RENDERS
-function renderKPIs(k){
-  const fmt=v=>v||'--';
-  document.getElementById('val-tma').innerHTML=fmt(k.tma)+'<span class="kpi-unit">h</span>';
-  document.getElementById('val-csat').innerHTML=fmt(k.csat)+'<span class="kpi-unit">%</span>';
-  document.getElementById('val-nps').textContent=fmt(k.nps);
-  document.getElementById('val-refab').innerHTML=fmt(k.refab)+'<span class="kpi-unit">h</span>';
-  document.getElementById('val-ppf').innerHTML=fmt(k.ppf)+'<span class="kpi-unit">h</span>';
-  function setCard(id,good){const el=document.getElementById(id);el.classList.remove('status-ok','status-danger');el.classList.add(good?'status-ok':'status-danger');const v=el.querySelector('.kpi-value');v.classList.toggle('ok',good);v.classList.toggle('danger',!good);}
-  setCard('card-tma', timeStrToMin(k.tma)<=30);
-  setCard('card-csat',parseFloat(k.csat)>=95);
-  setCard('card-nps', parseFloat(k.nps)>=80);
-  setCard('card-refab',timeStrToMin(k.refab)<=84*60);
-  setCard('card-ppf', timeStrToMin(k.ppf)<=24*60);
-}
-
 function renderTrack(cid,consultores,data){
   const sorted=[...consultores].sort((a,b)=>(data[b]?.score||0)-(data[a]?.score||0));
   const mx=Math.max(...sorted.map(c=>data[c]?.score||0),1);
@@ -261,38 +221,11 @@ function renderTabelaRSL(data){
   ],data);
 }
 
-function renderAgenda(eventos){
-  const diasOrdem=['Segunda','Terça','Quarta','Quinta','Sexta'];
-  const hojeMap={'segunda-feira':'Segunda','terça-feira':'Terça','quarta-feira':'Quarta','quinta-feira':'Quinta','sexta-feira':'Sexta'};
-  const diaHoje=hojeMap[new Date().toLocaleDateString('pt-BR',{weekday:'long'}).toLowerCase()]||'';
-  const porDia={}; diasOrdem.forEach(d=>{porDia[d]=[];});
-  eventos.forEach(ev=>{if(porDia[ev.dia])porDia[ev.dia].push(ev);});
-  diasOrdem.forEach(d=>{porDia[d].sort((a,b)=>a.hora.localeCompare(b.hora));});
-  const tipoClass={'1:1':'tipo-11','Reunião':'tipo-reuniao','Evento':'tipo-evento','Escala':'tipo-escala','Outro':'tipo-outro'};
-  document.getElementById('agenda-grid').innerHTML=diasOrdem.map(dia=>{
-    const isHoje=dia===diaHoje;
-    let h=`<div class="agenda-dia-col"><div class="agenda-dia-header${isHoje?' hoje':''}">${dia}${isHoje?' <span style="color:#F5B800;font-size:8px">HOJE</span>':''}</div>`;
-    const evs=porDia[dia];
-    if(!evs.length){h+=`<div class="dia-vazio">livre</div>`;}
-    else{evs.forEach(ev=>{const tc=tipoClass[ev.tipo]||'tipo-outro';h+=`<div class="evento-card ${tc}"><div class="evento-hora">${ev.hora}</div><div class="evento-desc">${ev.desc}</div></div>`;});}
-    h+='</div>';return h;
-  }).join('');
-}
-
-function renderFoco(texto){
-  const el=document.getElementById('foco-texto');
-  if(texto&&texto.trim()){el.textContent=texto.trim();el.classList.remove('placeholder');}
-  else{el.textContent='Aguardando dados...';el.classList.add('placeholder');}
-}
-
 function renderAll(){
-  renderKPIs(DATA.kpis);
   renderTrack('atd-track',DATA.atd.consultores,DATA.atd.data);
   renderTabelaATD(DATA.atd.data);
   renderTrack('rsl-track',DATA.rsl.consultores,DATA.rsl.data);
   renderTabelaRSL(DATA.rsl.data);
-  renderAgenda(DATA.agenda);
-  renderFoco(DATA.foco);
 }
 
 // ── AUTO-SCROLL INDICADORES

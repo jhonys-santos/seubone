@@ -3,57 +3,189 @@
 <head>
 <%- include('partials/head') %>
 <title>SeuBoné</title>
+<link rel="stylesheet" href="/css/hub-home.css">
 </head>
 <body>
+<%
+  var temPainelSac = paineisVisiveis.some(function (p) { return p.chave === 'painel-sac'; });
+  var temRankingSac = paineisVisiveis.some(function (p) { return p.chave === 'ranking-sac'; });
+%>
 <div class="app-shell">
 <%- include('partials/sidebar') %>
 <div class="app-main">
-<div class="hub-container">
-  <div class="hub-welcome">
-    <h1>Olá, <%= usuario.nome.split(' ')[0] %></h1>
-    <p>Painéis disponíveis para o seu acesso.</p>
-  </div>
-  <% if (paineisVisiveis.length === 0) { %>
-    <div class="hub-empty">
-      <i class="ti ti-lock" aria-hidden="true"></i>
-      Nenhum painel liberado para o seu usuário ainda. Fale com seu gestor.
+
+<% if (!temPainelSac && !temRankingSac) { %>
+<div class="hh-fallback">
+  <i class="ti ti-layout-dashboard" aria-hidden="true"></i>
+  <h1>Olá, <%= usuario.nome.split(' ')[0] %></h1>
+  <p>Use o menu ao lado para acessar seus painéis.</p>
+</div>
+<% } else { %>
+<div class="hh-wrap">
+
+  <div class="hh-header">
+    <div>
+      <h1>Olá, <%= usuario.nome.split(' ')[0] %></h1>
+      <p><%= new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' }) %></p>
     </div>
-  <% } else { %>
-  <div class="hub-grid">
-    <% paineisVisiveis.forEach(function(p) { %>
-      <a class="hub-card" href="<%= p.url %>">
-        <div class="hub-card-icon"><i class="ti <%= p.icone %>" aria-hidden="true"></i></div>
-        <div>
-          <h3><%= p.titulo %></h3>
-          <p><%= p.descricao %></p>
-        </div>
-        <div class="hub-card-footer">Abrir <i class="ti ti-arrow-right" aria-hidden="true"></i></div>
-      </a>
-    <% }); %>
+    <div class="hh-header-right">
+      <span class="hh-badge">Operação SAC</span>
+      <span class="hh-clock" id="hh-clock">--:--:--</span>
+    </div>
   </div>
 
-  <% if (atalhosVisiveis.length) { %>
-  <div class="hub-section-label">Atalhos</div>
-  <div class="hub-grid">
-    <% atalhosVisiveis.forEach(function(a) { %>
-      <a class="hub-card" href="<%= a.url %>" <% if (a.novaAba) { %>target="_blank" rel="noopener"<% } %>>
-        <% if (a.novaAba) { %><span class="hub-card-external-badge"><i class="ti ti-external-link" aria-hidden="true"></i></span><% } %>
-        <div class="hub-card-icon"><i class="ti <%= a.icone %>" aria-hidden="true"></i></div>
-        <div>
-          <h3><%= a.titulo %></h3>
-          <p><%= a.descricao %></p>
-        </div>
-        <div class="hub-card-footer"><%= a.novaAba ? 'Abrir em nova aba' : 'Abrir' %> <i class="ti ti-arrow-right" aria-hidden="true"></i></div>
-      </a>
-    <% }); %>
+  <% if (temRankingSac) { %>
+  <div class="hh-section-label">KPIs da Equipe</div>
+  <div class="hh-kpis-grid" id="hh-kpis-grid">
+    <div class="hh-kpi-card" id="hh-card-tma">
+      <div class="hh-kpi-label">TMA da Equipe</div>
+      <div class="hh-kpi-value" id="hh-val-tma">--<span class="hh-kpi-unit">h</span></div>
+      <div class="hh-kpi-meta">Meta: <span>&lt; 00:30:00h</span></div>
+    </div>
+    <div class="hh-kpi-card" id="hh-card-csat">
+      <div class="hh-kpi-label">CSAT da Equipe</div>
+      <div class="hh-kpi-value" id="hh-val-csat">--<span class="hh-kpi-unit">%</span></div>
+      <div class="hh-kpi-meta">Meta: <span>&gt; 95%</span></div>
+    </div>
+    <div class="hh-kpi-card" id="hh-card-nps">
+      <div class="hh-kpi-label">NPS</div>
+      <div class="hh-kpi-value" id="hh-val-nps">--</div>
+      <div class="hh-kpi-meta">Meta: <span>&gt; 80</span></div>
+    </div>
+    <div class="hh-kpi-card" id="hh-card-refab">
+      <div class="hh-kpi-label">TMR Refabricação</div>
+      <div class="hh-kpi-value" id="hh-val-refab">--<span class="hh-kpi-unit">h</span></div>
+      <div class="hh-kpi-meta">Meta: <span>&lt; 84:00:00h</span></div>
+    </div>
+    <div class="hh-kpi-card" id="hh-card-ppf">
+      <div class="hh-kpi-label">TMR PPF +1</div>
+      <div class="hh-kpi-value" id="hh-val-ppf">--<span class="hh-kpi-unit">h</span></div>
+      <div class="hh-kpi-meta">Meta: <span>&lt; 24:00:00h</span></div>
+    </div>
+  </div>
+
+  <div class="hh-foco-banner">
+    <div class="hh-foco-icon"><i class="ti ti-target-arrow" aria-hidden="true"></i></div>
+    <div class="hh-foco-text-wrap">
+      <div class="hh-foco-label">Foco da semana</div>
+      <div class="hh-foco-texto placeholder" id="hh-foco-texto">Carregando...</div>
+    </div>
+  </div>
+
+  <div class="hh-agenda-card">
+    <div class="hh-agenda-head">
+      <h2>Agenda da Semana</h2>
+      <span>Segunda → Sexta</span>
+    </div>
+    <div class="hh-agenda-grid" id="hh-agenda-grid"></div>
   </div>
   <% } %>
+
+  <% if (temPainelSac) { %>
+  <div class="hh-escala-card">
+    <div class="hh-escala-head">
+      <div class="hh-escala-title" id="escala-title">Escala de serviço</div>
+      <div class="hh-escala-nav">
+        <button id="btn-trocas" class="hh-btn-trocas" onclick="abrirTrocasPendentes()">
+          <i class="ti ti-arrows-exchange" aria-hidden="true"></i> Trocas <span id="trocas-count" class="hh-trocas-count">0</span>
+        </button>
+        <button class="hh-nav-arrow" onclick="navEscala(-1)">‹</button>
+        <span id="escala-mes-label" class="hh-escala-mes-label"></span>
+        <button class="hh-nav-arrow" onclick="navEscala(1)">›</button>
+      </div>
+    </div>
+    <div class="hh-escala-horario">08:00 às 18:00 · 5×2</div>
+    <div class="hh-esc-hdr" id="esc-hdr"></div>
+    <div class="hh-esc-grid" id="esc-grid"></div>
+    <div class="hh-esc-legend">
+      <div class="hh-leg"><div class="hh-leg-dot" style="background:rgba(61,175,114,0.3);border:1px solid #3DAF72"></div><span class="hh-leg-lbl">Trabalha</span></div>
+      <div class="hh-leg"><div class="hh-leg-dot" style="background:rgba(212,75,75,0.3);border:1px solid #D44B4B"></div><span class="hh-leg-lbl">Folga</span></div>
+      <div class="hh-leg"><div class="hh-leg-dot" style="background:rgba(212,150,40,0.3);border:1px solid #D49628"></div><span class="hh-leg-lbl">Feriado</span></div>
+      <div class="hh-leg"><div class="hh-leg-dot" style="background:rgba(80,140,220,0.3);border:1px solid #3A7BD5"></div><span class="hh-leg-lbl">Férias/Troca</span></div>
+    </div>
+  </div>
   <% } %>
+
 </div>
+<% } %>
+
 </div>
 </div>
 
-<% if (paineisVisiveis.some(function (p) { return p.chave === 'painel-sac'; })) { %>
+<% if (temPainelSac) { %>
+<button class="fab show" id="fab-btn" onclick="abrirSugestao()">
+  <i class="ti ti-bulb" aria-hidden="true"></i> Enviar sugestão
+</button>
+
+<div class="popup-overlay" id="popup-sugestao">
+  <div class="popup-box">
+    <div class="popup-icon-row">
+      <div class="popup-icon"><i class="ti ti-bulb" style="font-size:20px;color:var(--ok-text)"></i></div>
+      <div class="popup-title-text">Enviar sugestão</div>
+    </div>
+    <div id="sug-form">
+      <div class="sug-label">Título</div>
+      <input class="sug-input" id="sug-titulo" type="text" placeholder="Ex: Melhoria no fluxo de refabricação">
+      <div class="sug-label">Sugestão</div>
+      <textarea class="sug-textarea" id="sug-texto" placeholder="Descreva sua sugestão com detalhes..."></textarea>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:1rem;">
+        <button class="btn-ghost" onclick="fecharPopup('popup-sugestao')">Cancelar</button>
+        <button class="btn-primary" onclick="enviarSugestao()"><i class="ti ti-send" style="font-size:13px;margin-right:4px"></i>Enviar</button>
+      </div>
+    </div>
+    <div id="sug-ok" class="sug-enviado" style="display:none">
+      <i class="ti ti-circle-check"></i>
+      <p>Sugestão enviada com sucesso!<br><span id="sug-nome-ok"></span></p>
+      <button class="btn-primary" style="margin-top:1rem" onclick="fecharPopup('popup-sugestao')">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL TROCA DE ESCALA -->
+<div class="modal-overlay" id="modal-troca" onclick="if(event.target===this)fecharTroca()">
+  <div class="modal-box" style="max-width:440px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem">
+      <div>
+        <div style="font-size:15px;font-weight:700"><i class="ti ti-arrows-exchange" style="color:var(--gold);margin-right:6px"></i>Solicitar troca</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:2px">Somente sábados · Bloqueado na sexta-feira</div>
+      </div>
+      <button onclick="fecharTroca()" style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:20px;padding:4px"><i class="ti ti-x"></i></button>
+    </div>
+    <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;margin-bottom:14px">
+      <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px">Seu sábado</div>
+      <div style="font-size:14px;font-weight:700;color:var(--gold)" id="troca-dia-meu"></div>
+    </div>
+    <div style="margin-bottom:14px">
+      <label style="font-size:11px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:6px">Trocar com</label>
+      <select id="troca-consultor" onchange="carregarSabadosAlvo()" style="width:100%;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:9px 12px;font-size:13px;color:var(--text);font-family:inherit">
+        <option value="">Selecione o consultor…</option>
+      </select>
+    </div>
+    <div style="margin-bottom:16px">
+      <label style="font-size:11px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:6px">Sábado do colega</label>
+      <select id="troca-dia-alvo" style="width:100%;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:9px 12px;font-size:13px;color:var(--text);font-family:inherit">
+        <option value="">Selecione o consultor primeiro…</option>
+      </select>
+    </div>
+    <div id="troca-erro" style="display:none;font-size:11px;color:var(--bad-text);margin-bottom:10px"></div>
+    <div style="display:flex;gap:8px">
+      <button onclick="enviarTroca()" style="flex:1;background:var(--gold);color:var(--on-gold,#1A1A18);border:none;border-radius:var(--radius-sm);padding:10px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer">Solicitar troca</button>
+      <button onclick="fecharTroca()" style="background:none;border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 14px;font-size:12px;color:var(--text-muted);font-family:inherit;cursor:pointer">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL RESPONDER TROCA -->
+<div class="modal-overlay" id="modal-troca-pendente" onclick="if(event.target===this)fecharTrocaPendente()">
+  <div class="modal-box" style="max-width:420px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem">
+      <div style="font-size:15px;font-weight:700"><i class="ti ti-bell" style="color:var(--gold);margin-right:6px"></i>Troca pendente</div>
+      <button onclick="fecharTrocaPendente()" style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:20px;padding:4px"><i class="ti ti-x"></i></button>
+    </div>
+    <div id="troca-pendente-lista" style="display:flex;flex-direction:column;gap:10px;max-height:320px;overflow-y:auto"></div>
+  </div>
+</div>
+
 <div class="popup-overlay" id="popup-aviso">
   <div class="popup-box">
     <div class="popup-icon-row">
@@ -72,6 +204,13 @@
     if (d.aviso && d.aviso.ativo) setTimeout(function () { abrirAviso(d.aviso); }, 700);
   }).catch(function () {});
 </script>
+<% } %>
+
+<% if (temPainelSac || temRankingSac) { %>
+<script>
+  window.USUARIO_SESSAO = <%- JSON.stringify(usuario) %>;
+</script>
+<script src="/js/hub-home.js"></script>
 <% } %>
 </body>
 </html>
