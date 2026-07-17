@@ -86,7 +86,7 @@
     <div class="hh-escala-head">
       <div class="hh-escala-title" id="escala-title">Escala de serviço</div>
       <div class="hh-escala-nav">
-        <button id="btn-trocas" class="hh-btn-trocas" onclick="abrirTrocasPendentes()">
+        <button id="btn-trocas" class="hh-btn-trocas" onclick="abrirTrocas()">
           <i class="ti ti-arrows-exchange" aria-hidden="true"></i> Trocas <span id="trocas-count" class="hh-trocas-count">0</span>
         </button>
         <button class="hh-nav-arrow" onclick="navEscala(-1)">‹</button>
@@ -141,48 +141,48 @@
   </div>
 </div>
 
-<!-- MODAL TROCA DE ESCALA -->
-<div class="modal-overlay" id="modal-troca" onclick="if(event.target===this)fecharTroca()">
-  <div class="modal-box" style="max-width:440px">
+<!-- MODAL TROCAS DE ESCALA (solicitar + responder) -->
+<div class="modal-overlay" id="modal-trocas" onclick="if(event.target===this)fecharTrocas()">
+  <div class="modal-box" style="max-width:460px">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem">
-      <div>
-        <div style="font-size:15px;font-weight:700"><i class="ti ti-arrows-exchange" style="color:var(--gold);margin-right:6px"></i>Solicitar troca</div>
-        <div style="font-size:11px;color:var(--text-muted);margin-top:2px">Somente sábados · Bloqueado na sexta-feira</div>
-      </div>
-      <button onclick="fecharTroca()" style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:20px;padding:4px"><i class="ti ti-x"></i></button>
+      <div style="font-size:15px;font-weight:700"><i class="ti ti-arrows-exchange" style="color:var(--gold);margin-right:6px"></i>Trocas de escala</div>
+      <button onclick="fecharTrocas()" style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:20px;padding:4px"><i class="ti ti-x"></i></button>
     </div>
-    <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;margin-bottom:14px">
-      <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px">Seu sábado</div>
-      <div style="font-size:14px;font-weight:700;color:var(--gold)" id="troca-dia-meu"></div>
-    </div>
-    <div style="margin-bottom:14px">
-      <label style="font-size:11px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:6px">Trocar com</label>
-      <select id="troca-consultor" onchange="carregarSabadosAlvo()" style="width:100%;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:9px 12px;font-size:13px;color:var(--text);font-family:inherit">
-        <option value="">Selecione o consultor…</option>
-      </select>
-    </div>
-    <div style="margin-bottom:16px">
-      <label style="font-size:11px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:6px">Sábado do colega</label>
-      <select id="troca-dia-alvo" style="width:100%;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:9px 12px;font-size:13px;color:var(--text);font-family:inherit">
-        <option value="">Selecione o consultor primeiro…</option>
-      </select>
-    </div>
-    <div id="troca-erro" style="display:none;font-size:11px;color:var(--bad-text);margin-bottom:10px"></div>
-    <div style="display:flex;gap:8px">
-      <button onclick="enviarTroca()" style="flex:1;background:var(--gold);color:var(--on-gold,#1A1A18);border:none;border-radius:var(--radius-sm);padding:10px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer">Solicitar troca</button>
-      <button onclick="fecharTroca()" style="background:none;border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 14px;font-size:12px;color:var(--text-muted);font-family:inherit;cursor:pointer">Cancelar</button>
-    </div>
-  </div>
-</div>
 
-<!-- MODAL RESPONDER TROCA -->
-<div class="modal-overlay" id="modal-troca-pendente" onclick="if(event.target===this)fecharTrocaPendente()">
-  <div class="modal-box" style="max-width:420px">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem">
-      <div style="font-size:15px;font-weight:700"><i class="ti ti-bell" style="color:var(--gold);margin-right:6px"></i>Troca pendente</div>
-      <button onclick="fecharTrocaPendente()" style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:20px;padding:4px"><i class="ti ti-x"></i></button>
+    <div id="trocas-bloqueado-aviso" style="display:none;background:var(--bad-bg);border:1px solid rgba(212,75,75,0.3);border-radius:var(--radius-sm);padding:10px 12px;margin-bottom:14px;font-size:12px;color:var(--bad-text)">
+      <i class="ti ti-lock" style="margin-right:4px"></i>Novas solicitações ficam bloqueadas às sextas-feiras. Você ainda pode responder trocas pendentes abaixo.
     </div>
-    <div id="troca-pendente-lista" style="display:flex;flex-direction:column;gap:10px;max-height:320px;overflow-y:auto"></div>
+
+    <div id="trocas-form" style="margin-bottom:1.5rem">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-hint);margin-bottom:10px">
+        Solicitar troca · <span id="trocas-mes-ref"></span>
+      </div>
+      <div style="margin-bottom:12px">
+        <label style="font-size:11px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:6px">Seu sábado</label>
+        <select id="troca-dia-meu-select" style="width:100%;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:9px 12px;font-size:13px;color:var(--text);font-family:inherit">
+          <option value="">Carregando…</option>
+        </select>
+      </div>
+      <div style="margin-bottom:12px">
+        <label style="font-size:11px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:6px">Trocar com</label>
+        <select id="troca-consultor" onchange="carregarSabadosAlvo()" style="width:100%;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:9px 12px;font-size:13px;color:var(--text);font-family:inherit">
+          <option value="">Selecione o consultor…</option>
+        </select>
+      </div>
+      <div style="margin-bottom:14px">
+        <label style="font-size:11px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:6px">Sábado do colega</label>
+        <select id="troca-dia-alvo" style="width:100%;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:9px 12px;font-size:13px;color:var(--text);font-family:inherit">
+          <option value="">Selecione o consultor primeiro…</option>
+        </select>
+      </div>
+      <div id="troca-erro" style="display:none;font-size:11px;color:var(--bad-text);margin-bottom:10px"></div>
+      <button onclick="enviarTroca()" style="width:100%;background:var(--gold);color:var(--on-gold,#1A1A18);border:none;border-radius:var(--radius-sm);padding:10px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer">Solicitar troca</button>
+    </div>
+
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-hint);margin-bottom:10px;padding-top:14px;border-top:1px solid var(--border)">
+      Pendentes para responder
+    </div>
+    <div id="troca-pendente-lista" style="display:flex;flex-direction:column;gap:10px;max-height:260px;overflow-y:auto"></div>
   </div>
 </div>
 

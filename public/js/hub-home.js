@@ -145,11 +145,11 @@ function parseCSV(text) {
 
   const API_BASE = '/painel-sac/api';
   const usuarioLogado = window.USUARIO_SESSAO;
+  const MESES_ABREV = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
   let escalaMes = mesHoje, escalaAno = anoHoje;
   let trocasPendentes = [];
-  let trocaDiaMeu = null, trocaMesMeu = null, trocaAnoMeu = null;
   let consultoresCache = [];
-  let sabadosAlvoCache = {};
+  let sabadosCache = {}; // por slug — reaproveitado tanto pro "seu sábado" quanto pro "sábado do colega"
 
   function atualizarLabelEscala() {
     const el = document.getElementById('escala-mes-label');
@@ -168,21 +168,15 @@ function parseCSV(text) {
 
   function renderEscala(escala, mes, ano) {
     document.getElementById('esc-hdr').innerHTML = ['S', 'T', 'Q', 'Q', 'S', 'S', 'D'].map((d) => `<div class="hh-esc-head">${d}</div>`).join('');
+    const diasNoMes = new Date(ano, mes + 1, 0).getDate();
     const dowPrimeiro = new Date(ano, mes, 1).getDay();
     const offset = (dowPrimeiro + 6) % 7;
-    const diasNoMes = new Date(ano, mes + 1, 0).getDate();
-    const bloqueado = new Date().getDay() === 5;
     let html = '';
     for (let i = 0; i < offset; i++) html += '<div></div>';
     (escala || []).forEach((item) => {
       if (item.dia > diasNoMes) return;
       const isH = mes === mesHoje && ano === anoHoje && item.dia === diaHoje;
-      const dow = new Date(ano, mes, item.dia).getDay();
-      const isSab = dow === 6;
-      const podeClicar = isSab && !bloqueado;
-      const clique = podeClicar ? `onclick="abrirTroca(${item.dia},${mes},${ano},'${item.status}')" style="cursor:pointer"` : '';
-      const trocaBadge = podeClicar ? `<div style="position:absolute;top:3px;right:3px;font-size:8px;color:var(--gold);opacity:0.7"><i class="ti ti-arrows-exchange"></i></div>` : '';
-      html += `<div class="hh-day-cell hh-d-${item.status || 'F'} ${isH ? 'hh-d-today' : ''}" ${clique} style="position:relative">${trocaBadge}<div class="hh-day-n">${item.dia}</div><div class="hh-day-s">${item.status || 'F'}</div></div>`;
+      html += `<div class="hh-day-cell hh-d-${item.status || 'F'} ${isH ? 'hh-d-today' : ''}"><div class="hh-day-n">${item.dia}</div><div class="hh-day-s">${item.status || 'F'}</div></div>`;
     });
     document.getElementById('esc-grid').innerHTML = html;
     escalaMes = mes; escalaAno = ano;
@@ -211,80 +205,60 @@ function parseCSV(text) {
     }
   }
 
-  async function abrirTroca(dia, mes, ano, status) {
-    const dataSabado = new Date(ano, mes, dia);
-    const hojeD = new Date(); hojeD.setHours(0, 0, 0, 0);
-    if (dataSabado < hojeD) {
-      await hubAlert('Não é possível solicitar troca para um sábado que já passou.', 'erro');
-      return;
+  // Sábados de um slug qualquer no mês/ano atualmente exibido no calendário —
+  // reaproveitado tanto pro "seu sábado" quanto pro "sábado do colega".
+  // Chave inclui mês/ano pra não reaproveitar cache de um mês já navegado.
+  async function fetchSabados(slug) {
+    const chave = `${slug}_${escalaMes}_${escalaAno}`;
+    if (!sabadosCache[chave]) {
+      const res = await fetch(`${API_BASE}/sabados-consultor?alvo=${encodeURIComponent(slug)}&mes=${escalaMes}&ano=${escalaAno}`);
+      const json = await res.json();
+      sabadosCache[chave] = json.sabados || [];
     }
-    trocaDiaMeu = dia; trocaMesMeu = mes; trocaAnoMeu = ano;
-    document.getElementById('troca-dia-meu').textContent = `${dia} de ${MESES[mes]} de ${ano} (${status})`;
-    document.getElementById('troca-erro').style.display = 'none';
-    document.getElementById('troca-dia-alvo').innerHTML = '<option value="">Selecione o consultor primeiro…</option>';
-
-    if (!consultoresCache.length) {
-      try {
-        const res = await fetch(`${API_BASE}/consultores`);
-        const json = await res.json();
-        if (json.erro) { await hubAlert('Erro ao carregar consultores: ' + json.erro, 'erro'); }
-        consultoresCache = (json.consultores || []).filter((c) => c.slug !== usuarioLogado.slug);
-      } catch (e) {
-        await hubAlert('Erro ao buscar consultores: ' + e.message, 'erro');
-      }
-    }
-    const sel = document.getElementById('troca-consultor');
-    sel.innerHTML = '<option value="">Selecione o consultor…</option>' + consultoresCache.map((c) => `<option value="${c.slug}">${c.nome}</option>`).join('');
-    document.getElementById('modal-troca').classList.add('show');
+    return sabadosCache[chave];
   }
-  window.abrirTroca = abrirTroca;
 
-  function fecharTroca() { document.getElementById('modal-troca').classList.remove('show'); }
-  window.fecharTroca = fecharTroca;
+  function opcoesSabados(sabados) {
+    if (!sabados.length) return '<option value="">Nenhum sábado disponível neste mês</option>';
+    return '<option value="">Selecione o sábado…</option>' +
+      sabados.map((s) => `<option value="${s.dia}|${escalaMes}|${escalaAno}">${s.dia} ${MESES_ABREV[escalaMes]} ${escalaAno} (${s.status})</option>`).join('');
+  }
+
+  async function carregarMeusSabados() {
+    const sel = document.getElementById('troca-dia-meu-select');
+    sel.innerHTML = '<option value="">Carregando…</option>';
+    try {
+      const sabados = await fetchSabados(usuarioLogado.slug);
+      sel.innerHTML = opcoesSabados(sabados);
+    } catch (e) {
+      sel.innerHTML = '<option value="">Erro ao carregar</option>';
+    }
+  }
 
   async function carregarSabadosAlvo() {
     const slug = document.getElementById('troca-consultor').value;
-    if (!slug) return;
     const sel = document.getElementById('troca-dia-alvo');
+    if (!slug) { sel.innerHTML = '<option value="">Selecione o consultor primeiro…</option>'; return; }
     sel.innerHTML = '<option value="">Carregando…</option>';
-    if (!sabadosAlvoCache[slug]) {
-      const res = await fetch(`${API_BASE}/sabados-consultor?alvo=${encodeURIComponent(slug)}&mes=${escalaMes}&ano=${escalaAno}`);
-      const json = await res.json();
-      sabadosAlvoCache[slug] = json.sabados || [];
-    }
-    const sabados = sabadosAlvoCache[slug];
-    if (!sabados.length) { sel.innerHTML = '<option value="">Nenhum sábado disponível neste mês</option>'; return; }
-    const mesesAbrev = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
-    sel.innerHTML = '<option value="">Selecione o sábado…</option>' + sabados.map((s) => `<option value="${s.dia}|${escalaMes}|${escalaAno}">${s.dia} ${mesesAbrev[escalaMes]} ${escalaAno} (${s.status})</option>`).join('');
+    sel.innerHTML = opcoesSabados(await fetchSabados(slug));
   }
   window.carregarSabadosAlvo = carregarSabadosAlvo;
 
-  async function enviarTroca() {
-    const erroEl = document.getElementById('troca-erro');
-    const slug = document.getElementById('troca-consultor').value;
-    const alvoVal = document.getElementById('troca-dia-alvo').value;
-    erroEl.style.display = 'none';
-    if (!slug) { erroEl.textContent = 'Selecione o consultor.'; erroEl.style.display = 'block'; return; }
-    if (!alvoVal) { erroEl.textContent = 'Selecione o sábado do colega.'; erroEl.style.display = 'block'; return; }
-    const [dia_alvo, mes_alvo, ano_alvo] = alvoVal.split('|').map(Number);
-    const payload = { dia_solicitante: trocaDiaMeu, mes_solicitante: trocaMesMeu, ano_solicitante: trocaAnoMeu, consultor_alvo: slug, dia_alvo, mes_alvo, ano_alvo };
+  async function carregarConsultores() {
+    if (consultoresCache.length) return;
     try {
-      const res = await fetch(`${API_BASE}/solicitar-troca`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      const res = await fetch(`${API_BASE}/consultores`);
       const json = await res.json();
-      if (!json.ok) { erroEl.textContent = json.erro || 'Erro ao solicitar.'; erroEl.style.display = 'block'; return; }
-      fecharTroca();
-      await hubAlert('Solicitação enviada! O colega receberá a notificação no painel.', 'sucesso');
+      if (json.erro) { await hubAlert('Erro ao carregar consultores: ' + json.erro, 'erro'); }
+      consultoresCache = (json.consultores || []).filter((c) => c.slug !== usuarioLogado.slug);
     } catch (e) {
-      erroEl.textContent = e.message; erroEl.style.display = 'block';
+      await hubAlert('Erro ao buscar consultores: ' + e.message, 'erro');
     }
   }
-  window.enviarTroca = enviarTroca;
 
-  async function abrirTrocasPendentes() {
+  async function carregarListaPendentes() {
     const lista = document.getElementById('troca-pendente-lista');
     lista.innerHTML = '<div style="font-size:12px;color:var(--text-muted);text-align:center;padding:16px">Verificando solicitações…</div>';
-    document.getElementById('modal-troca-pendente').classList.add('show');
-
     try {
       const res = await fetch(`${API_BASE}/escala?mes=${escalaMes}&ano=${escalaAno}`);
       const json = await res.json();
@@ -292,15 +266,6 @@ function parseCSV(text) {
       mostrarBadgePendente();
     } catch (e) { /* usa cache local se a busca falhar */ }
 
-    if (!consultoresCache.length) {
-      try {
-        const res2 = await fetch(`${API_BASE}/consultores`);
-        const json2 = await res2.json();
-        consultoresCache = json2.consultores || [];
-      } catch (e) {}
-    }
-
-    const mesesAbrev = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
     const nomes = {};
     consultoresCache.forEach((c) => (nomes[c.slug] = c.nome));
 
@@ -316,8 +281,8 @@ function parseCSV(text) {
           ${nomes[t.solicitante] || t.solicitante} quer trocar com você
         </div>
         <div style="font-size:11px;color:var(--text-muted);margin-bottom:10px">
-          Sábado deles: <strong style="color:var(--text)">${t.dia_sol} ${mesesAbrev[t.mes_sol]} ${t.ano_sol}</strong> →
-          Seu sábado: <strong style="color:var(--text)">${t.dia_alvo} ${mesesAbrev[t.mes_alvo]} ${t.ano_alvo}</strong>
+          Sábado deles: <strong style="color:var(--text)">${t.dia_sol} ${MESES_ABREV[t.mes_sol]} ${t.ano_sol}</strong> →
+          Seu sábado: <strong style="color:var(--text)">${t.dia_alvo} ${MESES_ABREV[t.mes_alvo]} ${t.ano_alvo}</strong>
         </div>
         <div style="display:flex;gap:8px">
           <button onclick="responderTroca('${t.id}', true)" style="flex:1;background:var(--gold);color:var(--on-gold,#1A1A18);border:none;border-radius:var(--radius-sm);padding:8px;font-size:12px;font-weight:700;font-family:inherit;cursor:pointer">✓ Aceitar</button>
@@ -326,10 +291,57 @@ function parseCSV(text) {
       </div>
     `).join('');
   }
-  window.abrirTrocasPendentes = abrirTrocasPendentes;
 
-  function fecharTrocaPendente() { document.getElementById('modal-troca-pendente').classList.remove('show'); }
-  window.fecharTrocaPendente = fecharTrocaPendente;
+  async function abrirTrocas() {
+    document.getElementById('modal-trocas').classList.add('show');
+    document.getElementById('troca-erro').style.display = 'none';
+    document.getElementById('troca-consultor').innerHTML = '<option value="">Selecione o consultor…</option>';
+    document.getElementById('troca-dia-alvo').innerHTML = '<option value="">Selecione o consultor primeiro…</option>';
+    document.getElementById('trocas-mes-ref').textContent = `${MESES[escalaMes]} ${escalaAno}`;
+
+    const bloqueado = new Date().getDay() === 5;
+    document.getElementById('trocas-bloqueado-aviso').style.display = bloqueado ? 'block' : 'none';
+    document.getElementById('trocas-form').style.display = bloqueado ? 'none' : 'block';
+
+    if (!bloqueado) {
+      carregarMeusSabados();
+      await carregarConsultores();
+      document.getElementById('troca-consultor').innerHTML = '<option value="">Selecione o consultor…</option>' +
+        consultoresCache.map((c) => `<option value="${c.slug}">${c.nome}</option>`).join('');
+    } else {
+      await carregarConsultores();
+    }
+
+    await carregarListaPendentes();
+  }
+  window.abrirTrocas = abrirTrocas;
+
+  function fecharTrocas() { document.getElementById('modal-trocas').classList.remove('show'); }
+  window.fecharTrocas = fecharTrocas;
+
+  async function enviarTroca() {
+    const erroEl = document.getElementById('troca-erro');
+    const meuVal = document.getElementById('troca-dia-meu-select').value;
+    const slug = document.getElementById('troca-consultor').value;
+    const alvoVal = document.getElementById('troca-dia-alvo').value;
+    erroEl.style.display = 'none';
+    if (!meuVal) { erroEl.textContent = 'Selecione o seu sábado.'; erroEl.style.display = 'block'; return; }
+    if (!slug) { erroEl.textContent = 'Selecione o consultor.'; erroEl.style.display = 'block'; return; }
+    if (!alvoVal) { erroEl.textContent = 'Selecione o sábado do colega.'; erroEl.style.display = 'block'; return; }
+    const [dia_solicitante, mes_solicitante, ano_solicitante] = meuVal.split('|').map(Number);
+    const [dia_alvo, mes_alvo, ano_alvo] = alvoVal.split('|').map(Number);
+    const payload = { dia_solicitante, mes_solicitante, ano_solicitante, consultor_alvo: slug, dia_alvo, mes_alvo, ano_alvo };
+    try {
+      const res = await fetch(`${API_BASE}/solicitar-troca`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      const json = await res.json();
+      if (!json.ok) { erroEl.textContent = json.erro || 'Erro ao solicitar.'; erroEl.style.display = 'block'; return; }
+      fecharTrocas();
+      await hubAlert('Solicitação enviada! O colega receberá a notificação no painel.', 'sucesso');
+    } catch (e) {
+      erroEl.textContent = e.message; erroEl.style.display = 'block';
+    }
+  }
+  window.enviarTroca = enviarTroca;
 
   async function responderTroca(idTroca, aceitar) {
     const payload = { id_troca: idTroca, aceitar };
@@ -337,14 +349,13 @@ function parseCSV(text) {
       const res = await fetch(`${API_BASE}/responder-troca`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       const json = await res.json();
       if (!json.ok) { await hubAlert('Erro: ' + (json.erro || 'tente novamente'), 'erro'); return; }
-      trocasPendentes = trocasPendentes.filter((t) => t.id !== idTroca);
-      fecharTrocaPendente();
       if (aceitar) {
         await hubAlert('Troca aceita! As escalas foram atualizadas.', 'sucesso');
         await carregarEscala();
       } else {
         await hubAlert('Troca recusada.', 'info');
       }
+      await carregarListaPendentes();
     } catch (e) { await hubAlert('Erro: ' + e.message, 'erro'); }
   }
   window.responderTroca = responderTroca;
