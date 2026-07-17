@@ -19,6 +19,19 @@ function extrairLink(texto) {
   return { texto: texto2, link };
 }
 
+// O logo é salvo no Drive pelo formulário de solicitação. "uc?id=" (ou
+// qualquer outro formato de link do Drive) sozinho só abre uma prévia —
+// "export=download" é o que faz o Drive mandar o arquivo de verdade em
+// vez de mostrar a página de visualização.
+function driveIdDeUrl(url) {
+  const m = String(url || '').match(/[-\w]{25,}/);
+  return m ? m[0] : null;
+}
+function linkDownloadDrive(url) {
+  const id = driveIdDeUrl(url);
+  return id ? `https://drive.google.com/uc?export=download&id=${id}` : url;
+}
+
 function formatarDataBR(iso) {
   if (!iso) return '-';
   const [ano, mes, dia] = iso.split('-');
@@ -30,10 +43,10 @@ function renderizarItem(card) {
   const { texto: obsTexto, link: obsLink } = extrairLink(card.observacoes);
   const linhaObs = obsTexto ? `<div class="card-obs">${obsTexto}</div>` : '';
   const linhaLink = obsLink
-    ? `<a class="card-link-btn" href="${obsLink}" target="_blank" rel="noopener"><i class="ti ti-external-link" aria-hidden="true"></i> Abrir link</a>`
+    ? `<a class="card-link-btn" href="${obsLink}" target="_blank" rel="noopener"><i class="ti ti-external-link" aria-hidden="true"></i> Abrir Bitrix</a>`
     : '';
   const linhaLogo = card.logo_url
-    ? `<a class="card-logo-btn" href="${card.logo_url}" target="_blank" rel="noopener"><i class="ti ti-download" aria-hidden="true"></i> Baixar logo</a>`
+    ? `<a class="card-logo-btn" href="${linkDownloadDrive(card.logo_url)}" download rel="noopener"><i class="ti ti-download" aria-hidden="true"></i> Baixar logo</a>`
     : '';
   const div = document.createElement('div');
   div.className = 'card status-finalizado';
