@@ -172,18 +172,18 @@ button.acao:active { transform: scale(0.98); }
   font-size: 11.5px; color: var(--text-muted); font-style: italic; margin: 4px 0;
 }
 
-.card-logo-thumb {
-  max-width: 56px; max-height: 56px; border-radius: var(--radius-sm);
-  margin: 6px 0; display: block; border: 1px solid var(--border);
-  cursor: zoom-in; object-fit: cover;
+/* Botões secundários do card — link do Bitrix (extraído da observação) e
+   logo (link direto pro Drive, sem tentar exibir a miniatura inline, que
+   as vezes o Drive recusa mostrar por hotlink). */
+.card-link-btn, .card-logo-btn {
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  width: 100%; margin: 6px 0; padding: 6px 10px;
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm);
+  color: var(--text-muted); font-size: 11px; font-weight: 600; font-family: inherit;
+  text-decoration: none; cursor: pointer; transition: all .15s;
 }
-
-.wallac-lightbox {
-  display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.88);
-  z-index: 100; align-items: center; justify-content: center; cursor: zoom-out; padding: 30px;
-}
-.wallac-lightbox.aberto { display: flex; }
-.wallac-lightbox img { max-width: 100%; max-height: 100%; border-radius: var(--radius-sm); }
+.card-link-btn:hover, .card-logo-btn:hover { border-color: var(--gold-dark); color: var(--gold); }
+.card-link-btn i, .card-logo-btn i { font-size: 12px; }
 
 @media (max-width: 900px) { .board { grid-template-columns: 1fr; } }
 

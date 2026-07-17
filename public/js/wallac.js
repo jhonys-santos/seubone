@@ -49,25 +49,16 @@ function formatarDataBR(iso) {
   return `${dia}/${mes}`;
 }
 
-// Logo vem como link do Google Drive (ex: .../uc?id=XXX), que o Drive às
-// vezes recusa exibir direto como <img> (hotlink). O endpoint /thumbnail
-// funciona de verdade pra isso — mesmo padrão já usado no Pedidos Urgentes.
-function driveIdDeUrl(url) {
-  const m = String(url || '').match(/[-\w]{25,}/);
-  return m ? m[0] : null;
-}
-function thumbDrive(url, tamanho) {
-  const id = driveIdDeUrl(url);
-  return id ? `https://drive.google.com/thumbnail?id=${id}&sz=${tamanho}` : url;
-}
-
-function abrirLogo(url) {
-  document.getElementById('lightboxImg').src = thumbDrive(url, 'w1000');
-  document.getElementById('lightbox').classList.add('aberto');
-}
-function fecharLogo() {
-  document.getElementById('lightbox').classList.remove('aberto');
-  document.getElementById('lightboxImg').src = '';
+// Observação às vezes vem com um link colado dentro do texto (ex: o link
+// do card no Bitrix) — separa o link do resto pra virar um botão clicável
+// em vez de aparecer como texto cru quebrando linha no card.
+function extrairLink(texto) {
+  if (!texto) return { texto: '', link: null };
+  const m = texto.match(/https?:\/\/\S+/);
+  if (!m) return { texto, link: null };
+  const link = m[0].replace(/[.,;)]+$/, '');
+  const texto2 = (texto.slice(0, m.index) + texto.slice(m.index + m[0].length)).trim();
+  return { texto: texto2, link };
 }
 
 function renderizarCard(card) {
@@ -94,9 +85,13 @@ function renderizarCard(card) {
     : '';
 
   const seloOrigem = card.origem === 'estoque' ? `<span class="selo-origem">estoque</span>` : '';
-  const linhaObs = card.observacoes ? `<div class="card-obs">${card.observacoes}</div>` : '';
+  const { texto: obsTexto, link: obsLink } = extrairLink(card.observacoes);
+  const linhaObs = obsTexto ? `<div class="card-obs">${obsTexto}</div>` : '';
+  const linhaLink = obsLink
+    ? `<a class="card-link-btn" href="${obsLink}" target="_blank" rel="noopener"><i class="ti ti-external-link" aria-hidden="true"></i> Abrir link</a>`
+    : '';
   const linhaLogo = card.logo_url
-    ? `<img src="${thumbDrive(card.logo_url, 'w100')}" class="card-logo-thumb" alt="logo" onclick="abrirLogo('${card.logo_url}')">`
+    ? `<a class="card-logo-btn" href="${card.logo_url}" target="_blank" rel="noopener"><i class="ti ti-download" aria-hidden="true"></i> Baixar logo</a>`
     : '';
 
   div.innerHTML = `
@@ -105,6 +100,7 @@ function renderizarCard(card) {
     <div class="card-linha"><span>Produção até</span><span>${formatarDataBR(card.prazo_producao)}</span></div>
     <div class="card-linha"><span>Entrega cliente</span><span>${formatarDataBR(card.prazo_entrega)}</span></div>
     ${linhaObs}
+    ${linhaLink}
     ${linhaLogo}
     <span class="tag-urgencia ${cor === 'finalizado' ? 'verde' : cor}">${tagTexto}</span>
     ${botao}
