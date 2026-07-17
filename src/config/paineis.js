@@ -15,19 +15,19 @@ module.exports = [
     chave: 'wallac', titulo: 'Produção SBP', descricao: 'Kanban de pedidos em produção no escritório',
     url: '/wallac', icone: 'ti-packages',
     subpaginas: [
-      { titulo: 'Kanban', url: '/wallac' },
-      { titulo: 'Gestão de Estoque', url: '/wallac/estoque', somenteSlug: 'wallac' },
-      { titulo: 'Histórico', url: '/wallac/historico' },
-      { titulo: 'Solicitar Personalização', url: '/wallac/solicitar' },
+      { titulo: 'Kanban', url: '/wallac', icone: 'ti-layout-kanban' },
+      { titulo: 'Gestão de Estoque', url: '/wallac/estoque', somenteSlug: 'wallac', icone: 'ti-box' },
+      { titulo: 'Histórico', url: '/wallac/historico', icone: 'ti-history' },
+      { titulo: 'Solicitar Personalização', url: '/wallac/solicitar', icone: 'ti-brush' },
     ],
   },
   {
     chave: 'pedidos-urgentes', titulo: 'Pedidos Urgentes', descricao: 'Cadastro, painel do estoque e histórico',
     url: '/pedidos-urgentes/painel', icone: 'ti-alert-triangle',
     subpaginas: [
-      { titulo: 'Cadastrar', url: '/pedidos-urgentes/cadastro' },
-      { titulo: 'Painel Estoque', url: '/pedidos-urgentes/painel' },
-      { titulo: 'Histórico', url: '/pedidos-urgentes/historico' },
+      { titulo: 'Cadastrar', url: '/pedidos-urgentes/cadastro', icone: 'ti-square-plus' },
+      { titulo: 'Painel Estoque', url: '/pedidos-urgentes/painel', icone: 'ti-clipboard-list' },
+      { titulo: 'Histórico', url: '/pedidos-urgentes/historico', icone: 'ti-history' },
     ],
   },
   {
@@ -38,10 +38,10 @@ module.exports = [
     chave: 'registro-demandas', titulo: 'Registro de Demandas Gerais', descricao: 'Demandas gerais e reembolsos solicitados ao financeiro',
     url: '/registro-demandas', icone: 'ti-clipboard-text',
     subpaginas: [
-      { titulo: 'Registro', url: '/registro-demandas' },
-      { titulo: 'Reembolso', url: '/registro-demandas/reembolso' },
-      { titulo: 'Histórico', url: '/registro-demandas/historico' },
-      { titulo: 'Histórico de Reembolsos', url: '/registro-demandas/historico-reembolso' },
+      { titulo: 'Registro', url: '/registro-demandas', icone: 'ti-file-text' },
+      { titulo: 'Reembolso', url: '/registro-demandas/reembolso', icone: 'ti-cash' },
+      { titulo: 'Histórico', url: '/registro-demandas/historico', icone: 'ti-history' },
+      { titulo: 'Histórico de Reembolsos', url: '/registro-demandas/historico-reembolso', icone: 'ti-receipt' },
     ],
   },
 ];

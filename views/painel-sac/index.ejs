@@ -39,7 +39,6 @@
         </select>
       </div>
       <% } %>
-      <button class="logout-btn" onclick="abrirAcessos()" style="border-color:var(--gold-dark);color:var(--gold);"><i class="ti ti-key" style="font-size:13px"></i> Acessos</button>
     </div>
   </div>
   <div class="filter-bar">
@@ -79,51 +78,6 @@
 </div>
 
 </div>
-</div>
-
-<!-- MODAL ACESSOS -->
-<div class="modal-overlay" id="modal-acessos" onclick="if(event.target===this)fecharAcessos()">
-  <div class="modal-box" style="max-width:480px">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem">
-      <div>
-        <div style="font-size:15px;font-weight:700"><i class="ti ti-key" style="color:var(--gold);margin-right:6px"></i>Acessos</div>
-        <div style="font-size:11px;color:var(--text-muted);margin-top:2px">Suas credenciais de ferramentas</div>
-      </div>
-      <button onclick="fecharAcessos()" style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:20px;line-height:1;padding:4px"><i class="ti ti-x"></i></button>
-    </div>
-
-    <div id="acessos-lista" style="margin-bottom:1rem;display:flex;flex-direction:column;gap:8px;max-height:340px;overflow-y:auto;padding-right:2px"></div>
-
-    <button id="btn-add-acesso" onclick="mostrarFormAcesso()" style="width:100%;background:var(--gold-dim);border:1px dashed var(--gold-dark);border-radius:var(--rs);padding:10px;font-size:12px;font-weight:600;color:var(--gold);cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:6px;transition:background .15s">
-      <i class="ti ti-plus"></i> Adicionar acesso
-    </button>
-
-    <div id="form-acesso" style="display:none;margin-top:12px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);padding:14px">
-      <div style="font-size:12px;font-weight:700;margin-bottom:10px;color:var(--text)" id="form-acesso-titulo">Novo acesso</div>
-      <input type="hidden" id="acesso-edit-idx" value="">
-      <div class="field" style="margin-bottom:10px">
-        <label>Ferramenta</label>
-        <div class="field-wrap"><i class="ti ti-tool fi"></i><input id="acesso-ferramenta" placeholder="ex: Octadesk, Atende Simples…" autocomplete="off"></div>
-      </div>
-      <div class="field" style="margin-bottom:10px">
-        <label>Login / E-mail</label>
-        <div class="field-wrap"><i class="ti ti-at fi"></i><input id="acesso-login" placeholder="login ou e-mail" autocomplete="off"></div>
-      </div>
-      <div class="field" style="margin-bottom:14px">
-        <label>Senha</label>
-        <div class="field-wrap">
-          <i class="ti ti-lock fi"></i>
-          <input id="acesso-senha" type="password" placeholder="senha" autocomplete="new-password">
-          <button type="button" class="toggle-pw" onclick="togglePwAcesso(this)"><i class="ti ti-eye"></i></button>
-        </div>
-      </div>
-      <div style="display:flex;gap:8px">
-        <button onclick="salvarAcesso()" style="flex:1;background:var(--gold);color:var(--on-gold,#1A1A18);border:none;border-radius:var(--rs);padding:9px;font-size:12px;font-weight:700;font-family:inherit;cursor:pointer">Salvar</button>
-        <button onclick="cancelarFormAcesso()" style="background:none;border:1px solid var(--border);border-radius:var(--rs);padding:9px 14px;font-size:12px;color:var(--text-muted);font-family:inherit;cursor:pointer">Cancelar</button>
-      </div>
-      <div id="acesso-erro" style="display:none;font-size:11px;color:var(--bad-text);margin-top:8px"></div>
-    </div>
-  </div>
 </div>
 
 <!-- MODAL HISTÓRICO AUDITORIAS -->

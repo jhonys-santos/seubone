@@ -169,6 +169,8 @@ i.ti { line-height: 1; }
 }
 .field input:focus { border-color: var(--gold-dark); box-shadow: 0 0 0 3px var(--gold-dim); }
 .field input::placeholder { color: var(--text-hint); }
+.toggle-pw { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: var(--text-hint); font-size: 16px; padding: 2px; }
+.toggle-pw:hover { color: var(--text-muted); }
 
 .btn-login {
   width: 100%; background: var(--gold); color: var(--on-gold); border: none;
@@ -327,6 +329,7 @@ i.ti { line-height: 1; }
 .sidebar-item i { font-size: 15px; flex-shrink: 0; }
 .sidebar-item:hover { background: var(--surface-2); color: var(--text); }
 .sidebar-item.active { background: var(--gold-dim); border-color: var(--gold-dark); color: var(--gold); font-weight: 600; }
+button.sidebar-item { width: 100%; text-align: left; background: none; cursor: pointer; font-family: inherit; }
 
 .sidebar-item-row { display: flex; align-items: center; }
 .sidebar-chev {
@@ -339,7 +342,8 @@ i.ti { line-height: 1; }
 .sidebar-sub { display: grid; grid-template-rows: 0fr; overflow: hidden; transition: grid-template-rows .18s ease; }
 .sidebar-group.open .sidebar-sub { grid-template-rows: 1fr; }
 .sidebar-sub-inner { overflow: hidden; display: flex; flex-direction: column; gap: 2px; padding-top: 2px; }
-.sidebar-subitem { padding-left: 32px; font-size: 12.5px; }
+.sidebar-subitem { padding-left: 20px; font-size: 12.5px; }
+.sidebar-subitem i { font-size: 13px; }
 
 .sidebar-bottom {
   margin-top: auto; padding-top: 12px; border-top: 1px solid var(--border);
