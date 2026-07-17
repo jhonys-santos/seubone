@@ -174,6 +174,17 @@ function ieRenderMetricas() {
   const larguraX = Math.max(1, n - 1);
   const cont = document.getElementById('ie-metricas');
 
+  // Coordenadas em pixel real (não em unidades de viewBox 0-100) — com
+  // preserveAspectRatio="none" e um viewBox desproporcional ao tamanho
+  // real, um raio/traço definido em "unidades" vira elipse gigante quando
+  // o eixo X é esticado muito mais que o Y (bug visto no gráfico: pontos
+  // viraram blobs cobrindo o card inteiro). Fixando largura/altura do SVG
+  // igual ao viewBox, a escala em X e em Y fica 1:1 e o traço/raio saem
+  // do tamanho pedido de verdade.
+  const larguraPx = denso ? n * 16 : n * 60;
+  const alturaPx = 120;
+  const margemY = 8;
+
   cont.innerHTML = ieConfig.metricas.map((m) => {
     // Série da Equipe por dia — média se a métrica é média, soma se é soma.
     const equipeSerie = ieDiasAtuais.map((_, di) => {
@@ -191,14 +202,15 @@ function ieRenderMetricas() {
       ...equipeSerie,
     ].filter((v) => v != null));
 
-    const pontoY = (v) => 5 + (1 - Math.min(1, v / maxVal)) * 90;
+    const pontoX = (i) => (i / larguraX) * larguraPx;
+    const pontoY = (v) => margemY + (1 - Math.min(1, v / maxVal)) * (alturaPx - margemY * 2);
 
     const linhaSVG = (serie, cor, largura, tracejado) => ieSegmentos(serie).map((seg) => {
-      const pontos = seg.map(([i, v]) => `${i},${pontoY(v).toFixed(1)}`).join(' ');
+      const pontos = seg.map(([i, v]) => `${pontoX(i).toFixed(1)},${pontoY(v).toFixed(1)}`).join(' ');
       const linha = seg.length > 1
         ? `<polyline points="${pontos}" fill="none" style="stroke:${cor}" stroke-width="${largura}" ${tracejado ? 'stroke-dasharray="4 3"' : ''} stroke-linecap="round" stroke-linejoin="round" />`
         : '';
-      const pontosCirculo = seg.map(([i, v]) => `<circle cx="${i}" cy="${pontoY(v).toFixed(1)}" r="1.7" style="fill:${cor}"><title>${ieFormatValor(v, m.unidade)}</title></circle>`).join('');
+      const pontosCirculo = seg.map(([i, v]) => `<circle cx="${pontoX(i).toFixed(1)}" cy="${pontoY(v).toFixed(1)}" r="2.2" style="fill:${cor}"><title>${ieFormatValor(v, m.unidade)}</title></circle>`).join('');
       return linha + pontosCirculo;
     }).join('');
 
@@ -224,9 +236,9 @@ function ieRenderMetricas() {
       <div class="ie-metrica-total">Equipe no período: <strong>${ieFormatValor(totalEquipe, m.unidade)}</strong></div>
       <div class="ie-legend">${legendConsultores}${legendEquipe}</div>
       <div class="ie-chart-scroll">
-        <div class="ie-chart-inner ${denso ? 'ie-chart-denso' : ''}" style="min-width:${denso ? n * 16 : n * 60}px">
-          <svg class="ie-chart-svg" viewBox="0 0 ${larguraX} 100" preserveAspectRatio="none">
-            <line x1="0" y1="95" x2="${larguraX}" y2="95" style="stroke:var(--border)" stroke-width="0.5" />
+        <div class="ie-chart-inner ${denso ? 'ie-chart-denso' : ''}" style="width:${larguraPx}px">
+          <svg class="ie-chart-svg" width="${larguraPx}" height="${alturaPx}" viewBox="0 0 ${larguraPx} ${alturaPx}">
+            <line x1="0" y1="${alturaPx - margemY}" x2="${larguraPx}" y2="${alturaPx - margemY}" style="stroke:var(--border)" stroke-width="1" />
             ${linhasConsultores}
             ${linhaEquipe}
           </svg>
