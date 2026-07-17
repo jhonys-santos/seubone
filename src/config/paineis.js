@@ -5,11 +5,22 @@
 // mais de uma tela. O item de subpágina que tiver "somenteSlug" só aparece
 // pra quem tem exatamente aquele slug (ex: Gestão de Estoque é só do
 // Wallac) — não usa o sistema geral de permissões por painel, que é
-// tudo-ou-nada por usuário.
+// tudo-ou-nada por usuário. "somenteRole" funciona do mesmo jeito, mas
+// filtrando por papel (ex: Indicadores Equipe é só pra gestor) — também é
+// reforçado no middleware da rota, a sidebar só evita mostrar pra quem
+// não pode mesmo abrir.
 module.exports = [
   {
     chave: 'painel-sac', titulo: 'Meus Indicadores', descricao: 'Indicadores pessoais, escala e sugestões',
     url: '/painel-sac', icone: 'ti-chart-bar',
+  },
+  {
+    chave: 'indicadores-equipe', titulo: 'Indicadores Equipe', descricao: 'Indicadores diários por consultor — visão de gestor',
+    url: '/indicadores-equipe/atendimento', icone: 'ti-users', somenteRole: 'gestor',
+    subpaginas: [
+      { titulo: 'Time Atendimento', url: '/indicadores-equipe/atendimento', icone: 'ti-headset' },
+      { titulo: 'Time Resolução', url: '/indicadores-equipe/resolucao', icone: 'ti-tool' },
+    ],
   },
   {
     chave: 'wallac', titulo: 'Produção SBP', descricao: 'Kanban de pedidos em produção no escritório',

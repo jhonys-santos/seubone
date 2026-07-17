@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<%- include('../partials/head') %>
+<title>Indicadores Equipe — SeuBoné</title>
+<link rel="stylesheet" href="/css/indicadores-equipe.css">
+</head>
+<body>
+<div class="app-shell">
+<%- include('../partials/sidebar') %>
+<div class="app-main">
+
+<div class="ie-wrap">
+  <div class="ie-header">
+    <div>
+      <h1 id="ie-titulo">Indicadores Equipe</h1>
+      <p>Comparativo diário por consultor · dados de exemplo, ainda sem ligação com a planilha</p>
+    </div>
+    <div class="ie-tabs">
+      <button class="ie-tab active" data-periodo="semana" onclick="ieSetPeriodo('semana', this)">Semana</button>
+      <button class="ie-tab" data-periodo="mes" onclick="ieSetPeriodo('mes', this)">Mês</button>
+    </div>
+  </div>
+
+  <div class="ie-section-label">Resumo por consultor</div>
+  <div class="ie-resumo-grid" id="ie-resumo-grid"></div>
+
+  <div class="ie-section-label">Detalhamento diário</div>
+  <div id="ie-metricas"></div>
+</div>
+
+</div>
+</div>
+
+<script>
+  window.IE_TIME = '<%= time %>';
+</script>
+<script src="/js/indicadores-equipe.js"></script>
+</body>
+</html>

@@ -1,0 +1,84 @@
+/* ── INDICADORES EQUIPE (visão de gestor) ────────────────────
+   Comparativo diário por consultor, hoje visto em planilha. Ainda sem
+   integração com a planilha real — dados de exemplo em
+   indicadores-equipe.js, pra validar o layout primeiro. */
+
+.ie-wrap { max-width: 1160px; margin: 0 auto; padding: 1.5rem 1.25rem 4rem; }
+
+.ie-header { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 1.5rem; }
+.ie-header h1 { font-size: 20px; font-weight: 700; letter-spacing: -0.01em; margin: 0 0 4px; }
+.ie-header p { font-size: 13px; color: var(--text-muted); margin: 0; }
+
+.ie-tabs { display: flex; gap: 3px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 3px; }
+.ie-tab { padding: 7px 18px; font-size: 12px; font-weight: 600; border-radius: 7px; cursor: pointer; color: var(--text-muted); border: none; background: transparent; font-family: inherit; transition: all .15s; }
+.ie-tab:hover { background: var(--surface-2); color: var(--text); }
+.ie-tab.active { background: var(--gold); color: var(--on-gold, #1A1A18); }
+
+/* ── RESUMO POR CONSULTOR ── */
+.ie-section-label { font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-hint); margin: 0 0 10px; display: flex; align-items: center; gap: 8px; }
+.ie-section-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+.ie-resumo-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-bottom: 2rem; }
+.ie-resumo-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.1rem; }
+.ie-resumo-head { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.ie-resumo-avatar { width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; flex-shrink: 0; color: var(--on-gold, #1A1A18); }
+.ie-resumo-nome { font-size: 13px; font-weight: 700; color: var(--text); }
+.ie-resumo-stats { display: flex; flex-direction: column; gap: 7px; }
+.ie-resumo-stat { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.ie-resumo-stat-lbl { font-size: 11px; color: var(--text-muted); }
+.ie-resumo-stat-val { font-size: 13px; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; }
+.ie-resumo-stat-val.ok { color: var(--ok-text, var(--ok)); }
+.ie-resumo-stat-val.bad { color: var(--bad-text, var(--bad)); }
+
+/* ── SEÇÃO DE MÉTRICA ── */
+.ie-metrica { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.1rem 1.25rem; margin-bottom: 14px; }
+.ie-metrica-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 4px; flex-wrap: wrap; }
+.ie-metrica-titulo { font-size: 13px; font-weight: 700; color: var(--text); }
+.ie-metrica-meta { font-size: 11px; color: var(--text-hint); }
+.ie-metrica-total { font-size: 11px; color: var(--text-muted); margin-bottom: 14px; }
+.ie-metrica-total strong { color: var(--gold); font-weight: 700; }
+
+/* Legenda por consultor — cor consistente em todas as métricas. */
+.ie-legend { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 14px; }
+.ie-legend-item { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-muted); }
+.ie-legend-dot { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
+
+/* Gráfico de barras agrupadas: um grupo por dia, uma barra por consultor. */
+.ie-chart { display: flex; align-items: flex-end; gap: 10px; height: 140px; overflow-x: auto; padding-bottom: 2px; }
+.ie-chart::-webkit-scrollbar { height: 5px; }
+.ie-chart::-webkit-scrollbar-track { background: transparent; }
+.ie-chart::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 10px; }
+.ie-day-group { display: flex; flex-direction: column; align-items: center; flex-shrink: 0; min-width: 44px; }
+.ie-bars-row { display: flex; align-items: flex-end; gap: 3px; height: 108px; }
+.ie-bar-col { position: relative; width: 10px; display: flex; align-items: flex-end; }
+.ie-bar-col .ie-bar { width: 100%; border-radius: 3px 3px 0 0; min-height: 2px; transition: height .3s ease; }
+.ie-bar-tooltip {
+  display: none; position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%);
+  margin-bottom: 4px; background: rgba(20,20,18,0.96); border: 1px solid var(--border-strong);
+  border-radius: 6px; padding: 3px 7px; font-size: 10px; font-weight: 700; color: var(--text);
+  white-space: nowrap; pointer-events: none; z-index: 5;
+}
+.ie-bar-col:hover .ie-bar-tooltip { display: block; }
+.ie-day-label { font-size: 9.5px; color: var(--text-hint); margin-top: 6px; white-space: nowrap; }
+.ie-day-label.hoje { color: var(--gold); font-weight: 700; }
+
+/* Visão de mês: uma única barra por dia (média/total da equipe), como a
+   planilha já mostra pra esse recorte — menos denso, mais legível. */
+.ie-chart.ie-chart-mes .ie-day-group { min-width: 20px; }
+.ie-chart.ie-chart-mes .ie-bars-row { width: 14px; }
+.ie-chart.ie-chart-mes .ie-bar-col { width: 100%; }
+.ie-chart.ie-chart-mes .ie-day-label { font-size: 8.5px; }
+
+/* Paleta por consultor — mesma cor em todo card/legenda/barra da página. */
+.ie-c-0 { background: var(--gold); }
+.ie-c-1 { background: #4C8DFF; }
+.ie-c-2 { background: #3DAF72; }
+.ie-c-3 { background: #9c6cd4; }
+.ie-c-4 { background: #E8618C; }
+.ie-c-5 { background: #F0954D; }
+
+.ie-empty { font-size: 12px; color: var(--text-hint); text-align: center; padding: 2rem; }
+
+@media (max-width: 700px) {
+  .ie-resumo-grid { grid-template-columns: 1fr; }
+}

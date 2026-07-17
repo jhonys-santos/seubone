@@ -25,6 +25,7 @@ const wallacRoutes = require('./src/routes/wallac.routes');
 const pedidosUrgentesRoutes = require('./src/routes/pedidosUrgentes.routes');
 const rankingSacRoutes = require('./src/routes/rankingSac.routes');
 const registroDemandasRoutes = require('./src/routes/registroDemandas.routes');
+const indicadoresEquipeRoutes = require('./src/routes/indicadoresEquipe.routes');
 
 const app = express();
 
@@ -76,7 +77,7 @@ app.use((req, res, next) => {
   res.locals.usuario = usuario;
   res.locals.rotaAtual = req.path;
   if (usuario) {
-    res.locals.paineisVisiveis = catalogoPaineis.filter((p) => usuariosService.podeAcessarPainel(usuario, p.chave));
+    res.locals.paineisVisiveis = catalogoPaineis.filter((p) => usuariosService.podeAcessarPainel(usuario, p.chave) && (!p.somenteRole || usuario.role === p.somenteRole));
     res.locals.atalhosVisiveis = catalogoAtalhos.filter((a) => !a.requerPainel || usuariosService.podeAcessarPainel(usuario, a.requerPainel));
   } else {
     res.locals.paineisVisiveis = [];
@@ -96,6 +97,7 @@ app.use('/wallac', wallacRoutes);
 app.use('/pedidos-urgentes', pedidosUrgentesRoutes);
 app.use('/ranking-sac', rankingSacRoutes);
 app.use('/registro-demandas', registroDemandasRoutes);
+app.use('/indicadores-equipe', indicadoresEquipeRoutes);
 
 app.use((req, res) => {
   res.status(404).render('erro', {
