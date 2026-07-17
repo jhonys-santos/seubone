@@ -292,7 +292,13 @@ i.ti { line-height: 1; }
   display: flex; flex-direction: column;
   padding: 16px 12px;
   position: sticky; top: 0; height: 100vh; overflow-y: auto;
+  scrollbar-width: thin; scrollbar-color: transparent transparent;
 }
+.app-sidebar:hover { scrollbar-color: var(--border-strong) transparent; }
+.app-sidebar::-webkit-scrollbar { width: 5px; }
+.app-sidebar::-webkit-scrollbar-track { background: transparent; }
+.app-sidebar::-webkit-scrollbar-thumb { background: transparent; border-radius: 10px; }
+.app-sidebar:hover::-webkit-scrollbar-thumb { background: var(--border-strong); }
 .sidebar-brand {
   display: flex; align-items: center; gap: 10px; text-decoration: none;
   padding: 4px 8px 16px; margin-bottom: 8px; border-bottom: 1px solid var(--border); flex-shrink: 0;
