@@ -18,6 +18,7 @@ module.exports = [
       { titulo: 'Kanban', url: '/wallac' },
       { titulo: 'Gestão de Estoque', url: '/wallac/estoque', somenteSlug: 'wallac' },
       { titulo: 'Histórico', url: '/wallac/historico' },
+      { titulo: 'Solicitar Personalização', url: '/wallac/solicitar' },
     ],
   },
   {

@@ -13,9 +13,4 @@ module.exports = [
     url: 'https://script.google.com/macros/s/AKfycbxhBVqrHmr9xIHQIMNISVOgnHqIRYTwRqXpORF83cLapjQcGYbZOZXq70UO_96-Ygxv/exec',
     icone: 'ti-file-text', novaAba: true,
   },
-  {
-    titulo: 'Solicitar Personalização', descricao: 'Pedido de personalização de produto (SBP)',
-    url: '/wallac/solicitar',
-    icone: 'ti-brush', novaAba: false,
-  },
 ];
