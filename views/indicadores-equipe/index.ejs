@@ -19,7 +19,15 @@
     <div class="ie-tabs">
       <button class="ie-tab active" data-periodo="semana" onclick="ieSetPeriodo('semana', this)">Semana</button>
       <button class="ie-tab" data-periodo="mes" onclick="ieSetPeriodo('mes', this)">Mês</button>
+      <button class="ie-tab" data-periodo="personalizado" onclick="ieSetPeriodo('personalizado', this)">Personalizado</button>
     </div>
+  </div>
+
+  <div class="ie-periodo-custom" id="ie-periodo-custom" style="display:none">
+    <label>De <input type="date" id="ie-data-de"></label>
+    <label>Até <input type="date" id="ie-data-ate"></label>
+    <button onclick="ieAplicarPersonalizado()">Aplicar</button>
+    <span id="ie-periodo-erro" style="display:none"></span>
   </div>
 
   <div class="ie-section-label">Resumo por consultor</div>

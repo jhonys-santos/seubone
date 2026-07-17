@@ -49,6 +49,26 @@ function ieDiasMes() {
   }
   return labels;
 }
+// "YYYY-MM-DD" (valor nativo de <input type="date">) como data local, pra
+// não cair um dia por causa de fuso horário se interpretasse como UTC.
+function ieParseDataLocal(str) {
+  const [ano, mes, dia] = str.split('-').map(Number);
+  return new Date(ano, mes - 1, dia);
+}
+function ieMesmoDia(a, b) {
+  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+}
+function ieDiasPersonalizado(deStr, ateStr) {
+  const de = ieParseDataLocal(deStr), ate = ieParseDataLocal(ateStr);
+  const hoje = new Date();
+  const labels = [];
+  const atual = new Date(de);
+  while (atual <= ate) {
+    labels.push({ label: String(atual.getDate()).padStart(2, '0') + '/' + String(atual.getMonth() + 1).padStart(2, '0'), hoje: ieMesmoDia(atual, hoje) });
+    atual.setDate(atual.getDate() + 1);
+  }
+  return labels;
+}
 
 function ieMontarDados(consultores, metricas, dias) {
   const porConsultor = {};
@@ -67,12 +87,15 @@ const IE_TIMES = {
   atendimento: {
     titulo: 'Time Atendimento',
     consultores: ['Iasmin Cristina', 'Francis Medeiros', 'Nathalia Guedes'],
-    resumoKeys: ['tma', 'csat', 'atendimentos'],
+    resumoKeys: ['tma', 'csat', 'atendimentos', 'tickets', 'tmt_refab'],
     metricas: [
       { key: 'tma', label: 'TMA', unidade: 'tempo', agregacao: 'media', meta: { valor: 30, direcao: 'menor' }, base: 22, variacao: 14 },
       { key: 'csat', label: 'CSAT', unidade: 'pct', agregacao: 'media', meta: { valor: 95, direcao: 'maior' }, base: 97, variacao: 8 },
       { key: 'atendimentos', label: 'Atendimentos', unidade: 'num', agregacao: 'soma', base: 20, variacao: 16 },
       { key: 'pesquisas', label: 'Pesquisas respondidas', unidade: 'num', agregacao: 'soma', base: 4, variacao: 5 },
+      // Time Atendimento também é responsável por tickets de refabricação.
+      { key: 'tickets', label: 'Tickets resolvidos', unidade: 'num', agregacao: 'soma', base: 8, variacao: 8 },
+      { key: 'tmt_refab', label: 'TMT Refabricação', unidade: 'tempo', agregacao: 'media', meta: { valor: 84 * 60, direcao: 'menor' }, base: 60 * 60, variacao: 40 * 60 },
     ],
   },
   resolucao: {
@@ -122,7 +145,8 @@ function ieRenderResumo() {
   }).join('');
 }
 
-function ieRenderMetricas(periodo) {
+function ieRenderMetricas() {
+  const denso = ieDiasAtuais.length > 10; // mês ou intervalo personalizado longo — 1 barra por dia, sem agrupar por consultor
   const cont = document.getElementById('ie-metricas');
   cont.innerHTML = ieConfig.metricas.map((m) => {
     const totalEquipe = ieAgregar(
@@ -156,20 +180,49 @@ function ieRenderMetricas(periodo) {
       </div>
       <div class="ie-metrica-total">Equipe no período: <strong>${ieFormatValor(totalEquipe, m.unidade)}</strong></div>
       <div class="ie-legend">${legend}</div>
-      <div class="ie-chart ${periodo === 'mes' ? 'ie-chart-mes' : ''}">${dias}</div>
+      <div class="ie-chart ${denso ? 'ie-chart-mes' : ''}">${dias}</div>
     </div>`;
   }).join('');
+}
+
+function ieRenderPeriodo() {
+  ieDados = ieMontarDados(ieConfig.consultores, ieConfig.metricas, ieDiasAtuais.length);
+  ieRenderResumo();
+  ieRenderMetricas();
 }
 
 function ieSetPeriodo(periodo, btn) {
   document.querySelectorAll('.ie-tab').forEach((t) => t.classList.remove('active'));
   if (btn) btn.classList.add('active');
+
+  const custom = document.getElementById('ie-periodo-custom');
+  if (periodo === 'personalizado') {
+    custom.style.display = 'flex';
+    return; // espera o gestor escolher as datas e clicar em "Aplicar"
+  }
+  custom.style.display = 'none';
+
   ieDiasAtuais = periodo === 'mes' ? ieDiasMes() : ieDiasSemana();
-  ieDados = ieMontarDados(ieConfig.consultores, ieConfig.metricas, ieDiasAtuais.length);
-  ieRenderResumo();
-  ieRenderMetricas(periodo);
+  ieRenderPeriodo();
 }
 window.ieSetPeriodo = ieSetPeriodo;
+
+function ieAplicarPersonalizado() {
+  const erroEl = document.getElementById('ie-periodo-erro');
+  erroEl.style.display = 'none';
+  const de = document.getElementById('ie-data-de').value;
+  const ate = document.getElementById('ie-data-ate').value;
+
+  if (!de || !ate) { erroEl.textContent = 'Selecione as duas datas.'; erroEl.style.display = 'inline'; return; }
+  if (de > ate) { erroEl.textContent = '"De" precisa vir antes de "Até".'; erroEl.style.display = 'inline'; return; }
+
+  const dias = ieDiasPersonalizado(de, ate);
+  if (dias.length > 180) { erroEl.textContent = 'Selecione um intervalo de até 180 dias.'; erroEl.style.display = 'inline'; return; }
+
+  ieDiasAtuais = dias;
+  ieRenderPeriodo();
+}
+window.ieAplicarPersonalizado = ieAplicarPersonalizado;
 
 (function init() {
   const time = window.IE_TIME;
