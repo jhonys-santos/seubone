@@ -6,6 +6,10 @@
 <link rel="stylesheet" href="/css/painel-sac.css">
 </head>
 <body>
+<div class="app-shell">
+<%- include('../partials/sidebar') %>
+<div class="app-main">
+
 <!-- LOADING PAINEL -->
 <div class="loading-screen show" id="loading-screen">
   <div class="loading-logo">
@@ -15,10 +19,6 @@
   <div class="loading-bar"><div class="loading-fill"></div></div>
   <div class="loading-txt" id="loading-txt">Carregando seu painel...</div>
 </div>
-
-<div class="app-shell">
-<%- include('../partials/sidebar') %>
-<div class="app-main">
 
 <!-- PAINEL -->
 <div class="dash" id="dash">

@@ -319,7 +319,11 @@ button.sidebar-item { width: 100%; text-align: left; background: none; cursor: p
 .sidebar-bottom .hub-theme-toggle,
 .sidebar-bottom .hub-logout { width: 100%; justify-content: center; }
 
-.app-main { flex: 1; min-width: 0; }
+/* min-height (não só o flex:1) porque .app-shell usa align-items:flex-start
+   — sem uma altura própria definida, um overlay position:absolute;inset:0
+   dentro de .app-main (ex: loading de Meus Indicadores) não tem em relação
+   a quê se esticar quando o conteúdo normal ainda não apareceu. */
+.app-main { flex: 1; min-width: 0; min-height: 100vh; position: relative; }
 
 /* ── POPUP GENÉRICO (avisos, confirmações pontuais) ──────────
    Base compartilhada entre páginas — cada popup só define o que
