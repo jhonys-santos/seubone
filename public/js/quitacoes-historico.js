@@ -13,6 +13,43 @@ setDefaultDatas();
 
 let itensCarregados = [];
 
+function filtrarPorId() {
+  const termo = document.getElementById('buscaId').value.trim().toLowerCase();
+  const filtrados = termo
+    ? itensCarregados.filter((it) => it.idVendaOmie.toLowerCase().includes(termo))
+    : itensCarregados;
+  renderTabela(filtrados);
+}
+
+function renderTabela(itens) {
+  document.getElementById('statTotal').textContent = itens.length;
+
+  const tabela = document.getElementById('tabela');
+  if (itens.length === 0) {
+    tabela.innerHTML = `<div class="empty">Nenhuma quitação encontrada.</div>`;
+    return;
+  }
+
+  tabela.innerHTML = `
+    <table>
+      <thead>
+        <tr>
+          <th>Venda Omie</th><th>Cliente</th><th>Cadastrado em</th><th>Pago em</th>${window.QT_USUARIO_ROLE === 'gestor' ? '<th>Cadastrado por</th>' : ''}
+        </tr>
+      </thead>
+      <tbody>
+        ${itens.map((it) => `
+          <tr class="linha-clicavel" onclick="abrirDetalhe('${it.id}')">
+            <td class="mono">${it.idVendaOmie}</td>
+            <td>${it.cliente}</td>
+            <td>${new Date(it.dataCadastro).toLocaleString('pt-BR')}</td>
+            <td>${it.dataPagamento ? new Date(it.dataPagamento).toLocaleString('pt-BR') : '-'}</td>
+            ${window.QT_USUARIO_ROLE === 'gestor' ? `<td>${it.cadastradoPorNome}</td>` : ''}
+          </tr>`).join('')}
+      </tbody>
+    </table>`;
+}
+
 async function carregar() {
   const desde = document.getElementById('desde').value;
   const ate = document.getElementById('ate').value;
@@ -23,32 +60,7 @@ async function carregar() {
     if (!data.ok) throw new Error(data.erro || 'Erro desconhecido');
 
     itensCarregados = data.itens;
-    document.getElementById('statTotal').textContent = itensCarregados.length;
-
-    const tabela = document.getElementById('tabela');
-    if (itensCarregados.length === 0) {
-      tabela.innerHTML = `<div class="empty">Nenhuma quitação no período selecionado.</div>`;
-      return;
-    }
-
-    tabela.innerHTML = `
-      <table>
-        <thead>
-          <tr>
-            <th>Venda Omie</th><th>Cliente</th><th>Cadastrado em</th><th>Pago em</th>${window.QT_USUARIO_ROLE === 'gestor' ? '<th>Cadastrado por</th>' : ''}
-          </tr>
-        </thead>
-        <tbody>
-          ${itensCarregados.map((it) => `
-            <tr class="linha-clicavel" onclick="abrirDetalhe('${it.id}')">
-              <td class="mono">${it.idVendaOmie}</td>
-              <td>${it.cliente}</td>
-              <td>${new Date(it.dataCadastro).toLocaleString('pt-BR')}</td>
-              <td>${it.dataPagamento ? new Date(it.dataPagamento).toLocaleString('pt-BR') : '-'}</td>
-              ${window.QT_USUARIO_ROLE === 'gestor' ? `<td>${it.cadastradoPorNome}</td>` : ''}
-            </tr>`).join('')}
-        </tbody>
-      </table>`;
+    filtrarPorId();
   } catch (e) {
     document.getElementById('tabela').innerHTML = `<div class="empty">Erro ao carregar.</div>`;
   }
