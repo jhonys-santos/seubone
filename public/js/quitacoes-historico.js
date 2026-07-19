@@ -82,13 +82,16 @@ function abrirDetalhe(id) {
     ${it.observacao ? `<div class="observacao"><i class="ti ti-alert-triangle" aria-hidden="true"></i> ${it.observacao}</div>` : ''}
 
     <div class="pedido-meta">
-      <div><div class="k">Bitrix/Lulu 2.0</div><a href="${it.linkCrm}" target="_blank">Abrir pedido →</a></div>
       <div><div class="k">Modalidade</div>${it.modalidade}</div>
       ${it.tipoEnvioAereo ? `<div><div class="k">Envio aéreo</div>${it.tipoEnvioAereo}${it.aeroporto ? ' — ' + it.aeroporto : ''}</div>` : ''}
       ${it.freteDedicado ? `<div><div class="k">Transportadora</div>${it.transportadora}</div><div><div class="k">Entregador</div>${it.entregador}</div>` : ''}
       ${it.dataPrevista ? `<div><div class="k">Previsto p/ quitação</div>${new Date(it.dataPrevista + 'T00:00:00').toLocaleDateString('pt-BR')}</div>` : ''}
       <div><div class="k">Cadastrado por</div>${it.cadastradoPorNome} — ${new Date(it.dataCadastro).toLocaleString('pt-BR')}</div>
       ${it.dataPagamento ? `<div><div class="k">Pago em</div>${new Date(it.dataPagamento).toLocaleString('pt-BR')}</div>` : ''}
+    </div>
+
+    <div class="pedido-links">
+      <a class="link-btn" href="${it.linkCrm}" target="_blank" rel="noopener"><i class="ti ti-external-link" aria-hidden="true"></i> Abrir Bitrix</a>
     </div>
   `;
 

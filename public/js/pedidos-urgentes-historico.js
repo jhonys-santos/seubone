@@ -103,15 +103,18 @@ function abrirDetalhe(id) {
     ${p.Observacao ? `<div class="observacao"><i class="ti ti-alert-triangle" aria-hidden="true"></i> ${p.Observacao}</div>` : ''}
 
     <div class="pedido-meta">
-      <div><div class="k">Bitrix/Lulu 2.0</div><a href="${p.LinkCRM}" target="_blank">Abrir pedido →</a></div>
       <div><div class="k">Transportadora</div>${p.Transportadora}</div>
       <div><div class="k">Modalidade</div>${p.Modalidade}</div>
       ${p.TipoEnvioAereo ? `<div><div class="k">Envio aéreo</div>${p.TipoEnvioAereo}${p.AeroportoRetirada ? ' — ' + p.AeroportoRetirada : ''}</div>` : ''}
       <div><div class="k">Prazo</div>${new Date(p.Prazo).toLocaleString('pt-BR')}</div>
       <div><div class="k">Inserido por</div>${p.InseridoPor} — ${inserido.toLocaleString('pt-BR')}</div>
       ${despachado ? `<div><div class="k">Despachado por</div>${p.DespachadoPor} — ${despachado.toLocaleString('pt-BR')}</div>` : ''}
-      ${p.ManifestoLink ? `<div><div class="k">Minuta</div><a href="${p.ManifestoLink}" target="_blank">Ver PDF →</a></div>` : ''}
-      ${p.NotaFiscalLink ? `<div><div class="k">Nota fiscal</div><a href="${p.NotaFiscalLink}" target="_blank">Baixar PDF →</a></div>` : ''}
+    </div>
+
+    <div class="pedido-links">
+      <a class="link-btn" href="${p.LinkCRM}" target="_blank" rel="noopener"><i class="ti ti-external-link" aria-hidden="true"></i> Abrir Bitrix</a>
+      ${p.ManifestoLink ? `<a class="link-btn" href="${p.ManifestoLink}" target="_blank" rel="noopener"><i class="ti ti-file-text" aria-hidden="true"></i> Ver Minuta</a>` : ''}
+      ${p.NotaFiscalLink ? `<a class="link-btn" href="${p.NotaFiscalLink}" target="_blank" rel="noopener"><i class="ti ti-receipt" aria-hidden="true"></i> Ver Nota Fiscal</a>` : ''}
     </div>
 
     ${p.OSImagemId ? `<img class="os-thumb" src="https://drive.google.com/thumbnail?id=${p.OSImagemId}&sz=w400" alt="Foto da OS ${p.OS}" onclick="window.open('https://drive.google.com/thumbnail?id=${p.OSImagemId}&sz=w1600','_blank')">` : ''}
