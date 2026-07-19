@@ -49,7 +49,7 @@ async function enviar() {
   const msg = document.getElementById('msg');
   msg.className = 'msg';
 
-  if (!idVendaOmie || !cliente || !linkCrm || !modalidade) {
+  if (!idVendaOmie || !cliente || !dataPrevista || !linkCrm || !modalidade) {
     msg.textContent = 'Preencha todos os campos obrigatórios (*).';
     msg.classList.add('err');
     return;
