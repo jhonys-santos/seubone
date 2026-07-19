@@ -6,6 +6,16 @@ function formatarData(iso) {
   return new Date(iso).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 }
 
+// A data prevista deveria sempre chegar como "AAAA-MM-DD", mas se algum
+// registro antigo/malformado vier em outro formato, é melhor tratar como se
+// não tivesse data (cai no fallback por dias em aberto) do que exibir
+// "Invalid Date" pro usuário.
+function parseDataPrevista(str) {
+  if (!str) return null;
+  const d = new Date(/^\d{4}-\d{2}-\d{2}/.test(str) ? str + 'T00:00:00' : str);
+  return isNaN(d.getTime()) ? null : d;
+}
+
 // Sinaliza o quão urgente é cobrar cada quitação: prioriza a data prevista
 // (quando o consultor informou), senão cai para "há quantos dias está em
 // aberto" — mesma lógica de sinalização por prazo já usada em Pedidos
@@ -14,8 +24,8 @@ function calcularUrgencia(it) {
   const hoje = new Date();
   hoje.setHours(0, 0, 0, 0);
 
-  if (it.dataPrevista) {
-    const prevista = new Date(it.dataPrevista + 'T00:00:00');
+  const prevista = parseDataPrevista(it.dataPrevista);
+  if (prevista) {
     const diffDias = Math.round((prevista - hoje) / 86400000);
     if (diffDias < 0) return { nivel: 'danger', rotulo: `Atrasado ${Math.abs(diffDias)}d`, score: diffDias };
     if (diffDias <= 3) return { nivel: 'warn', rotulo: diffDias === 0 ? 'Vence hoje' : `Vence em ${diffDias}d`, score: diffDias };
@@ -92,7 +102,7 @@ async function carregar() {
           ${it.tipoEnvioAereo ? `<div><div class="k">Envio aéreo</div>${it.tipoEnvioAereo}${it.aeroporto ? ' — ' + it.aeroporto : ''}</div>` : ''}
           ${it.freteDedicado ? `<div><div class="k">Transportadora</div>${it.transportadora}</div><div><div class="k">Entregador</div>${it.entregador}</div>` : ''}
           <div><div class="k">Cadastrado em</div>${formatarData(it.dataCadastro)}</div>
-          ${it.dataPrevista ? `<div><div class="k">Previsto p/ quitação</div>${new Date(it.dataPrevista + 'T00:00:00').toLocaleDateString('pt-BR')}</div>` : ''}
+          ${parseDataPrevista(it.dataPrevista) ? `<div><div class="k">Previsto p/ quitação</div>${parseDataPrevista(it.dataPrevista).toLocaleDateString('pt-BR')}</div>` : ''}
           ${window.QT_USUARIO_ROLE === 'gestor' ? `<div><div class="k">Cadastrado por</div>${it.cadastradoPorNome}</div>` : ''}
         </div>
         <div class="pedido-links">

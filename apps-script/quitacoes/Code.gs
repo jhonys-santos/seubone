@@ -50,13 +50,20 @@ function getAbaQuitacoes(ss) {
   return aba;
 }
 
+// r[n] instanceof Date não é confiável para valores vindos de getValues() —
+// pegadinha conhecida do Apps Script. Object.prototype.toString detecta o
+// tipo de verdade independente de em qual "mundo" o objeto Date foi criado.
+function ehData(v) {
+  return Object.prototype.toString.call(v) === '[object Date]' && !isNaN(v.getTime());
+}
+
 function linhaParaItem(r) {
   return {
     id: String(r[0]),
-    dataCadastro: r[1] instanceof Date ? r[1].toISOString() : String(r[1]),
+    dataCadastro: ehData(r[1]) ? r[1].toISOString() : String(r[1]),
     idVendaOmie: String(r[2] || ''),
     cliente: String(r[3] || ''),
-    dataPrevista: r[4] instanceof Date ? r[4].toISOString().slice(0, 10) : (r[4] ? String(r[4]) : ''),
+    dataPrevista: ehData(r[4]) ? r[4].toISOString().slice(0, 10) : (r[4] ? String(r[4]) : ''),
     linkCrm: String(r[5] || ''),
     modalidade: String(r[6] || ''),
     tipoEnvioAereo: String(r[7] || ''),
@@ -68,7 +75,7 @@ function linhaParaItem(r) {
     cadastradoPorSlug: String(r[13] || ''),
     cadastradoPorNome: String(r[14] || ''),
     status: String(r[15] || 'pendente'),
-    dataPagamento: r[16] instanceof Date ? r[16].toISOString() : (r[16] ? String(r[16]) : ''),
+    dataPagamento: ehData(r[16]) ? r[16].toISOString() : (r[16] ? String(r[16]) : ''),
   };
 }
 

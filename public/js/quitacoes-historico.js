@@ -13,6 +13,15 @@ setDefaultDatas();
 
 let itensCarregados = [];
 
+// A data prevista deveria sempre chegar como "AAAA-MM-DD", mas se algum
+// registro antigo/malformado vier em outro formato, é melhor esconder o
+// campo do que exibir "Invalid Date" pro usuário.
+function parseDataPrevista(str) {
+  if (!str) return null;
+  const d = new Date(/^\d{4}-\d{2}-\d{2}/.test(str) ? str + 'T00:00:00' : str);
+  return isNaN(d.getTime()) ? null : d;
+}
+
 function filtrarPorId() {
   const termo = document.getElementById('buscaId').value.trim().toLowerCase();
   const filtrados = termo
@@ -85,7 +94,7 @@ function abrirDetalhe(id) {
       <div><div class="k">Modalidade</div>${it.modalidade}</div>
       ${it.tipoEnvioAereo ? `<div><div class="k">Envio aéreo</div>${it.tipoEnvioAereo}${it.aeroporto ? ' — ' + it.aeroporto : ''}</div>` : ''}
       ${it.freteDedicado ? `<div><div class="k">Transportadora</div>${it.transportadora}</div><div><div class="k">Entregador</div>${it.entregador}</div>` : ''}
-      ${it.dataPrevista ? `<div><div class="k">Previsto p/ quitação</div>${new Date(it.dataPrevista + 'T00:00:00').toLocaleDateString('pt-BR')}</div>` : ''}
+      ${parseDataPrevista(it.dataPrevista) ? `<div><div class="k">Previsto p/ quitação</div>${parseDataPrevista(it.dataPrevista).toLocaleDateString('pt-BR')}</div>` : ''}
       <div><div class="k">Cadastrado por</div>${it.cadastradoPorNome} — ${new Date(it.dataCadastro).toLocaleString('pt-BR')}</div>
       ${it.dataPagamento ? `<div><div class="k">Pago em</div>${new Date(it.dataPagamento).toLocaleString('pt-BR')}</div>` : ''}
     </div>
