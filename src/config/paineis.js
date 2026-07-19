@@ -46,6 +46,15 @@ module.exports = [
     url: '/ranking-sac', icone: 'ti-trophy',
   },
   {
+    chave: 'quitacoes', titulo: 'Quitações Pendentes', descricao: 'Pedidos despachados sem quitação do cliente',
+    url: '/quitacoes/painel', icone: 'ti-clock-dollar',
+    subpaginas: [
+      { titulo: 'Cadastrar', url: '/quitacoes/cadastrar', icone: 'ti-square-plus' },
+      { titulo: 'Painel', url: '/quitacoes/painel', icone: 'ti-clipboard-list' },
+      { titulo: 'Histórico', url: '/quitacoes/historico', icone: 'ti-history' },
+    ],
+  },
+  {
     chave: 'registro-demandas', titulo: 'Registro de Demandas Gerais', descricao: 'Demandas gerais e reembolsos solicitados ao financeiro',
     url: '/registro-demandas', icone: 'ti-clipboard-text',
     subpaginas: [

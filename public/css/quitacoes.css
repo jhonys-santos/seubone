@@ -1,0 +1,11 @@
+/* A maior parte do visual (cards, badges, stats, tabela, filtros) é
+   herdada de pedidos-urgentes.css — aqui só o que é específico desta
+   página: o toggle do frete dedicado. */
+
+.qt-toggle-row { margin-top: 16px; }
+.qt-toggle-label {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 13px; font-weight: 600; color: var(--text);
+  margin: 0; cursor: pointer;
+}
+.qt-toggle-label input[type="checkbox"] { width: auto; accent-color: var(--gold); cursor: pointer; }

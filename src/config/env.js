@@ -28,6 +28,7 @@ module.exports = {
   pedidosUrgentesAppsScriptUrl: required('PEDIDOS_URGENTES_APPS_SCRIPT_URL', ''),
   painelSacAppsScriptUrl: required('PAINEL_SAC_APPS_SCRIPT_URL', ''),
   registroDemandasAppsScriptUrl: required('REGISTRO_DEMANDAS_APPS_SCRIPT_URL', ''),
+  quitacoesAppsScriptUrl: required('QUITACOES_APPS_SCRIPT_URL', ''),
 
   rankingSacCsvUrls: {
     atd: required('RANKING_SAC_CSV_ATD', ''),

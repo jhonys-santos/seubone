@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<%- include('../partials/head') %>
+<title>Histórico — Quitações — SeuBoné</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/pedidos-urgentes.css">
+<link rel="stylesheet" href="/css/quitacoes.css">
+</head>
+<body>
+<div class="app-shell">
+<%- include('../partials/sidebar') %>
+<div class="app-main">
+
+<div class="pu-scope">
+<div class="pu-container">
+  <div class="filters">
+    <div>
+      <label>De</label>
+      <input type="date" id="desde">
+    </div>
+    <div>
+      <label>Até</label>
+      <input type="date" id="ate">
+    </div>
+    <button class="btn-primary" style="margin-top:0;width:auto;" onclick="carregar()"><i class="ti ti-filter" aria-hidden="true"></i> Filtrar</button>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="n" id="statTotal">-</div><div class="l">quitados no período</div></div>
+  </div>
+
+  <div id="tabela"></div>
+</div>
+</div>
+
+</div>
+</div>
+
+<div id="modalOverlay" class="modal-overlay" onclick="if(event.target===this) fecharDetalhe()">
+  <div class="modal-box" id="modalConteudo"></div>
+</div>
+
+<script>window.QT_USUARIO_ROLE = <%- JSON.stringify(usuario.role) %>;</script>
+<script src="/js/quitacoes-historico.js"></script>
+</body>
+</html>

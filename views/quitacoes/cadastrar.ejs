@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<%- include('../partials/head') %>
+<title>Cadastrar Quitação Pendente — SeuBoné</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/pedidos-urgentes.css">
+<link rel="stylesheet" href="/css/quitacoes.css">
+</head>
+<body>
+<div class="app-shell">
+<%- include('../partials/sidebar') %>
+<div class="app-main">
+
+<div class="pu-scope">
+<div class="pu-container">
+  <div class="card">
+    <label>ID venda Omie *</label>
+    <input type="text" id="idVendaOmie" placeholder="Ex: 12345" required>
+
+    <label>Cliente *</label>
+    <input type="text" id="cliente" placeholder="Nome do cliente" required>
+
+    <label>Link do Bitrix/Lulu 2.0 *</label>
+    <input type="url" id="linkCrm" placeholder="https://..." required>
+
+    <label>Modalidade de envio *</label>
+    <select id="modalidade" required>
+      <option value="">Selecione</option>
+      <option>Aéreo</option>
+      <option>Rodoviário</option>
+      <option>Carro de linha</option>
+      <option>Retirada no escritório (Natal)</option>
+      <option>Retirada no estoque (Caicó)</option>
+      <option>Outro</option>
+    </select>
+
+    <div id="blocoAereo" style="display:none;">
+      <label>Tipo de envio (aéreo) *</label>
+      <select id="tipoEnvioAereo">
+        <option value="">Selecione</option>
+        <option value="Retirada">Retirada no aeroporto</option>
+        <option value="Domicílio">Entrega em domicílio</option>
+      </select>
+
+      <div id="blocoAeroporto" style="display:none;">
+        <label>Aeroporto de retirada *</label>
+        <input type="text" id="aeroporto" list="lista-aeroportos" placeholder="Ex: Aeroporto de Natal (NAT)">
+        <datalist id="lista-aeroportos">
+          <option value="Aeroporto de Natal (NAT)">
+          <option value="Aeroporto do Recife (REC)">
+          <option value="Aeroporto de Fortaleza (FOR)">
+          <option value="Aeroporto de Guarulhos (GRU)">
+          <option value="Aeroporto do Galeão (GIG)">
+          <option value="Aeroporto de Brasília (BSB)">
+        </datalist>
+      </div>
+    </div>
+
+    <div class="qt-toggle-row">
+      <label class="qt-toggle-label">
+        <input type="checkbox" id="freteDedicado" onchange="qtToggleFrete()">
+        Tem frete dedicado?
+      </label>
+    </div>
+
+    <div id="blocoFrete" style="display:none;">
+      <div class="row2">
+        <div>
+          <label>Transportadora *</label>
+          <input type="text" id="transportadora" placeholder="Ex: Latam Cargo">
+        </div>
+        <div>
+          <label>Quem vai entregar *</label>
+          <input type="text" id="entregador" placeholder="Nome de quem vai entregar">
+        </div>
+      </div>
+    </div>
+
+    <label>Observação — opcional</label>
+    <textarea id="observacao" rows="3" placeholder="Detalhe que o gestor precisa saber sobre esta quitação"></textarea>
+
+    <div style="font-size:12px;color:var(--text-muted);margin-top:16px;display:flex;align-items:center;gap:6px;"><i class="ti ti-user-circle" aria-hidden="true"></i> Cadastrando como <strong style="color:var(--text)"><%= usuario.nome %></strong></div>
+    <button class="btn-primary" id="btnEnviar" onclick="enviar()"><i class="ti ti-send" aria-hidden="true"></i> Cadastrar quitação pendente</button>
+
+    <div class="msg" id="msg"></div>
+  </div>
+</div>
+</div>
+
+</div>
+</div>
+
+<script src="/js/quitacoes-cadastro.js"></script>
+</body>
+</html>
