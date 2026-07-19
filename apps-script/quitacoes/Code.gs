@@ -42,7 +42,7 @@ function getAbaQuitacoes(ss) {
   if (!aba) {
     aba = ss.insertSheet('Quitacoes');
     aba.appendRow([
-      'id', 'dataCadastro', 'idVendaOmie', 'cliente', 'linkCrm', 'modalidade',
+      'id', 'dataCadastro', 'idVendaOmie', 'cliente', 'dataPrevista', 'linkCrm', 'modalidade',
       'tipoEnvioAereo', 'aeroporto', 'freteDedicado', 'transportadora', 'entregador',
       'observacao', 'cadastradoPorSlug', 'cadastradoPorNome', 'status', 'dataPagamento',
     ]);
@@ -56,18 +56,19 @@ function linhaParaItem(r) {
     dataCadastro: r[1] instanceof Date ? r[1].toISOString() : String(r[1]),
     idVendaOmie: String(r[2] || ''),
     cliente: String(r[3] || ''),
-    linkCrm: String(r[4] || ''),
-    modalidade: String(r[5] || ''),
-    tipoEnvioAereo: String(r[6] || ''),
-    aeroporto: String(r[7] || ''),
-    freteDedicado: String(r[8]).toLowerCase().trim() === 'true',
-    transportadora: String(r[9] || ''),
-    entregador: String(r[10] || ''),
-    observacao: String(r[11] || ''),
-    cadastradoPorSlug: String(r[12] || ''),
-    cadastradoPorNome: String(r[13] || ''),
-    status: String(r[14] || 'pendente'),
-    dataPagamento: r[15] instanceof Date ? r[15].toISOString() : (r[15] ? String(r[15]) : ''),
+    dataPrevista: r[4] instanceof Date ? r[4].toISOString().slice(0, 10) : (r[4] ? String(r[4]) : ''),
+    linkCrm: String(r[5] || ''),
+    modalidade: String(r[6] || ''),
+    tipoEnvioAereo: String(r[7] || ''),
+    aeroporto: String(r[8] || ''),
+    freteDedicado: String(r[9]).toLowerCase().trim() === 'true',
+    transportadora: String(r[10] || ''),
+    entregador: String(r[11] || ''),
+    observacao: String(r[12] || ''),
+    cadastradoPorSlug: String(r[13] || ''),
+    cadastradoPorNome: String(r[14] || ''),
+    status: String(r[15] || 'pendente'),
+    dataPagamento: r[16] instanceof Date ? r[16].toISOString() : (r[16] ? String(r[16]) : ''),
   };
 }
 
@@ -105,6 +106,7 @@ function cadastrarQuitacao(body) {
     new Date(),
     body.idVendaOmie || '',
     body.cliente || '',
+    body.dataPrevista || '',
     body.linkCrm || '',
     body.modalidade || '',
     body.tipoEnvioAereo || '',
@@ -127,8 +129,8 @@ function marcarPago(id) {
   const rows = aba.getDataRange().getValues();
   for (let i = 1; i < rows.length; i++) {
     if (String(rows[i][0]) === String(id)) {
-      aba.getRange(i + 1, 15).setValue('pago');
-      aba.getRange(i + 1, 16).setValue(new Date());
+      aba.getRange(i + 1, 16).setValue('pago');
+      aba.getRange(i + 1, 17).setValue(new Date());
       return { ok: true };
     }
   }

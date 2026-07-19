@@ -36,6 +36,7 @@ function qtToggleFrete() {
 async function enviar() {
   const idVendaOmie = document.getElementById('idVendaOmie').value.trim();
   const cliente = document.getElementById('cliente').value.trim();
+  const dataPrevista = document.getElementById('dataPrevista').value;
   const linkCrm = document.getElementById('linkCrm').value.trim();
   const modalidade = modalidadeEl.value;
   const tipoEnvioAereo = tipoEnvioAereoEl.value;
@@ -76,7 +77,7 @@ async function enviar() {
   btn.disabled = true;
   btn.textContent = 'Enviando...';
 
-  const payload = { idVendaOmie, cliente, linkCrm, modalidade, freteDedicado, observacao };
+  const payload = { idVendaOmie, cliente, dataPrevista, linkCrm, modalidade, freteDedicado, observacao };
   if (modalidade === 'Aéreo') {
     payload.tipoEnvioAereo = tipoEnvioAereo;
     if (tipoEnvioAereo === 'Retirada') payload.aeroporto = aeroporto;
@@ -97,7 +98,7 @@ async function enviar() {
     if (data.ok) {
       msg.textContent = `Quitação da venda ${idVendaOmie} cadastrada. Já aparece no painel para acompanhamento.`;
       msg.classList.add('ok');
-      ['idVendaOmie', 'cliente', 'linkCrm', 'transportadora', 'entregador', 'observacao'].forEach((id) => {
+      ['idVendaOmie', 'cliente', 'dataPrevista', 'linkCrm', 'transportadora', 'entregador', 'observacao'].forEach((id) => {
         document.getElementById(id).value = '';
       });
       modalidadeEl.value = '';
