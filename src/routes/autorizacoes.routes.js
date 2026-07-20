@@ -24,11 +24,11 @@ router.get('/', (req, res) => {
   res.render('autorizacoes/index', { config: configPublica() });
 });
 
-// Gera o PDF e, na mesma chamada, já dispara os e-mails cujo gatilho
-// (checkbox) estiver marcado — não existe mais um segundo clique de
-// confirmação pra enviar. Uma falha no envio nunca bloqueia o download: o
-// PDF sempre volta pro navegador, e o que der errado no e-mail aparece
-// separado em "emailsComErro".
+// Gera o PDF e devolve pro navegador IMEDIATAMENTE — os e-mails cujo
+// gatilho (checkbox) estiver marcado disparam depois, em segundo plano.
+// Antes eles eram enviados antes de responder, então uma rede que bloqueia
+// a porta SMTP silenciosamente (comum em PaaS) travava o download junto
+// com o e-mail; agora o PDF nunca fica hostage do envio.
 router.post('/api/gerar', async (req, res) => {
   try {
     const { templateId, values } = req.body;
@@ -37,27 +37,29 @@ router.post('/api/gerar', async (req, res) => {
     const pdf = await gerarPdf(templateId, dados);
     const filename = buildFilename(tpl, dados) + '.pdf';
 
-    const emailsEnviados = [];
-    const emailsComErro = [];
-    for (const regra of regrasAtivas(tpl, values || {})) {
-      const destino = regra.toField ? (dados[regra.toField] || '') : regra.to;
-      const cc = ccDaRegra(regra, values || {}, dados);
-      if (!destino) continue;
-      try {
-        await enviarEmail({
-          to: destino,
-          cc,
-          subject: preencherTexto(regra.subject, dados),
-          text: preencherTexto(regra.body, dados),
-          attachment: { filename, content: pdf },
-        });
-        emailsEnviados.push({ label: regra.label, to: destino, cc });
-      } catch (err) {
-        emailsComErro.push({ label: regra.label, erro: err.message });
-      }
-    }
+    const emailsAgendados = regrasAtivas(tpl, values || {})
+      .map((regra) => ({ regra, destino: regra.toField ? (dados[regra.toField] || '') : regra.to, cc: ccDaRegra(regra, values || {}, dados) }))
+      .filter((e) => e.destino);
 
-    res.json({ ok: true, filename, base64: pdf.toString('base64'), mimeType: 'application/pdf', emailsEnviados, emailsComErro });
+    res.json({
+      ok: true,
+      filename,
+      base64: pdf.toString('base64'),
+      mimeType: 'application/pdf',
+      emailsAgendados: emailsAgendados.map((e) => ({ label: e.regra.label, to: e.destino, cc: e.cc })),
+    });
+
+    for (const { regra, destino, cc } of emailsAgendados) {
+      enviarEmail({
+        to: destino,
+        cc,
+        subject: preencherTexto(regra.subject, dados),
+        text: preencherTexto(regra.body, dados),
+        attachment: { filename, content: pdf },
+      }).catch((err) => {
+        console.error(`[autorizacoes] falha ao enviar e-mail (${regra.label}) para ${destino}:`, err.message);
+      });
+    }
   } catch (err) {
     res.status(400).json({ ok: false, erro: err.message });
   }

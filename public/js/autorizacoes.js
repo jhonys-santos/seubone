@@ -120,14 +120,12 @@ async function gerar() {
     setTimeout(() => { btn.classList.remove('ok'); btn.innerHTML = '<i class="ti ti-file-download" aria-hidden="true"></i> Gerar e baixar PDF'; }, 2200);
 
     let msg = 'Pronto: ' + res.filename;
-    if (res.emailsEnviados && res.emailsEnviados.length) {
-      msg += '. E-mail enviado: ' + res.emailsEnviados.map((e) => e.to + (e.cc ? ` (cc: ${e.cc})` : '')).join(', ');
+    // O envio roda em segundo plano (não trava o download) — por isso é só
+    // "enviando", sem confirmação de entrega na hora.
+    if (res.emailsAgendados && res.emailsAgendados.length) {
+      msg += '. Enviando e-mail para: ' + res.emailsAgendados.map((e) => e.to + (e.cc ? ` (cc: ${e.cc})` : '')).join(', ');
     }
-    if (res.emailsComErro && res.emailsComErro.length) {
-      mostra('erro', msg + '. Falha ao enviar: ' + res.emailsComErro.map((e) => e.erro).join(', '));
-    } else {
-      mostra('ok', msg);
-    }
+    mostra('ok', msg);
   } catch (err) {
     mostra('erro', err.message);
   } finally {

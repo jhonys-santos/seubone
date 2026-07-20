@@ -17,6 +17,13 @@ function getTransporter() {
       port: 465,
       secure: true,
       auth: { user: env.sacEmailUser, pass: env.sacEmailAppPassword },
+      // Sem isso, uma porta bloqueada/filtrada pela rede do host (ex: Render)
+      // trava a conexão em silêncio — o Node fica esperando indefinidamente
+      // em vez de dar erro, e a geração do PDF fica pendurada junto (o
+      // download só volta depois que o envio de e-mail termina ou falha).
+      connectionTimeout: 10000,
+      greetingTimeout: 10000,
+      socketTimeout: 10000,
     });
   }
   return transporter;
