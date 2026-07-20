@@ -1,7 +1,7 @@
 const express = require('express');
 const { requireAuth, requirePainel } = require('../middleware/auth');
 const TEMPLATES = require('../config/autorizacoesTemplates');
-const { acharTpl, prepararValores, buildFilename, preencherTexto, regrasAtivas } = require('../services/autorizacoes.service');
+const { acharTpl, prepararValores, buildFilename, preencherTexto, regrasAtivas, ccDaRegra } = require('../services/autorizacoes.service');
 const { gerarPdf } = require('../services/pdfAutorizacoes');
 const { enviarEmail } = require('../services/email.service');
 
@@ -24,6 +24,11 @@ router.get('/', (req, res) => {
   res.render('autorizacoes/index', { config: configPublica() });
 });
 
+// Gera o PDF e, na mesma chamada, já dispara os e-mails cujo gatilho
+// (checkbox) estiver marcado — não existe mais um segundo clique de
+// confirmação pra enviar. Uma falha no envio nunca bloqueia o download: o
+// PDF sempre volta pro navegador, e o que der errado no e-mail aparece
+// separado em "emailsComErro".
 router.post('/api/gerar', async (req, res) => {
   try {
     const { templateId, values } = req.body;
@@ -32,43 +37,27 @@ router.post('/api/gerar', async (req, res) => {
     const pdf = await gerarPdf(templateId, dados);
     const filename = buildFilename(tpl, dados) + '.pdf';
 
-    const emailsDisponiveis = regrasAtivas(tpl, values || {}).map((regra) => ({
-      id: regra.id,
-      label: regra.label,
-      recipientLabel: regra.recipientLabel || (regra.toField ? (dados[regra.toField] || '') : regra.to),
-    }));
-
-    res.json({ ok: true, filename, base64: pdf.toString('base64'), mimeType: 'application/pdf', emailsDisponiveis });
-  } catch (err) {
-    res.status(400).json({ ok: false, erro: err.message });
-  }
-});
-
-router.post('/api/enviar', async (req, res) => {
-  try {
-    const { templateId, values } = req.body;
-    const tpl = acharTpl(templateId);
-    const regras = regrasAtivas(tpl, values || {});
-    if (!regras.length) return res.status(400).json({ ok: false, erro: 'Nenhum envio selecionado.' });
-
-    const dados = prepararValores(tpl, values || {});
-    const pdf = await gerarPdf(templateId, dados);
-    const filename = buildFilename(tpl, dados) + '.pdf';
-
-    const enviados = [];
-    for (const regra of regras) {
+    const emailsEnviados = [];
+    const emailsComErro = [];
+    for (const regra of regrasAtivas(tpl, values || {})) {
       const destino = regra.toField ? (dados[regra.toField] || '') : regra.to;
-      if (!destino) throw new Error('Destinatário vazio para: ' + regra.label);
-      await enviarEmail({
-        to: destino,
-        subject: preencherTexto(regra.subject, dados),
-        text: preencherTexto(regra.body, dados),
-        attachment: { filename, content: pdf },
-      });
-      enviados.push({ label: regra.label, to: destino });
+      const cc = ccDaRegra(regra, values || {}, dados);
+      if (!destino) continue;
+      try {
+        await enviarEmail({
+          to: destino,
+          cc,
+          subject: preencherTexto(regra.subject, dados),
+          text: preencherTexto(regra.body, dados),
+          attachment: { filename, content: pdf },
+        });
+        emailsEnviados.push({ label: regra.label, to: destino, cc });
+      } catch (err) {
+        emailsComErro.push({ label: regra.label, erro: err.message });
+      }
     }
 
-    res.json({ ok: true, enviados });
+    res.json({ ok: true, filename, base64: pdf.toString('base64'), mimeType: 'application/pdf', emailsEnviados, emailsComErro });
   } catch (err) {
     res.status(400).json({ ok: false, erro: err.message });
   }

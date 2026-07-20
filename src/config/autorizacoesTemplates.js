@@ -40,6 +40,9 @@ module.exports = [
         recipientLabel: 'transportadora (LATAM Cargo GRU)',
         triggerField: 'ENVIAR_GRU', triggerValue: true,
         to: 'grp_lojalatamcargogrudom@latam.com',
+        // Se o cliente também tiver e-mail informado, ele entra em cópia
+        // nesse mesmo envio em vez de receber uma mensagem separada.
+        ccWhen: { field: 'ENVIAR_CLIENTE', value: true, emailField: 'EMAIL_CLIENTE' },
         subject: 'Autorização de retirada de carga — {NOME} — AWB(s) {AWB_LISTA}',
         body:
           'Prezados,\n\n' +
@@ -52,6 +55,9 @@ module.exports = [
         id: 'cliente',
         label: 'Cliente',
         triggerField: 'ENVIAR_CLIENTE', triggerValue: true,
+        // Só manda separado pro cliente se NÃO for pro GRU — quando é pro
+        // GRU, o cliente já vai em cópia na regra acima (não duplica envio).
+        suppressWhen: { field: 'ENVIAR_GRU', value: true },
         toField: 'EMAIL_CLIENTE',
         subject: CLIENTE_ASSUNTO,
         body: CLIENTE_CORPO,

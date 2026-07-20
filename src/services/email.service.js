@@ -22,10 +22,11 @@ function getTransporter() {
   return transporter;
 }
 
-async function enviarEmail({ to, subject, text, attachment }) {
+async function enviarEmail({ to, cc, subject, text, attachment }) {
   await getTransporter().sendMail({
     from: `"SAC — SeuBoné" <${env.sacEmailUser}>`,
     to,
+    cc,
     subject,
     text,
     attachments: [attachment],

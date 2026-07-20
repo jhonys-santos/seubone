@@ -89,10 +89,27 @@ function preencherTexto(texto, dados) {
   return String(texto).replace(/\{(\w+)\}/g, (_, k) => (dados[k] == null ? '' : dados[k]));
 }
 
-// Regras de e-mail do template cujo gatilho (checkbox) está marcado.
-function regrasAtivas(tpl, values) {
-  if (!tpl.emails) return [];
-  return tpl.emails.filter((r) => values[r.triggerField] === true || values[r.triggerField] === 'true');
+function ligado(values, campo) {
+  return values[campo] === true || values[campo] === 'true';
 }
 
-module.exports = { acharTpl, prepararValores, buildFilename, preencherTexto, regrasAtivas, dataHojePtBr };
+// Regras de e-mail do template cujo gatilho (checkbox) está marcado — e que
+// não foram suprimidas por outra regra já cobrir o mesmo destinatário (ex:
+// cliente em cópia na regra da transportadora, não precisa de e-mail à parte).
+function regrasAtivas(tpl, values) {
+  if (!tpl.emails) return [];
+  return tpl.emails.filter((r) => {
+    if (!ligado(values, r.triggerField)) return false;
+    if (r.suppressWhen && ligado(values, r.suppressWhen.field)) return false;
+    return true;
+  });
+}
+
+// CC de uma regra de e-mail, se ela tiver um (ex: cliente em cópia na
+// autorização enviada pra transportadora).
+function ccDaRegra(regra, values, dados) {
+  if (!regra.ccWhen || !ligado(values, regra.ccWhen.field)) return undefined;
+  return dados[regra.ccWhen.emailField] || undefined;
+}
+
+module.exports = { acharTpl, prepararValores, buildFilename, preencherTexto, regrasAtivas, ccDaRegra, dataHojePtBr };

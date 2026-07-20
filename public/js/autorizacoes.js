@@ -36,7 +36,7 @@ function renderCampos() {
       const chk = document.createElement('input');
       chk.type = 'checkbox';
       chk.id = 'f_' + f.key;
-      chk.onchange = () => { aplicarVisibilidade(); esconderEnvio(); };
+      chk.onchange = () => { aplicarVisibilidade(); };
       wrap.appendChild(chk);
       wrap.appendChild(document.createTextNode(f.label));
       div.appendChild(wrap);
@@ -64,7 +64,6 @@ function renderCampos() {
   });
 
   esconde();
-  esconderEnvio();
   aplicarVisibilidade();
 }
 
@@ -79,12 +78,8 @@ function aplicarVisibilidade() {
   });
 }
 
-function esconderEnvio() {
-  document.getElementById('enviar').style.display = 'none';
-}
-
-let ULTIMO = null; // { templateId, values, envios } da última geração
-
+// Gerar já dispara os e-mails aplicáveis (transportadora/cliente) na mesma
+// chamada — não tem mais um segundo botão de confirmação pra enviar.
 async function gerar() {
   const t = templateAtual();
   if (!t) return;
@@ -109,7 +104,6 @@ async function gerar() {
   btn.disabled = true;
   btn.textContent = 'Gerando...';
   esconde();
-  esconderEnvio();
 
   try {
     const resp = await fetch('/autorizacoes/api/gerar', {
@@ -124,49 +118,21 @@ async function gerar() {
     btn.classList.add('ok');
     btn.innerHTML = '<i class="ti ti-check" aria-hidden="true"></i> Gerado';
     setTimeout(() => { btn.classList.remove('ok'); btn.innerHTML = '<i class="ti ti-file-download" aria-hidden="true"></i> Gerar e baixar PDF'; }, 2200);
-    mostra('ok', 'Pronto: ' + res.filename);
 
-    ULTIMO = { templateId: t.id, values, envios: res.emailsDisponiveis || [] };
-    const be = document.getElementById('enviar');
-    if (ULTIMO.envios.length) {
-      be.innerHTML = `<i class="ti ti-mail-forward" aria-hidden="true"></i> ${ULTIMO.envios.length > 1 ? 'Enviar e-mails' : 'Enviar e-mail'}`;
-      be.style.display = 'block';
+    let msg = 'Pronto: ' + res.filename;
+    if (res.emailsEnviados && res.emailsEnviados.length) {
+      msg += '. E-mail enviado: ' + res.emailsEnviados.map((e) => e.to + (e.cc ? ` (cc: ${e.cc})` : '')).join(', ');
+    }
+    if (res.emailsComErro && res.emailsComErro.length) {
+      mostra('erro', msg + '. Falha ao enviar: ' + res.emailsComErro.map((e) => e.erro).join(', '));
+    } else {
+      mostra('ok', msg);
     }
   } catch (err) {
     mostra('erro', err.message);
   } finally {
     btn.disabled = false;
     if (!btn.classList.contains('ok')) btn.innerHTML = '<i class="ti ti-file-download" aria-hidden="true"></i> Gerar e baixar PDF';
-  }
-}
-
-async function enviar() {
-  if (!ULTIMO || !ULTIMO.envios.length) return;
-  const lista = ULTIMO.envios.map((e) => `• ${e.label}: ${e.recipientLabel}`).join('\n');
-  const ok = await hubConfirm(`Enviar a autorização por e-mail para:\n\n${lista}\n\nConfirmar?`);
-  if (!ok) return;
-
-  const btn = document.getElementById('enviar');
-  const txtOriginal = btn.innerHTML;
-  btn.disabled = true;
-  btn.textContent = 'Enviando...';
-  esconde();
-
-  try {
-    const resp = await fetch('/autorizacoes/api/enviar', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(ULTIMO),
-    });
-    const res = await resp.json();
-    if (!res.ok) throw new Error(res.erro || 'Erro desconhecido');
-    const quem = res.enviados.map((e) => e.label).join(', ');
-    mostra('ok', `Enviado (${quem})`);
-  } catch (err) {
-    mostra('erro', err.message);
-  } finally {
-    btn.disabled = false;
-    btn.innerHTML = txtOriginal;
   }
 }
 
@@ -217,8 +183,6 @@ function limpar() {
     if (!el) return;
     if (f.type === 'checkbox') el.checked = false; else el.value = '';
   });
-  ULTIMO = null;
   esconde();
-  esconderEnvio();
   aplicarVisibilidade();
 }
