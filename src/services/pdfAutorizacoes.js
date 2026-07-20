@@ -158,8 +158,10 @@ async function gerarPdfLatam(dados) {
   const larguraBox = largura / 2 - 10;
   const larguraCarimbo = 120, alturaCarimbo = larguraCarimbo * (135 / 250);
   const larguraAssinatura = 110, alturaAssinatura = larguraAssinatura * (48 / 205);
-  doc.image(IMG('carimbo-sb.png'), colEsq, yImgs, { width: larguraCarimbo });
-  doc.image(IMG('assinatura-jhonys.png'), colDir, yImgs, { width: larguraAssinatura });
+  // Centraliza cada imagem na largura da própria caixa (antes ficavam
+  // coladas na borda esquerda, desalinhadas com o rótulo centralizado).
+  doc.image(IMG('carimbo-sb.png'), colEsq + (larguraBox - larguraCarimbo) / 2, yImgs, { width: larguraCarimbo });
+  doc.image(IMG('assinatura-jhonys.png'), colDir + (larguraBox - larguraAssinatura) / 2, yImgs, { width: larguraAssinatura });
 
   const yLinha = yImgs + Math.max(alturaCarimbo, alturaAssinatura) + 8;
   doc.moveTo(colEsq, yLinha).lineTo(colEsq + larguraBox, yLinha).lineWidth(0.75).stroke();
