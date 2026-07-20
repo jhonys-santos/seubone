@@ -163,3 +163,18 @@
 .hh-fallback i { font-size: 30px; color: var(--gold); margin-bottom: 12px; display: block; }
 .hh-fallback h1 { font-size: 18px; margin: 0 0 6px; }
 .hh-fallback p { font-size: 13px; color: var(--text-muted); margin: 0; }
+
+/* ── MODO CLARO ───────────────────────────────────────────────
+   As cores do status do dia (escala) e do banner de foco são fixas
+   (não usam var(--...)) porque cada uma tem seu próprio tom — mas isso
+   significa que não seguem a troca de tema sozinhas. Tons pensados pra
+   contrastar bem com um fundo escuro (bem claros/vibrantes) ficam quase
+   ilegíveis num fundo claro, por isso a versão escurecida abaixo. */
+html.light .hh-foco-icon { color: #1D5FB8; }
+html.light .hh-foco-label { color: #1854A3; }
+html.light .hh-d-T .hh-day-n { color: #1B7A46; } html.light .hh-d-T .hh-day-s { color: #0F5C33; }
+html.light .hh-d-F .hh-day-n { color: #C62828; } html.light .hh-d-F .hh-day-s { color: #9E1F1F; }
+html.light .hh-d-FN .hh-day-n, html.light .hh-d-FM .hh-day-n { color: #A6580D; }
+html.light .hh-d-FN .hh-day-s, html.light .hh-d-FM .hh-day-s { color: #7A4009; }
+html.light .hh-d-TR .hh-day-n, html.light .hh-d-FE .hh-day-n { color: #1E5AA8; }
+html.light .hh-d-TR .hh-day-s, html.light .hh-d-FE .hh-day-s { color: #17458A; }

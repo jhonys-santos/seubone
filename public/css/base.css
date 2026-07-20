@@ -49,6 +49,21 @@ html.light {
   --text: #1A1A18;
   --text-muted: #515150;
   --text-hint: #8A8A84;
+
+  /* --ok/--warn/--bad (e as variantes -text, usadas em KPIs/badges por
+     painel-sac.css e outras páginas) nunca tinham versão pro tema claro —
+     ficavam com os tons vibrantes pensados pra contrastar com fundo escuro,
+     e no fundo claro davam contraste ~1.5–3:1 (ilegível). Aqui ficam
+     escurecidos o bastante pra passar de 4.5:1 com folga. */
+  --ok: #1B7A46;
+  --ok-bg: rgba(27,122,70,0.12);
+  --ok-text: #0F5C33;
+  --warn: #A6580D;
+  --warn-bg: rgba(166,88,13,0.12);
+  --warn-text: #7A4009;
+  --bad: #C62828;
+  --bad-bg: rgba(198,40,40,0.1);
+  --bad-text: #9E1F1F;
 }
 
 * { box-sizing: border-box; }

@@ -53,6 +53,11 @@
 .refresh-indicator { position: fixed; bottom: 10px; right: 16px; font-size: 9px; color: var(--text-hint); letter-spacing: .5px; user-select: none; }
 .refresh-indicator.loading { color: var(--gold); }
 
+/* td-score é roxo fixo (não segue var(--...)) — tom pensado pro fundo
+   escuro do painel de TV; no tema claro, ilegível sem essa versão mais
+   escura. */
+html.light .dias-table td.td-score { color: #5B2E91; }
+
 /* ALERTA MANIFESTO */
 #manifesto-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.88); z-index: 9999; align-items: center; justify-content: center; animation: overlayIn 0.4s ease; }
 #manifesto-overlay.show { display: flex; }
