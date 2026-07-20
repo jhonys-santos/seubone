@@ -136,38 +136,38 @@ async function gerarPdfLatam(dados) {
   doc.font('Helvetica-Bold').fontSize(10.5).text('Dados do emissor do termo para autorização de retirada:', 40, doc.y, { width: largura });
   doc.moveDown(0.5);
 
-  // No modelo original a legenda "(...)" fica alinhada à direita na MESMA
-  // linha do rótulo, e só desce pra linha de baixo quando o valor já
-  // preencheu a linha inteira (caso do endereço).
-  const campoEmissor = (rotulo, valor, legenda) => {
-    const yInicio = doc.y;
+  // Sem a legenda "(nome da empresa)" etc — como os campos já vêm
+  // preenchidos, essas dicas de preenchimento (feitas pro formulário em
+  // branco) ficam redundantes.
+  const campoEmissor = (rotulo, valor) => {
     doc.x = 40;
-    doc.font('Helvetica-Bold').fontSize(10).text(`${rotulo}: `, 40, yInicio, { continued: true }).font('Helvetica').text(valor);
-    const coubeNumaLinha = doc.y - yInicio <= 13; // uma linha só (~fontSize 10 + folga)
-    doc.font('Helvetica-Oblique').fontSize(8).fillColor('#666');
-    if (coubeNumaLinha) {
-      doc.text(`(${legenda})`, 40, yInicio, { width: largura, align: 'right' });
-    } else {
-      doc.text(`(${legenda})`);
-    }
-    doc.fillColor('#000');
+    doc.font('Helvetica-Bold').fontSize(10).text(`${rotulo}: `, 40, doc.y, { continued: true }).font('Helvetica').text(valor);
     doc.x = 40;
     doc.moveDown(0.4);
   };
-  campoEmissor('NOME', 'SEUBONE COMERCIO DE BONES PERSONALIZADOS LTDA', 'nome da empresa');
-  campoEmissor('ENDEREÇO', 'Avenida Luiz Dantas de Araujo, 173, Bairro: Vila Altiva II, Caicó - RN CEP: 59300-000', 'endereço da empresa');
-  campoEmissor('CNPJ DO TOMADOR', '36.153.457/0001-83', 'CNPJ da empresa');
-  campoEmissor('EMISSOR DO TERMO', 'Jhonys Oliveira Santos', 'nome do emissor');
-  campoEmissor('E-MAIL DO EMISSOR', 'jhonys@seubone.com', 'e-mail do emissor');
+  campoEmissor('NOME', 'SEUBONE COMERCIO DE BONES PERSONALIZADOS LTDA');
+  campoEmissor('ENDEREÇO', 'Avenida Luiz Dantas de Araujo, 173, Bairro: Vila Altiva II, Caicó - RN CEP: 59300-000');
+  campoEmissor('CNPJ DO TOMADOR', '36.153.457/0001-83');
+  campoEmissor('EMISSOR DO TERMO', 'Jhonys Oliveira Santos');
+  campoEmissor('E-MAIL DO EMISSOR', 'jhonys@seubone.com');
 
+  // Imagem em cima, um traço por baixo e o rótulo abaixo do traço — igual a
+  // uma assinatura de papel de verdade, em vez do rótulo vindo antes.
   doc.moveDown(1);
-  const yBoxes = doc.y;
-  doc.font('Helvetica-Bold').fontSize(9).text('CARIMBO DA EMPRESA', colEsq, yBoxes, { width: largura / 2 - 10 });
-  doc.text('ASSINATURA DO EMISSOR', colDir, yBoxes, { width: largura / 2 - 10 });
-  const alturaCarimbo = 120 * (135 / 250);
-  doc.image(IMG('carimbo-sb.png'), colEsq, yBoxes + 16, { width: 120 });
-  doc.image(IMG('assinatura-jhonys.png'), colDir, yBoxes + 16, { width: 110 });
-  doc.y = yBoxes + 16 + alturaCarimbo + 12;
+  const yImgs = doc.y;
+  const larguraBox = largura / 2 - 10;
+  const larguraCarimbo = 120, alturaCarimbo = larguraCarimbo * (135 / 250);
+  const larguraAssinatura = 110, alturaAssinatura = larguraAssinatura * (48 / 205);
+  doc.image(IMG('carimbo-sb.png'), colEsq, yImgs, { width: larguraCarimbo });
+  doc.image(IMG('assinatura-jhonys.png'), colDir, yImgs, { width: larguraAssinatura });
+
+  const yLinha = yImgs + Math.max(alturaCarimbo, alturaAssinatura) + 8;
+  doc.moveTo(colEsq, yLinha).lineTo(colEsq + larguraBox, yLinha).lineWidth(0.75).stroke();
+  doc.moveTo(colDir, yLinha).lineTo(colDir + larguraBox, yLinha).stroke();
+  doc.font('Helvetica-Bold').fontSize(9)
+    .text('CARIMBO DA EMPRESA', colEsq, yLinha + 4, { width: larguraBox, align: 'center' })
+    .text('ASSINATURA DO EMISSOR', colDir, yLinha + 4, { width: larguraBox, align: 'center' });
+  doc.y = yLinha + 20;
 
   const yFooter = Math.max(doc.y + 10, doc.page.height - 100);
   doc.image(IMG('latam-footer.jpg'), 40, yFooter, { width: largura });
