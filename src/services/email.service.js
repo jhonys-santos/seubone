@@ -14,8 +14,11 @@ function getTransporter() {
   if (!transporter) {
     transporter = nodemailer.createTransport({
       host: 'smtp.zoho.com',
-      port: 465,
-      secure: true,
+      // 465 (SMTPS direto) trava na saída do Render — provedores de hospedagem
+      // costumam liberar a 587 (STARTTLS) e bloquear a 465.
+      port: 587,
+      secure: false,
+      requireTLS: true,
       auth: { user: env.sacEmailUser, pass: env.sacEmailAppPassword },
       // Sem isso, uma porta bloqueada/filtrada pela rede do host (ex: Render)
       // trava a conexão em silêncio — o Node fica esperando indefinidamente
