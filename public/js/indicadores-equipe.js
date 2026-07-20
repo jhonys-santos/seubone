@@ -1,7 +1,6 @@
 // Indicadores Equipe (visão de gestor) — comparativo diário por consultor,
-// hoje só disponível em planilha. ESTE ARQUIVO AINDA USA DADOS DE EXEMPLO
-// (gerados aqui mesmo) só pra validar o layout — a integração com a
-// planilha real é o próximo passo, depois que o visual for aprovado.
+// puxado da planilha "KPI PV - 2026" (aba "KPI Visão 2026") via
+// /indicadores-equipe/api/dados.
 
 const IE_CORES = ['ie-c-0', 'ie-c-1', 'ie-c-2', 'ie-c-3', 'ie-c-4', 'ie-c-5'];
 // Mesmas cores de IE_CORES, mas em valor literal — usado na linha de
@@ -24,22 +23,16 @@ function ieAtingeMeta(valor, meta) {
   return meta.direcao === 'menor' ? valor <= meta.valor : valor >= meta.valor;
 }
 
-// ── DADOS DE EXEMPLO ──────────────────────────────────────────
-function ieGerarSerie(dias, base, variacao, foldaChance) {
-  const serie = [];
-  for (let i = 0; i < dias; i++) {
-    if (foldaChance && Math.random() < foldaChance) { serie.push(null); continue; }
-    serie.push(Math.max(0, Math.round(base + (Math.random() - 0.5) * variacao)));
-  }
-  return serie;
+// ── PERÍODO (rótulos + data real de cada dia, pra montar desde/até da API) ──
+function ieFmtDDMM(d) {
+  return String(d.getDate()).padStart(2, '0') + '/' + String(d.getMonth() + 1).padStart(2, '0');
 }
-
 function ieDiasSemana() {
   const hoje = new Date();
   const labels = [];
   for (let i = 6; i >= 0; i--) {
     const d = new Date(hoje); d.setDate(hoje.getDate() - i);
-    labels.push({ label: String(d.getDate()).padStart(2, '0') + '/' + String(d.getMonth() + 1).padStart(2, '0'), hoje: i === 0 });
+    labels.push({ data: d, label: ieFmtDDMM(d), hoje: i === 0 });
   }
   return labels;
 }
@@ -47,8 +40,9 @@ function ieDiasMes() {
   const hoje = new Date();
   const diasNoMes = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0).getDate();
   const labels = [];
-  for (let d = 1; d <= diasNoMes; d++) {
-    labels.push({ label: String(d), hoje: d === hoje.getDate() });
+  for (let dia = 1; dia <= diasNoMes; dia++) {
+    const d = new Date(hoje.getFullYear(), hoje.getMonth(), dia);
+    labels.push({ data: d, label: String(dia), hoje: dia === hoje.getDate() });
   }
   return labels;
 }
@@ -67,60 +61,52 @@ function ieDiasPersonalizado(deStr, ateStr) {
   const labels = [];
   const atual = new Date(de);
   while (atual <= ate) {
-    labels.push({ label: String(atual.getDate()).padStart(2, '0') + '/' + String(atual.getMonth() + 1).padStart(2, '0'), hoje: ieMesmoDia(atual, hoje) });
+    labels.push({ data: new Date(atual), label: ieFmtDDMM(atual), hoje: ieMesmoDia(atual, hoje) });
     atual.setDate(atual.getDate() + 1);
   }
   return labels;
 }
-
-function ieMontarDados(consultores, metricas, dias) {
-  const porConsultor = {};
-  consultores.forEach((c, i) => {
-    const foldaChance = 1 / 7 + (i * 0.03); // cada um "descansa" em dias levemente diferentes
-    const dados = {};
-    metricas.forEach((m) => {
-      dados[m.key] = ieGerarSerie(dias, m.base, m.variacao, foldaChance);
-    });
-    porConsultor[c] = dados;
-  });
-  return porConsultor;
+function ieFmtISO(d) {
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
 }
 
 const IE_TIMES = {
   atendimento: {
     titulo: 'Time Atendimento',
-    consultores: ['Iasmin Cristina', 'Francis Medeiros', 'Nathalia Guedes'],
-    resumoKeys: ['tma', 'csat', 'atendimentos', 'tickets', 'tmt_refab'],
+    consultores: ['Iasmin Cristina', 'Nathalia Guedes', 'Francis Medeiros'],
+    resumoKeys: ['tma', 'csat', 'atendimentos', 'tickets_refab', 'tmt_refab'],
     metricas: [
-      { key: 'tma', label: 'TMA', unidade: 'tempo', agregacao: 'media', meta: { valor: 30, direcao: 'menor' }, base: 22, variacao: 14 },
-      { key: 'csat', label: 'CSAT', unidade: 'pct', agregacao: 'media', meta: { valor: 95, direcao: 'maior' }, base: 97, variacao: 8 },
-      { key: 'atendimentos', label: 'Atendimentos', unidade: 'num', agregacao: 'soma', base: 20, variacao: 16 },
-      { key: 'pesquisas', label: 'Pesquisas respondidas', unidade: 'num', agregacao: 'soma', base: 4, variacao: 5 },
-      // Time Atendimento também é responsável por tickets de refabricação.
-      { key: 'tickets', label: 'Tickets resolvidos', unidade: 'num', agregacao: 'soma', base: 8, variacao: 8 },
-      { key: 'tmt_refab', label: 'TMT Refabricação', unidade: 'tempo', agregacao: 'media', meta: { valor: 84 * 60, direcao: 'menor' }, base: 60 * 60, variacao: 40 * 60 },
+      { key: 'tma', label: 'TMA', unidade: 'tempo', agregacao: 'media', meta: { valor: 30, direcao: 'menor' } },
+      { key: 'csat', label: 'CSAT', unidade: 'pct', agregacao: 'media', meta: { valor: 95, direcao: 'maior' } },
+      { key: 'atendimentos', label: 'Atendimentos', unidade: 'num', agregacao: 'soma' },
+      { key: 'tickets_refab', label: 'Tickets Refabricação', unidade: 'num', agregacao: 'soma' },
+      { key: 'tmt_refab', label: 'TMT Refabricação', unidade: 'tempo', agregacao: 'media', meta: { valor: 84 * 60, direcao: 'menor' } },
     ],
   },
   resolucao: {
     titulo: 'Time Resolução',
     consultores: ['Gabrielle Batista', 'Daniel Sheldon'],
-    resumoKeys: ['tickets', 'tmt_refab'],
+    resumoKeys: ['csat', 'tempo_ppf', 'qtd_ppf'],
     metricas: [
-      { key: 'tickets', label: 'Tickets resolvidos', unidade: 'num', agregacao: 'soma', base: 5, variacao: 6 },
-      { key: 'tmt_refab', label: 'TMT Refabricação', unidade: 'tempo', agregacao: 'media', meta: { valor: 84 * 60, direcao: 'menor' }, base: 60 * 60, variacao: 40 * 60 },
-      { key: 'tmt_atrasado', label: 'TMT Pedido Atrasado', unidade: 'tempo', agregacao: 'media', meta: { valor: 24 * 60, direcao: 'menor' }, base: 20 * 60, variacao: 16 * 60 },
-      { key: 'tempo_logo', label: 'Tempo retorno teste de logo', unidade: 'tempo', agregacao: 'media', meta: { valor: 120, direcao: 'menor' }, base: 90, variacao: 90 },
+      { key: 'csat', label: 'CSAT', unidade: 'pct', agregacao: 'media', meta: { valor: 95, direcao: 'maior' } },
+      { key: 'tempo_ppf', label: 'Tempo PPF+1', unidade: 'tempo', agregacao: 'media' },
+      { key: 'qtd_ppf', label: 'Tickets PPF+1', unidade: 'num', agregacao: 'soma' },
+      // Planilha só tem essa métrica no nível de Equipe, sem quebra por
+      // consultor — por isso não entra em resumoKeys nem tem gráfico
+      // individual (semIndividual), só o gráfico de Equipe.
+      { key: 'tempo_logo', label: 'Tempo retorno teste de logo', unidade: 'tempo', agregacao: 'media', meta: { valor: 120, direcao: 'menor' }, semIndividual: true },
     ],
   },
 };
 
 // ── RENDER ────────────────────────────────────────────────────
-let ieDados = null;
+let ieDados = null;       // porConsultor: { [nome]: { [key]: [valores] } }
+let ieDadosEquipe = null; // porEquipe: { [key]: [valores] } — vem pronto da planilha, não é derivado
 let ieDiasAtuais = null;
 let ieConfig = null;
 
 function ieAgregar(serie, agregacao) {
-  const vals = serie.filter((v) => v != null);
+  const vals = (serie || []).filter((v) => v != null);
   if (!vals.length) return null;
   const soma = vals.reduce((a, b) => a + b, 0);
   return agregacao === 'soma' ? soma : soma / vals.length;
@@ -173,7 +159,7 @@ function ieCalcTrend(valores) {
 // Desenha a linha tracejada de tendência por cima de uma coluna específica
 // (colIndex) dentro de cada .ie-day-group de um gráfico já renderizado —
 // precisa medir posição real na tela, por isso só roda depois do innerHTML
-// já estar no DOM (chamado via requestAnimationFrame no fim do render).
+// já estar no DOM (chamado via setTimeout no fim do render).
 function ieDesenharTendencia(chartEl, valores, maxVal, colIndex, cor) {
   const trendFn = ieCalcTrend(valores);
   if (!trendFn) return;
@@ -216,28 +202,25 @@ function ieRenderMetricas() {
   // Calcula tudo uma vez só — o mesmo objeto alimenta o HTML e, depois que
   // ele estiver no DOM, o desenho das linhas de tendência.
   const porMetrica = ieConfig.metricas.map((m) => {
-    const equipeSerie = ieDiasAtuais.map((_, di) => {
-      const valsNoDia = ieConfig.consultores.map((nome) => ieDados[nome][m.key][di]).filter((v) => v != null);
-      if (!valsNoDia.length) return null;
-      const soma = valsNoDia.reduce((a, b) => a + b, 0);
-      return m.agregacao === 'soma' ? soma : soma / valsNoDia.length;
-    });
+    const equipeSerie = ieDadosEquipe[m.key] || [];
     const totalEquipe = ieAgregar(equipeSerie, m.agregacao);
+    const maxValEquipe = Math.max(1, ...equipeSerie.filter((v) => v != null));
+    if (m.semIndividual) return { m, equipeSerie, totalEquipe, maxVal: 1, maxValEquipe };
+
     // Escala do gráfico por consultor NÃO inclui a Equipe — ela vira um
     // gráfico próprio, com a própria escala, bem abaixo. Numa métrica de
     // soma a Equipe é sempre maior que qualquer indivíduo; misturando as
     // duas escalas as barras de cada pessoa ficariam pequenas/achatadas.
-    const maxVal = Math.max(1, ...ieConfig.consultores.flatMap((nome) => ieDados[nome][m.key].filter((v) => v != null)));
-    const maxValEquipe = Math.max(1, ...equipeSerie.filter((v) => v != null));
+    const maxVal = Math.max(1, ...ieConfig.consultores.flatMap((nome) => (ieDados[nome][m.key] || []).filter((v) => v != null)));
     return { m, equipeSerie, totalEquipe, maxVal, maxValEquipe };
   });
 
   cont.innerHTML = porMetrica.map(({ m, equipeSerie, totalEquipe, maxVal, maxValEquipe }) => {
-    const legend = ieConfig.consultores.map((nome, i) => `<div class="ie-legend-item"><div class="ie-legend-dot ${IE_CORES[i % IE_CORES.length]}"></div>${nome}</div>`).join('');
+    const legend = m.semIndividual ? '' : ieConfig.consultores.map((nome, i) => `<div class="ie-legend-item"><div class="ie-legend-dot ${IE_CORES[i % IE_CORES.length]}"></div>${nome}</div>`).join('');
 
-    const dias = ieDiasAtuais.map((dia, di) => {
+    const dias = m.semIndividual ? '' : ieDiasAtuais.map((dia, di) => {
       const bars = ieConfig.consultores.map((nome, i) => {
-        const v = ieDados[nome][m.key][di];
+        const v = (ieDados[nome][m.key] || [])[di];
         return ieBarCol(v, maxVal, IE_CORES[i % IE_CORES.length], `${nome.split(' ')[0]}: ${ieFormatValor(v, m.unidade)}`);
       }).join('');
       return `<div class="ie-day-group">
@@ -257,15 +240,17 @@ function ieRenderMetricas() {
 
     return `<div class="ie-metrica">
       <div class="ie-metrica-head">
-        <div class="ie-metrica-titulo">${m.label}</div>
+        <div class="ie-metrica-titulo">${m.label}${m.semIndividual ? ' <span class="ie-metrica-tag">só equipe</span>' : ''}</div>
         <div class="ie-metrica-meta">${m.meta ? 'Meta: ' + (m.meta.direcao === 'menor' ? '&lt;' : '&gt;') + ' ' + ieFormatValor(m.meta.valor, m.unidade) : ''}</div>
       </div>
       <div class="ie-metrica-total">Equipe no período: <strong>${ieFormatValor(totalEquipe, m.unidade)}</strong></div>
-      <div class="ie-legend">${legend}</div>
-      <div class="ie-chart ${denso ? 'ie-chart-mes' : ''}">${dias}</div>
+      ${m.semIndividual ? '' : `
+        <div class="ie-legend">${legend}</div>
+        <div class="ie-chart ${denso ? 'ie-chart-mes' : ''}">${dias}</div>
+      `}
 
       <div class="ie-equipe-section">
-        <div class="ie-equipe-head"><i class="ti ti-users" aria-hidden="true"></i> Equipe</div>
+        ${m.semIndividual ? '' : '<div class="ie-equipe-head"><i class="ti ti-users" aria-hidden="true"></i> Equipe</div>'}
         <div class="ie-chart ie-chart-equipe ${denso ? 'ie-chart-mes' : ''}">${diasEquipe}</div>
       </div>
     </div>`;
@@ -280,20 +265,42 @@ function ieRenderMetricas() {
     porMetrica.forEach(({ m, equipeSerie, maxVal, maxValEquipe }, mi) => {
       const bloco = blocos[mi];
       if (!bloco) return;
-      const chartConsultores = bloco.querySelector('.ie-chart:not(.ie-chart-equipe)');
       const chartEquipe = bloco.querySelector('.ie-chart-equipe');
-      ieConfig.consultores.forEach((nome, i) => {
-        ieDesenharTendencia(chartConsultores, ieDados[nome][m.key], maxVal, i, IE_CORES_HEX[i % IE_CORES_HEX.length]);
-      });
       ieDesenharTendencia(chartEquipe, equipeSerie, maxValEquipe, 0, 'var(--gold)');
+      if (m.semIndividual) return;
+      const chartConsultores = bloco.querySelector('.ie-chart:not(.ie-chart-equipe)');
+      ieConfig.consultores.forEach((nome, i) => {
+        ieDesenharTendencia(chartConsultores, ieDados[nome][m.key] || [], maxVal, i, IE_CORES_HEX[i % IE_CORES_HEX.length]);
+      });
     });
   }, 60);
 }
 
-function ieRenderPeriodo() {
-  ieDados = ieMontarDados(ieConfig.consultores, ieConfig.metricas, ieDiasAtuais.length);
-  ieRenderResumo();
-  ieRenderMetricas();
+function ieMostraErro(msg) {
+  document.getElementById('ie-resumo-grid').innerHTML = '';
+  document.getElementById('ie-metricas').innerHTML = `<div class="ie-erro"><i class="ti ti-alert-triangle" aria-hidden="true"></i> ${msg}</div>`;
+}
+
+async function ieRenderPeriodo() {
+  const cont = document.getElementById('ie-metricas');
+  cont.innerHTML = '<div class="ie-carregando"><i class="ti ti-loader-2" aria-hidden="true"></i> Carregando indicadores...</div>';
+  document.getElementById('ie-resumo-grid').innerHTML = '';
+
+  const desde = ieFmtISO(ieDiasAtuais[0].data);
+  const ate = ieFmtISO(ieDiasAtuais[ieDiasAtuais.length - 1].data);
+
+  try {
+    const resp = await fetch(`/indicadores-equipe/api/dados?time=${window.IE_TIME}&desde=${desde}&ate=${ate}`);
+    const json = await resp.json();
+    if (!json.ok) throw new Error(json.erro || 'Erro desconhecido');
+
+    ieDados = json.porConsultor;
+    ieDadosEquipe = json.porEquipe;
+    ieRenderResumo();
+    ieRenderMetricas();
+  } catch (err) {
+    ieMostraErro('Não foi possível carregar os indicadores: ' + err.message);
+  }
 }
 
 function ieSetPeriodo(periodo, btn) {
