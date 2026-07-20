@@ -8,4 +8,9 @@ module.exports = [
     url: 'https://tourmaline-quartz-cf5.notion.site/Base-de-Conhecimento-SAC-8216ddb8fcf74707b0fcd57d75b4fe72',
     icone: 'ti-book', novaAba: true, requerPainel: 'painel-sac',
   },
+  {
+    titulo: 'Gerador de Autorização', descricao: 'Autorização de retirada de pedidos nas transportadoras',
+    url: 'https://script.google.com/macros/s/AKfycbxhBVqrHmr9xIHQIMNISVOgnHqIRYTwRqXpORF83cLapjQcGYbZOZXq70UO_96-Ygxv/exec',
+    icone: 'ti-file-text', novaAba: true,
+  },
 ];

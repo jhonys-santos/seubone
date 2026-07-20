@@ -27,7 +27,6 @@ const rankingSacRoutes = require('./src/routes/rankingSac.routes');
 const registroDemandasRoutes = require('./src/routes/registroDemandas.routes');
 const indicadoresEquipeRoutes = require('./src/routes/indicadoresEquipe.routes');
 const quitacoesRoutes = require('./src/routes/quitacoes.routes');
-const autorizacoesRoutes = require('./src/routes/autorizacoes.routes');
 
 const app = express();
 
@@ -101,7 +100,6 @@ app.use('/ranking-sac', rankingSacRoutes);
 app.use('/registro-demandas', registroDemandasRoutes);
 app.use('/indicadores-equipe', indicadoresEquipeRoutes);
 app.use('/quitacoes', quitacoesRoutes);
-app.use('/autorizacoes', autorizacoesRoutes);
 
 app.use((req, res) => {
   res.status(404).render('erro', {
