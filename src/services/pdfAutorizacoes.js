@@ -23,25 +23,15 @@ function paraBuffer(doc) {
   });
 }
 
-// Desenha a imagem girada em torno do canto superior-esquerdo dela mesma —
-// usado pra imitar o efeito de "carimbo"/stamp que os modelos originais
-// tinham no logo e no texto do CNPJ.
-function imagemGirada(doc, caminho, x, y, largura, anguloGraus) {
-  doc.save();
-  doc.rotate(anguloGraus, { origin: [x, y] });
-  doc.image(caminho, x, y, { width: largura });
-  doc.restore();
-}
-
 // ---------------------------------------------------------------- AZUL ----
 
 async function gerarPdfAzul(dados) {
   const doc = novoPdf({ margin: 72 });
   const largura = doc.page.width - 144;
-  const larguraLogo = 130;
+  const larguraLogo = 85; // logo-wordmark.png agora é quadrada (ícone + texto)
 
-  doc.image(IMG('logo-wordmark.png'), (doc.page.width - larguraLogo) / 2, 60, { width: larguraLogo });
-  doc.y = 150;
+  doc.image(IMG('logo-wordmark.png'), (doc.page.width - larguraLogo) / 2, 55, { width: larguraLogo });
+  doc.y = 155;
   doc.x = 72;
 
   doc.font('Helvetica-Bold').fontSize(15).text('AUTORIZAÇÃO', 72, doc.y, { align: 'center', width: largura });
@@ -67,10 +57,10 @@ async function gerarPdfAzul(dados) {
   doc.text('Seu Boné');
 
   doc.moveDown(1.5);
-  // O "carimbo" original era um texto/imagem levemente inclinado — imita
-  // esse efeito em vez de colar a imagem reta.
-  imagemGirada(doc, IMG('letterhead-empresa.png'), 72, doc.y, 110, -6);
-  doc.moveDown(3.6);
+  const yCarimbo = doc.y;
+  const larguraCarimbo = 130, alturaCarimbo = larguraCarimbo * (135 / 250);
+  doc.image(IMG('carimbo-sb.png'), 72, yCarimbo, { width: larguraCarimbo });
+  doc.y = yCarimbo + alturaCarimbo + 10;
   doc.font('Helvetica').fontSize(9).fillColor('#444').text(
     'SEUBONE COMÉRCIO DE BONÉS PERSONALIZADOS LTDA\n' +
     'Rua Alfredo Pegado Cortez, 3346, Bairro: Candelária, Natal - RN CEP: 59066-080\n' +
@@ -120,6 +110,9 @@ async function gerarPdfLatam(dados) {
   }
 
   doc.moveDown(0.6);
+  // No modelo original esse parágrafo fica numa coluna estreita (bem mais
+  // curta que a página inteira), então a quebra de linha é naturalmente
+  // irregular à direita — não é texto justificado.
   doc.font('Helvetica').fontSize(9).text(
     'Tenho ciência de que a autorização será única e exclusivamente válida para a presente retira avulsa. ' +
     'Tenho ciência de que essa autorização deverá ser enviada para o e-mail do Terminal de Cargas a realizar ' +
@@ -130,7 +123,7 @@ async function gerarPdfLatam(dados) {
     'integrar o contrato social, ou seja, se não for um representante legal da empresa, será necessário ' +
     'apresentar também uma procuração, reconhecida em cartório, emitida por um dos proprietários ou sócio ' +
     'em favor do emissor da autorização).',
-    { align: 'justify', lineGap: 2 }
+    { align: 'left', lineGap: 2, width: 270 }
   );
 
   doc.moveDown(1);
@@ -152,9 +145,10 @@ async function gerarPdfLatam(dados) {
   const yBoxes = doc.y;
   doc.font('Helvetica-Bold').fontSize(9).text('CARIMBO DA EMPRESA', colEsq, yBoxes, { width: largura / 2 - 10 });
   doc.text('ASSINATURA DO EMISSOR', colDir, yBoxes, { width: largura / 2 - 10 });
-  imagemGirada(doc, IMG('logo-wordmark.png'), colEsq, yBoxes + 18, 105, -6);
+  const alturaCarimbo = 120 * (135 / 250);
+  doc.image(IMG('carimbo-sb.png'), colEsq, yBoxes + 16, { width: 120 });
   doc.image(IMG('assinatura-jhonys.png'), colDir, yBoxes + 16, { width: 110 });
-  doc.y = yBoxes + 75;
+  doc.y = yBoxes + 16 + alturaCarimbo + 12;
 
   const yFooter = Math.max(doc.y + 10, doc.page.height - 100);
   doc.image(IMG('latam-footer.jpg'), 40, yFooter, { width: largura });
