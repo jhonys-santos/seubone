@@ -23,16 +23,28 @@ function paraBuffer(doc) {
   });
 }
 
+// Desenha a imagem girada em torno do canto superior-esquerdo dela mesma —
+// usado pra imitar o efeito de "carimbo"/stamp que os modelos originais
+// tinham no logo e no texto do CNPJ.
+function imagemGirada(doc, caminho, x, y, largura, anguloGraus) {
+  doc.save();
+  doc.rotate(anguloGraus, { origin: [x, y] });
+  doc.image(caminho, x, y, { width: largura });
+  doc.restore();
+}
+
 // ---------------------------------------------------------------- AZUL ----
 
 async function gerarPdfAzul(dados) {
   const doc = novoPdf({ margin: 72 });
   const largura = doc.page.width - 144;
+  const larguraLogo = 130;
 
-  doc.image(IMG('logo-wordmark.png'), 72, 60, { width: 130 });
-  doc.moveDown(4);
+  doc.image(IMG('logo-wordmark.png'), (doc.page.width - larguraLogo) / 2, 60, { width: larguraLogo });
+  doc.y = 150;
+  doc.x = 72;
 
-  doc.font('Helvetica-Bold').fontSize(15).text('AUTORIZAÇÃO', 72, 150, { align: 'center', width: largura });
+  doc.font('Helvetica-Bold').fontSize(15).text('AUTORIZAÇÃO', 72, doc.y, { align: 'center', width: largura });
   doc.moveDown(2);
 
   doc.font('Helvetica').fontSize(11.5).text(
@@ -55,14 +67,17 @@ async function gerarPdfAzul(dados) {
   doc.text('Seu Boné');
 
   doc.moveDown(1.5);
-  doc.image(IMG('letterhead-empresa.png'), 72, doc.y, { width: 110 });
-  doc.moveDown(3.2);
+  // O "carimbo" original era um texto/imagem levemente inclinado — imita
+  // esse efeito em vez de colar a imagem reta.
+  imagemGirada(doc, IMG('letterhead-empresa.png'), 72, doc.y, 110, -6);
+  doc.moveDown(3.6);
   doc.font('Helvetica').fontSize(9).fillColor('#444').text(
     'SEUBONE COMÉRCIO DE BONÉS PERSONALIZADOS LTDA\n' +
     'Rua Alfredo Pegado Cortez, 3346, Bairro: Candelária, Natal - RN CEP: 59066-080\n' +
     'Fone: (84) 99629-6629',
     { lineGap: 2 }
   );
+  doc.fillColor('#000');
 
   return paraBuffer(doc);
 }
@@ -87,18 +102,24 @@ async function gerarPdfLatam(dados) {
   );
   doc.moveDown(0.8);
   doc.font('Helvetica-Bold').text('Número(s) de conhecimento (AWB):');
-  doc.moveDown(0.3);
+  doc.moveDown(0.4);
 
+  // Cada linha imita o formulário original: número + valor (se houver) +
+  // um traço de preenchimento, igual a um campo de formulário em papel.
+  const colEsq = 40, colDir = 40 + largura / 2, larguraCol = largura / 2 - 20, linhaAltura = 17;
   doc.font('Helvetica').fontSize(10);
-  const colEsq = 40, colDir = 40 + largura / 2, linhaAltura = 15;
   for (let i = 0; i < 5; i++) {
     const y = doc.y;
-    doc.text(`${i + 1})  ${dados['AWB' + (i + 1)] || ''}`, colEsq, y, { width: largura / 2 - 10 });
-    doc.text(`${i + 6})`, colDir, y, { width: largura / 2 - 10 });
+    const yTraco = y + 12;
+    doc.text(`${i + 1})  ${dados['AWB' + (i + 1)] || ''}`, colEsq, y, { width: larguraCol, lineBreak: false });
+    doc.moveTo(colEsq, yTraco).lineTo(colEsq + larguraCol, yTraco).lineWidth(0.6).strokeColor('#999').stroke();
+    doc.text(`${i + 6})`, colDir, y, { width: larguraCol, lineBreak: false });
+    doc.moveTo(colDir, yTraco).lineTo(colDir + larguraCol, yTraco).stroke();
+    doc.strokeColor('#000');
     doc.y = y + linhaAltura;
   }
 
-  doc.moveDown(0.8);
+  doc.moveDown(0.6);
   doc.font('Helvetica').fontSize(9).text(
     'Tenho ciência de que a autorização será única e exclusivamente válida para a presente retira avulsa. ' +
     'Tenho ciência de que essa autorização deverá ser enviada para o e-mail do Terminal de Cargas a realizar ' +
@@ -131,9 +152,9 @@ async function gerarPdfLatam(dados) {
   const yBoxes = doc.y;
   doc.font('Helvetica-Bold').fontSize(9).text('CARIMBO DA EMPRESA', colEsq, yBoxes, { width: largura / 2 - 10 });
   doc.text('ASSINATURA DO EMISSOR', colDir, yBoxes, { width: largura / 2 - 10 });
-  doc.image(IMG('logo-wordmark.png'), colEsq, yBoxes + 16, { width: 110 });
+  imagemGirada(doc, IMG('logo-wordmark.png'), colEsq, yBoxes + 18, 105, -6);
   doc.image(IMG('assinatura-jhonys.png'), colDir, yBoxes + 16, { width: 110 });
-  doc.y = yBoxes + 70;
+  doc.y = yBoxes + 75;
 
   const yFooter = Math.max(doc.y + 10, doc.page.height - 100);
   doc.image(IMG('latam-footer.jpg'), 40, yFooter, { width: largura });
@@ -143,50 +164,71 @@ async function gerarPdfLatam(dados) {
 
 // ------------------------------------------------------------ CORREIOS ---
 
+// Porta fiel da tabela do modelo original: uma etiqueta estreita com bordas
+// e cabeçalhos sombreados (REMETENTE fixo da empresa / DESTINATÁRIO com os
+// dados do formulário), terminando na escolha PAC/SEDEX.
 async function gerarPdfCorreios(dados) {
   const doc = novoPdf({ size: 'A4', layout: 'landscape', margin: 40 });
-  const largura = doc.page.width - 80;
-  const meioX = 40 + largura / 2;
 
-  doc.image(IMG('correios-badge.png'), 40, 40, { width: 90 });
+  const x = 40, larguraTabela = 300, wLabel = 78, wValor = larguraTabela - wLabel;
+  const corCabecalho = '#3a3a3a', corBorda = '#666';
+  let y = 40;
 
-  const linha = (label, valor, x, y, wLabel, wValor) => {
-    doc.font('Helvetica-Bold').fontSize(9).text(label, x, y, { width: wLabel });
-    doc.font('Helvetica').fontSize(10).text(valor || '', x + wLabel + 8, y, { width: wValor });
-  };
+  function linha(altura) {
+    doc.rect(x, y, larguraTabela, altura).strokeColor(corBorda).lineWidth(0.75).stroke();
+    doc.moveTo(x + wLabel, y).lineTo(x + wLabel, y + altura).stroke();
+  }
+  function cabecalho(texto, altura) {
+    doc.rect(x, y, larguraTabela, altura).fillAndStroke(corCabecalho, corBorda);
+    doc.font('Helvetica-Bold').fontSize(9.5).fillColor('#fff')
+      .text(texto, x + 6, y + altura / 2 - 5, { width: larguraTabela - 12 });
+    doc.fillColor('#000');
+    y += altura;
+  }
+  function campo(label, valor, altura) {
+    linha(altura);
+    doc.font('Helvetica-Bold').fontSize(8.5).text(label, x + 6, y + altura / 2 - 5, { width: wLabel - 12 });
+    doc.font('Helvetica').fontSize(9.5).text(valor || '', x + wLabel + 6, y + altura / 2 - 5, { width: wValor - 12 });
+    y += altura;
+  }
 
-  let y = 140;
-  doc.font('Helvetica-Bold').fontSize(11).text('REMETENTE', 40, y);
-  y += 20;
-  linha('RUA', 'LAFAYETE LAMARTINE, 1945', 40, y, 70, largura / 2 - 80); y += 18;
-  linha('BAIRRO', 'Candelária', 40, y, 70, largura / 2 - 80); y += 18;
-  linha('CIDADE', 'NATAL/RN', 40, y, 70, largura / 2 - 80); y += 18;
-  linha('CEP', '59064-510', 40, y, 70, largura / 2 - 80); y += 30;
+  // REMETENTE (fixo — sempre o estoque da própria SeuBoné)
+  doc.rect(x, y, larguraTabela, 32).fillAndStroke('#3a3a3a', corBorda);
+  doc.moveTo(x + wLabel, y).lineTo(x + wLabel, y + 32).strokeColor(corBorda).stroke();
+  doc.font('Helvetica-Bold').fontSize(9.5).fillColor('#fff').text('REMETENTE', x + 6, y + 11, { width: wLabel - 12 });
+  doc.image(IMG('logo-wordmark.png'), x + wLabel + 10, y + 4, { fit: [wValor - 20, 24] });
+  doc.fillColor('#000');
+  y += 32;
 
-  doc.font('Helvetica-Bold').fontSize(11).text('DESTINATÁRIO', 40, y);
-  y += 20;
-  linha('NOME', dados.DEST_NOME, 40, y, 70, largura / 2 - 80); y += 18;
-  linha('RUA', dados.DEST_RUA, 40, y, 70, largura / 2 - 80); y += 18;
-  if (dados.DEST_COMPLEMENTO) { linha('COMPLEMENTO', dados.DEST_COMPLEMENTO, 40, y, 70, largura / 2 - 80); y += 18; }
-  linha('BAIRRO', dados.DEST_BAIRRO, 40, y, 70, largura / 2 - 80); y += 18;
-  linha('CIDADE', dados.DEST_CIDADE, 40, y, 70, largura / 2 - 80); y += 18;
-  linha('CEP', dados.DEST_CEP, 40, y, 70, largura / 2 - 80); y += 30;
+  cabecalho('ESTOQUE SEU BONÉ', 20);
+  campo('RUA', 'LAFAYETE LAMARTINE, 1945', 22);
+  campo('BAIRRO', 'Candelária', 22);
+  campo('CIDADE', 'NATAL/RN.', 22);
+  campo('CEP', '59064-510', 22);
+
+  y += 10;
+
+  // DESTINATÁRIO (vem do formulário)
+  cabecalho('DESTINATÁRIO', 20);
+  campo('NOME', dados.DEST_NOME, 22);
+  campo('RUA', dados.DEST_RUA, 22);
+  if (dados.DEST_COMPLEMENTO) campo('COMPLEMENTO', dados.DEST_COMPLEMENTO, 22);
+  campo('BAIRRO', dados.DEST_BAIRRO, 22);
+  campo('CIDADE', dados.DEST_CIDADE, 22);
+  campo('CEP', dados.DEST_CEP, 22);
+
+  y += 14;
 
   // ☐/☒ não existem na fonte Helvetica padrão (viram glifo de "ausente") —
   // desenha as caixinhas de verdade em vetor em vez de depender do glifo.
-  const desenhaCheckbox = (x, y, marcado) => {
-    doc.rect(x, y, 11, 11).stroke();
-    if (marcado) {
-      doc.moveTo(x + 1.5, y + 5.5).lineTo(x + 4.5, y + 9).lineTo(x + 9.5, y + 1.5).stroke();
-    }
+  const desenhaCheckbox = (cx, cy, marcado) => {
+    doc.rect(cx, cy, 11, 11).strokeColor('#000').lineWidth(1).stroke();
+    if (marcado) doc.moveTo(cx + 1.5, cy + 5.5).lineTo(cx + 4.5, cy + 9).lineTo(cx + 9.5, cy + 1.5).stroke();
   };
-
-  const yBox = 140;
-  doc.rect(meioX + 20, yBox, largura / 2 - 60, 90).stroke();
-  desenhaCheckbox(meioX + 40, yBox + 22, false);
-  doc.font('Helvetica').fontSize(11).text('PAC', meioX + 58, yBox + 22);
-  desenhaCheckbox(meioX + 40, yBox + 52, true);
-  doc.font('Helvetica-Bold').fontSize(11).text('SEDEX', meioX + 58, yBox + 52);
+  desenhaCheckbox(x, y + 2, false);
+  doc.font('Helvetica').fontSize(10.5).text('PAC', x + 16, y);
+  desenhaCheckbox(x + 90, y + 2, true);
+  doc.font('Helvetica-Bold').fontSize(10.5).text('SEDEX', x + 106, y);
 
   return paraBuffer(doc);
 }
