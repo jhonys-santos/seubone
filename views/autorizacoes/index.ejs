@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<%- include('../partials/head') %>
+<title>Gerador de Autorização — SeuBoné</title>
+<link rel="stylesheet" href="/css/pedidos-urgentes.css">
+<link rel="stylesheet" href="/css/quitacoes.css">
+</head>
+<body>
+<div class="app-shell">
+<%- include('../partials/sidebar') %>
+<div class="app-main">
+
+<div class="pu-scope">
+<div class="pu-container">
+  <div class="card">
+    <h2 style="font-size:16px;margin:0 0 4px;font-weight:700;">Gerar documento</h2>
+    <p style="font-size:13px;color:var(--text-muted);margin:0 0 18px;">Escolha o modelo, preencha os campos e baixe o PDF pronto.</p>
+
+    <label for="tpl">Documento</label>
+    <select id="tpl" onchange="renderCampos()"></select>
+    <div id="campos"></div>
+
+    <button class="btn-primary" id="gerar" onclick="gerar()"><i class="ti ti-file-download" aria-hidden="true"></i> Gerar e baixar PDF</button>
+    <button class="btn-primary" id="enviar" onclick="enviar()" style="display:none;background:var(--surface-3);color:var(--text);"><i class="ti ti-mail-forward" aria-hidden="true"></i> Enviar por e-mail</button>
+    <button class="btn-secondary" id="limpar" onclick="limpar()" style="width:100%;margin-top:10px;">Limpar campos</button>
+
+    <div class="msg" id="msg"></div>
+  </div>
+</div>
+</div>
+
+</div>
+</div>
+
+<script>window.AUTORIZACOES_CONFIG = <%- JSON.stringify(config) %>;</script>
+<script src="/js/autorizacoes.js"></script>
+</body>
+</html>

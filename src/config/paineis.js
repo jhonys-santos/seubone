@@ -55,6 +55,10 @@ module.exports = [
     ],
   },
   {
+    chave: 'autorizacoes', titulo: 'Gerador de Autorização', descricao: 'Autorização de retirada de carga (LATAM, Azul, Correios)',
+    url: '/autorizacoes', icone: 'ti-file-text',
+  },
+  {
     chave: 'registro-demandas', titulo: 'Registro de Demandas Gerais', descricao: 'Demandas gerais e reembolsos solicitados ao financeiro',
     url: '/registro-demandas', icone: 'ti-clipboard-text',
     subpaginas: [
