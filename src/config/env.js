@@ -25,9 +25,9 @@ module.exports = {
   appsScriptSharedSecret: required('APPS_SCRIPT_SHARED_SECRET', ''),
 
   // Conta usada para enviar as autorizações por e-mail (Gerador de
-  // Autorização). Precisa ser uma "senha de app" do Gmail (não a senha
-  // normal da conta) — veja myaccount.google.com/apppasswords, exige
-  // verificação em duas etapas ativada na conta sac@seubone.com.
+  // Autorização). sac@seubone.com é hospedada no Zoho Mail — SAC_EMAIL_APP_PASSWORD
+  // é uma senha de aplicativo gerada lá (Configurações > Segurança > Senhas de app),
+  // não a senha normal da conta.
   sacEmailUser: required('SAC_EMAIL_USER', ''),
   sacEmailAppPassword: required('SAC_EMAIL_APP_PASSWORD', ''),
 

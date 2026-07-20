@@ -1,6 +1,6 @@
 // Envio de e-mail do Gerador de Autorização — porta do GmailApp.sendEmail()
-// do Apps Script original. Usa uma conta Gmail com "senha de app" (não a
-// senha normal), autenticada via SMTP.
+// do Apps Script original. A conta sac@seubone.com é hospedada no Zoho Mail,
+// então conecta direto no SMTP do Zoho (nada de Gmail aqui).
 
 const nodemailer = require('nodemailer');
 const env = require('../config/env');
@@ -13,7 +13,9 @@ function getTransporter() {
   }
   if (!transporter) {
     transporter = nodemailer.createTransport({
-      service: 'gmail',
+      host: 'smtp.zoho.com',
+      port: 465,
+      secure: true,
       auth: { user: env.sacEmailUser, pass: env.sacEmailAppPassword },
     });
   }
