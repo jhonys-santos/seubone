@@ -109,9 +109,14 @@ async function gerarPdfLatam(dados) {
     doc.y = y + linhaAltura;
   }
 
+  // O último .text() do laço acima usou x explícito na coluna da direita —
+  // sem resetar, os próximos textos "herdam" esse x e saem espremidos numa
+  // faixa estreita à direita em vez de ocupar a página inteira.
+  doc.x = 40;
+
   doc.moveDown(0.6);
-  // No modelo original esse parágrafo fica numa coluna estreita (bem mais
-  // curta que a página inteira), então a quebra de linha é naturalmente
+  // No modelo original esse parágrafo fica numa coluna um pouco mais
+  // estreita que a página inteira, então a quebra de linha é naturalmente
   // irregular à direita — não é texto justificado.
   doc.font('Helvetica').fontSize(9).text(
     'Tenho ciência de que a autorização será única e exclusivamente válida para a presente retira avulsa. ' +
@@ -123,16 +128,30 @@ async function gerarPdfLatam(dados) {
     'integrar o contrato social, ou seja, se não for um representante legal da empresa, será necessário ' +
     'apresentar também uma procuração, reconhecida em cartório, emitida por um dos proprietários ou sócio ' +
     'em favor do emissor da autorização).',
-    { align: 'left', lineGap: 2, width: 270 }
+    { align: 'left', lineGap: 2, width: 310 }
   );
 
+  doc.x = 40;
   doc.moveDown(1);
-  doc.font('Helvetica-Bold').fontSize(10.5).text('Dados do emissor do termo para autorização de retirada:');
+  doc.font('Helvetica-Bold').fontSize(10.5).text('Dados do emissor do termo para autorização de retirada:', 40, doc.y, { width: largura });
   doc.moveDown(0.5);
 
+  // No modelo original a legenda "(...)" fica alinhada à direita na MESMA
+  // linha do rótulo, e só desce pra linha de baixo quando o valor já
+  // preencheu a linha inteira (caso do endereço).
   const campoEmissor = (rotulo, valor, legenda) => {
-    doc.font('Helvetica-Bold').fontSize(10).text(`${rotulo}: `, { continued: true }).font('Helvetica').text(valor);
-    doc.font('Helvetica-Oblique').fontSize(8).fillColor('#666').text(`(${legenda})`).fillColor('#000');
+    const yInicio = doc.y;
+    doc.x = 40;
+    doc.font('Helvetica-Bold').fontSize(10).text(`${rotulo}: `, 40, yInicio, { continued: true }).font('Helvetica').text(valor);
+    const coubeNumaLinha = doc.y - yInicio <= 13; // uma linha só (~fontSize 10 + folga)
+    doc.font('Helvetica-Oblique').fontSize(8).fillColor('#666');
+    if (coubeNumaLinha) {
+      doc.text(`(${legenda})`, 40, yInicio, { width: largura, align: 'right' });
+    } else {
+      doc.text(`(${legenda})`);
+    }
+    doc.fillColor('#000');
+    doc.x = 40;
     doc.moveDown(0.4);
   };
   campoEmissor('NOME', 'SEUBONE COMERCIO DE BONES PERSONALIZADOS LTDA', 'nome da empresa');
@@ -187,12 +206,13 @@ async function gerarPdfCorreios(dados) {
   }
 
   // REMETENTE (fixo — sempre o estoque da própria SeuBoné)
-  doc.rect(x, y, larguraTabela, 32).fillAndStroke('#3a3a3a', corBorda);
-  doc.moveTo(x + wLabel, y).lineTo(x + wLabel, y + 32).strokeColor(corBorda).stroke();
-  doc.font('Helvetica-Bold').fontSize(9.5).fillColor('#fff').text('REMETENTE', x + 6, y + 11, { width: wLabel - 12 });
-  doc.image(IMG('logo-wordmark.png'), x + wLabel + 10, y + 4, { fit: [wValor - 20, 24] });
+  const alturaRemetente = 46;
+  doc.rect(x, y, larguraTabela, alturaRemetente).fillAndStroke('#3a3a3a', corBorda);
+  doc.moveTo(x + wLabel, y).lineTo(x + wLabel, y + alturaRemetente).strokeColor(corBorda).stroke();
+  doc.font('Helvetica-Bold').fontSize(9.5).fillColor('#fff').text('REMETENTE', x + 6, y + alturaRemetente / 2 - 5, { width: wLabel - 12 });
+  doc.image(IMG('logo-wordmark.png'), x + wLabel + 10, y + 5, { fit: [wValor - 20, alturaRemetente - 10] });
   doc.fillColor('#000');
-  y += 32;
+  y += alturaRemetente;
 
   cabecalho('ESTOQUE SEU BONÉ', 20);
   campo('RUA', 'LAFAYETE LAMARTINE, 1945', 22);
