@@ -43,6 +43,7 @@ async function caEnviar() {
   const data = document.getElementById('caData').value;
   const nf = document.getElementById('caNf').value.trim();
   const endereco = document.getElementById('caEndereco').value.trim();
+  const motorista = document.getElementById('caMotorista').value.trim();
   const valor = document.getElementById('caValor').value;
   const printInput = document.getElementById('caPrint');
   const arquivo = printInput.files[0];
@@ -50,7 +51,7 @@ async function caEnviar() {
   const msg = document.getElementById('caMsg');
   msg.className = 'msg';
 
-  if (!data || !nf || !endereco || !valor || !arquivo) {
+  if (!data || !nf || !endereco || !motorista || !valor || !arquivo) {
     msg.textContent = 'Preencha todos os campos obrigatórios (*), incluindo o print do motorista.';
     msg.classList.add('err');
     return;
@@ -66,6 +67,7 @@ async function caEnviar() {
       dataCorrida: data,
       numeroNf: nf,
       endereco,
+      nomeMotorista: motorista,
       valor,
       imagemBase64,
       imagemTipo: arquivo.type,
@@ -83,6 +85,7 @@ async function caEnviar() {
       msg.classList.add('ok');
       document.getElementById('caNf').value = '';
       document.getElementById('caEndereco').value = '';
+      document.getElementById('caMotorista').value = '';
       document.getElementById('caValor').value = '';
       printInput.value = '';
       document.getElementById('caData').value = caFmtISO(new Date());
@@ -106,6 +109,8 @@ function caNavegarSemana(delta) {
 }
 window.caNavegarSemana = caNavegarSemana;
 
+let caItensSemana = [];
+
 async function caCarregarSemana() {
   const hoje = new Date();
   const segunda = caSegunda(hoje);
@@ -124,36 +129,56 @@ async function caCarregarSemana() {
     const json = await resp.json();
     if (!json.ok) throw new Error(json.erro || 'Erro desconhecido');
 
-    const itens = json.itens || [];
-    const total = itens.reduce((soma, it) => soma + (Number(it.valor) || 0), 0);
-    document.getElementById('caTotal').textContent = caFmtBRL(total);
-
-    if (!itens.length) {
-      lista.innerHTML = '<div class="ca-empty">Nenhuma corrida registrada nessa semana.</div>';
-      return;
-    }
-
-    const linhas = itens.map((it) => `
-      <tr>
-        <td>${caFmtDDMM(new Date(it.dataCorrida + 'T12:00:00'))}</td>
-        <td>${caEsc(it.numeroNf)}</td>
-        <td>${caEsc(it.endereco)}</td>
-        <td class="ca-td-valor">${caFmtBRL(it.valor)}</td>
-        <td class="ca-td-print">${it.printUrl ? `<a href="${it.printUrl}" target="_blank" rel="noopener"><i class="ti ti-photo" aria-hidden="true"></i> Ver</a>` : '—'}</td>
-      </tr>
-    `).join('');
-
-    lista.innerHTML = `
-      <div class="ca-table-wrap">
-        <table class="ca-table">
-          <thead><tr><th>Data</th><th>NF</th><th>Endereço</th><th>Valor</th><th>Print</th></tr></thead>
-          <tbody>${linhas}</tbody>
-        </table>
-      </div>
-    `;
+    caItensSemana = json.itens || [];
+    caAtualizarFiltroMotorista();
+    caRenderLista();
   } catch (err) {
+    caItensSemana = [];
     lista.innerHTML = `<div class="ca-empty"><i class="ti ti-alert-triangle" aria-hidden="true"></i> Não foi possível carregar: ${err.message}</div>`;
   }
 }
+
+// Opções do filtro vêm de quem já foi cadastrado nessa semana (não da
+// lista de sugestão do formulário) — reseta pra "Todos" a cada semana.
+function caAtualizarFiltroMotorista() {
+  const select = document.getElementById('caFiltroMotorista');
+  const nomes = [...new Set(caItensSemana.map((it) => it.nomeMotorista).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  select.innerHTML = '<option value="">Todos</option>' + nomes.map((n) => `<option value="${caEsc(n)}">${caEsc(n)}</option>`).join('');
+}
+
+function caRenderLista() {
+  const lista = document.getElementById('caLista');
+  const filtro = document.getElementById('caFiltroMotorista').value;
+  const itens = filtro ? caItensSemana.filter((it) => it.nomeMotorista === filtro) : caItensSemana;
+
+  const total = itens.reduce((soma, it) => soma + (Number(it.valor) || 0), 0);
+  document.getElementById('caTotal').textContent = caFmtBRL(total);
+
+  if (!itens.length) {
+    lista.innerHTML = `<div class="ca-empty">${filtro ? 'Nenhuma corrida desse motorista nessa semana.' : 'Nenhuma corrida registrada nessa semana.'}</div>`;
+    return;
+  }
+
+  const linhas = itens.map((it) => `
+    <tr>
+      <td>${caFmtDDMM(new Date(it.dataCorrida + 'T12:00:00'))}</td>
+      <td>${caEsc(it.numeroNf)}</td>
+      <td>${caEsc(it.endereco)}</td>
+      <td>${caEsc(it.nomeMotorista)}</td>
+      <td class="ca-td-valor">${caFmtBRL(it.valor)}</td>
+      <td class="ca-td-print">${it.printUrl ? `<a href="${it.printUrl}" target="_blank" rel="noopener"><i class="ti ti-photo" aria-hidden="true"></i> Ver</a>` : '—'}</td>
+    </tr>
+  `).join('');
+
+  lista.innerHTML = `
+    <div class="ca-table-wrap">
+      <table class="ca-table">
+        <thead><tr><th>Data</th><th>NF</th><th>Endereço</th><th>Motorista</th><th>Valor</th><th>Print</th></tr></thead>
+        <tbody>${linhas}</tbody>
+      </table>
+    </div>
+  `;
+}
+window.caRenderLista = caRenderLista;
 
 caCarregarSemana();

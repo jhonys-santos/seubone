@@ -48,7 +48,7 @@ function getAbaCorridas(ss) {
     aba = ss.insertSheet('Corridas');
     aba.appendRow([
       'id', 'dataCadastro', 'dataCorrida', 'numeroNf', 'endereco', 'valor',
-      'printUrl', 'registradoPorSlug', 'registradoPorNome',
+      'printUrl', 'registradoPorSlug', 'registradoPorNome', 'nomeMotorista',
     ]);
   }
   return aba;
@@ -72,6 +72,7 @@ function linhaParaItem(r) {
     printUrl: String(r[6] || ''),
     registradoPorSlug: String(r[7] || ''),
     registradoPorNome: String(r[8] || ''),
+    nomeMotorista: String(r[9] || ''),
   };
 }
 
@@ -115,6 +116,7 @@ function cadastrarCorrida(body) {
     printUrl,
     body.registradoPorSlug || '',
     body.registradoPorNome || '',
+    body.nomeMotorista || '',
   ]);
   return { ok: true, id: id, printUrl: printUrl };
 }

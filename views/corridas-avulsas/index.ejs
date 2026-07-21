@@ -34,6 +34,16 @@
     <label>Endereço de entrega *</label>
     <input type="text" id="caEndereco" placeholder="Endereço completo da entrega">
 
+    <label>Nome do motorista *</label>
+    <input type="text" id="caMotorista" list="ca-lista-motoristas" placeholder="Ex: Matheus">
+    <datalist id="ca-lista-motoristas">
+      <option value="Matheus">
+      <option value="Rodolfo">
+      <option value="Rilberto">
+      <option value="Thamy">
+      <option value="Deide">
+    </datalist>
+
     <label>Print do motorista (valor cobrado) *</label>
     <input type="file" id="caPrint" accept="image/*">
 
@@ -53,6 +63,13 @@
       <button type="button" class="ca-nav-btn" onclick="caNavegarSemana(1)" aria-label="Próxima semana"><i class="ti ti-chevron-right" aria-hidden="true"></i></button>
     </div>
     <div class="ca-hint">Tire um print desta lista e envie para o financeiro na sexta-feira.</div>
+
+    <div class="ca-filtro-row">
+      <label for="caFiltroMotorista">Motorista</label>
+      <select id="caFiltroMotorista" onchange="caRenderLista()">
+        <option value="">Todos</option>
+      </select>
+    </div>
 
     <div id="caLista"></div>
 
