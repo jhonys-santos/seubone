@@ -77,7 +77,11 @@ const IE_TIMES = {
     consultores: ['Iasmin Cristina', 'Nathalia Guedes', 'Francis Medeiros'],
     resumoKeys: ['tma', 'csat', 'atendimentos', 'tickets_refab', 'tmt_refab'],
     metricas: [
-      { key: 'tma', label: 'TMA', unidade: 'tempo', agregacao: 'media', meta: { valor: 30 * 60, direcao: 'menor' } },
+      // "extras": Gabrielle Batista é do time Resolução, mas também tem TMA
+      // lançado aqui — aparece como barra a mais só nesse gráfico e entra
+      // na Equipe, sem ganhar card no resumo por consultor (esse é só dos
+      // 3 do time Atendimento).
+      { key: 'tma', label: 'TMA', unidade: 'tempo', agregacao: 'media', meta: { valor: 30 * 60, direcao: 'menor' }, extras: ['Gabrielle Batista'] },
       { key: 'csat', label: 'CSAT', unidade: 'pct', agregacao: 'media', meta: { valor: 95, direcao: 'maior' } },
       { key: 'atendimentos', label: 'Atendimentos', unidade: 'num', agregacao: 'soma' },
       { key: 'tickets_refab', label: 'Tickets Refabricação', unidade: 'num', agregacao: 'soma' },
@@ -206,21 +210,27 @@ function ieRenderMetricas() {
     const equipeSerie = ieDadosEquipe[m.key] || [];
     const totalEquipe = ieAgregar(equipeSerie, m.agregacao);
     const maxValEquipe = Math.max(1, ...equipeSerie.filter((v) => v != null));
-    if (m.semIndividual) return { m, equipeSerie, totalEquipe, maxVal: 1, maxValEquipe };
+    if (m.semIndividual) return { m, equipeSerie, totalEquipe, maxVal: 1, maxValEquipe, participantes: [] };
+
+    // "participantes" é quem aparece nas barras/legenda dessa métrica —
+    // normalmente os consultores do time, mais os "extras" que a métrica
+    // definir (gente de outro time que também lança essa métrica; não
+    // entra no resumo por consultor, só aqui).
+    const participantes = ieConfig.consultores.concat(m.extras || []);
 
     // Escala do gráfico por consultor NÃO inclui a Equipe — ela vira um
     // gráfico próprio, com a própria escala, bem abaixo. Numa métrica de
     // soma a Equipe é sempre maior que qualquer indivíduo; misturando as
     // duas escalas as barras de cada pessoa ficariam pequenas/achatadas.
-    const maxVal = Math.max(1, ...ieConfig.consultores.flatMap((nome) => (ieDados[nome][m.key] || []).filter((v) => v != null)));
-    return { m, equipeSerie, totalEquipe, maxVal, maxValEquipe };
+    const maxVal = Math.max(1, ...participantes.flatMap((nome) => (ieDados[nome][m.key] || []).filter((v) => v != null)));
+    return { m, equipeSerie, totalEquipe, maxVal, maxValEquipe, participantes };
   });
 
-  cont.innerHTML = porMetrica.map(({ m, equipeSerie, totalEquipe, maxVal, maxValEquipe }) => {
-    const legend = m.semIndividual ? '' : ieConfig.consultores.map((nome, i) => `<div class="ie-legend-item"><div class="ie-legend-dot ${IE_CORES[i % IE_CORES.length]}"></div>${nome}</div>`).join('');
+  cont.innerHTML = porMetrica.map(({ m, equipeSerie, totalEquipe, maxVal, maxValEquipe, participantes }) => {
+    const legend = m.semIndividual ? '' : participantes.map((nome, i) => `<div class="ie-legend-item"><div class="ie-legend-dot ${IE_CORES[i % IE_CORES.length]}"></div>${nome}</div>`).join('');
 
     const dias = m.semIndividual ? '' : ieDiasAtuais.map((dia, di) => {
-      const bars = ieConfig.consultores.map((nome, i) => {
+      const bars = participantes.map((nome, i) => {
         const v = (ieDados[nome][m.key] || [])[di];
         return ieBarCol(v, maxVal, IE_CORES[i % IE_CORES.length], `${nome.split(' ')[0]}: ${ieFormatValor(v, m.unidade)}`);
       }).join('');
@@ -263,14 +273,14 @@ function ieRenderMetricas() {
   // porque rAF fica pausado em aba em segundo plano/minimizada.
   setTimeout(() => {
     const blocos = cont.querySelectorAll('.ie-metrica');
-    porMetrica.forEach(({ m, equipeSerie, maxVal, maxValEquipe }, mi) => {
+    porMetrica.forEach(({ m, equipeSerie, maxVal, maxValEquipe, participantes }, mi) => {
       const bloco = blocos[mi];
       if (!bloco) return;
       const chartEquipe = bloco.querySelector('.ie-chart-equipe');
       ieDesenharTendencia(chartEquipe, equipeSerie, maxValEquipe, 0, 'var(--gold)');
       if (m.semIndividual) return;
       const chartConsultores = bloco.querySelector('.ie-chart:not(.ie-chart-equipe)');
-      ieConfig.consultores.forEach((nome, i) => {
+      participantes.forEach((nome, i) => {
         ieDesenharTendencia(chartConsultores, ieDados[nome][m.key] || [], maxVal, i, IE_CORES_HEX[i % IE_CORES_HEX.length]);
       });
     });

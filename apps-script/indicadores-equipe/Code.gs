@@ -27,7 +27,12 @@ const TIMES = {
   atendimento: {
     consultores: ['Iasmin Cristina', 'Nathalia Guedes', 'Francis Medeiros'],
     metricas: {
-      tma:           { tipo: 'tempo', agregacao: 'media', porNome: { 'Iasmin Cristina': 3, 'Nathalia Guedes': 5, 'Francis Medeiros': 6 } },
+      // "extras" são pessoas de FORA do time (não entram no resumo por
+      // consultor), mas que têm coluna própria nessa métrica específica na
+      // planilha e por isso contam na Equipe e ganham uma barra própria no
+      // gráfico — caso da Gabrielle Batista (time Resolução) que também
+      // tem TMA lançado no time Atendimento.
+      tma:           { tipo: 'tempo', agregacao: 'media', porNome: { 'Iasmin Cristina': 3, 'Nathalia Guedes': 5, 'Francis Medeiros': 6 }, extras: { 'Gabrielle Batista': 4 } },
       csat:          { tipo: 'pct',   agregacao: 'media', porNome: { 'Iasmin Cristina': 10, 'Nathalia Guedes': 12, 'Francis Medeiros': 13 } },
       atendimentos:  { tipo: 'num',   agregacao: 'soma',  porNome: { 'Iasmin Cristina': 18, 'Nathalia Guedes': 20, 'Francis Medeiros': 21 } },
       tmt_refab:     { tipo: 'tempo', agregacao: 'media', porNome: { 'Iasmin Cristina': 26, 'Nathalia Guedes': 25, 'Francis Medeiros': 27 } },
@@ -91,15 +96,24 @@ function buscarDados(time, desdeStr, ateStr) {
     const metrica = time.metricas[key];
     const ler = valorPorTipo(metrica.tipo);
     const temIndividual = Object.keys(metrica.porNome).length > 0;
+    const extrasNomes = Object.keys(metrica.extras || {});
 
     time.consultores.forEach((nome) => {
       const col = metrica.porNome[nome];
       porConsultor[nome][key] = col === undefined ? [] : linhasNoPeriodo.map((r) => ler(r[col]));
     });
+    // Extras entram no mesmo porConsultor (só pra essa métrica), pra somar
+    // na Equipe e ganhar barra própria — mas não fazem parte de
+    // time.consultores, então não aparecem no resumo por consultor.
+    extrasNomes.forEach((nome) => {
+      porConsultor[nome] = porConsultor[nome] || {};
+      porConsultor[nome][key] = linhasNoPeriodo.map((r) => ler(r[metrica.extras[nome]]));
+    });
 
     if (temIndividual) {
+      const nomesNaEquipe = time.consultores.concat(extrasNomes);
       porEquipe[key] = linhasNoPeriodo.map((_, di) => {
-        const valores = time.consultores
+        const valores = nomesNaEquipe
           .map((nome) => porConsultor[nome][key][di])
           .filter((v) => v != null);
         if (!valores.length) return null;
