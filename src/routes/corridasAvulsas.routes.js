@@ -1,13 +1,12 @@
 const express = require('express');
-const { requireAuth, requireSlugOuRole } = require('../middleware/auth');
+const { requireAuth } = require('../middleware/auth');
 const { chamarAppsScript } = require('../services/appsScriptClient');
 const env = require('../config/env');
 
 const router = express.Router();
 
-// Só o Wallac (quem de fato pede as corridas) e qualquer gestor (visão de
-// acompanhamento) — ver src/config/paineis.js.
-router.use(requireAuth, requireSlugOuRole('wallac', 'gestor'));
+// Liberado pra qualquer usuário logado — ver src/config/paineis.js.
+router.use(requireAuth);
 
 router.get('/', (req, res) => res.render('corridas-avulsas/index'));
 

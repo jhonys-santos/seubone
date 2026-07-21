@@ -49,21 +49,4 @@ function requireSlug(slug) {
   };
 }
 
-// Combina requireSlug + requireRole com OU — usado em painéis liberados pra
-// um usuário específico E qualquer gestor (ex: Corridas Avulsas: só o
-// Wallac cadastra, mas todo gestor também acompanha).
-function requireSlugOuRole(slug, role) {
-  return (req, res, next) => {
-    const u = req.session.user;
-    if (!u || (u.slug !== slug && u.role !== role)) {
-      return res.status(403).render('erro', {
-        titulo: 'Acesso negado',
-        mensagem: 'Você não tem permissão para acessar esta página.',
-        usuario: u || null,
-      });
-    }
-    next();
-  };
-}
-
-module.exports = { requireAuth, requireRole, requirePainel, requireSlug, requireSlugOuRole };
+module.exports = { requireAuth, requireRole, requirePainel, requireSlug };
