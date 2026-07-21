@@ -56,7 +56,7 @@ module.exports = [
   },
   {
     chave: 'registro-demandas', titulo: 'Solicitação de Demandas Financeiro', descricao: 'Demandas gerais e reembolsos solicitados ao financeiro',
-    url: '/registro-demandas', icone: 'ti-clipboard-text',
+    url: '/registro-demandas', icone: 'ti-report-money',
     subpaginas: [
       { titulo: 'Registro', url: '/registro-demandas', icone: 'ti-file-text' },
       { titulo: 'Reembolso', url: '/registro-demandas/reembolso', icone: 'ti-cash' },
