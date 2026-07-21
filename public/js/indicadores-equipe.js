@@ -94,12 +94,14 @@ const IE_TIMES = {
     resumoKeys: ['csat', 'tempo_ppf', 'qtd_ppf'],
     metricas: [
       { key: 'csat', label: 'CSAT', unidade: 'pct', agregacao: 'media', meta: { valor: 95, direcao: 'maior' } },
-      { key: 'tempo_ppf', label: 'Tempo PPF+1', unidade: 'tempo', agregacao: 'media' },
+      { key: 'tempo_ppf', label: 'Tempo PPF+1', unidade: 'tempo', agregacao: 'media', meta: { valor: 24 * 60 * 60, direcao: 'menor' } },
       { key: 'qtd_ppf', label: 'Tickets PPF+1', unidade: 'num', agregacao: 'soma' },
       // Planilha só tem essa métrica no nível de Equipe, sem quebra por
       // consultor — por isso não entra em resumoKeys nem tem gráfico
-      // individual (semIndividual), só o gráfico de Equipe.
-      { key: 'tempo_logo', label: 'Tempo retorno teste de logo', unidade: 'tempo', agregacao: 'media', meta: { valor: 120 * 60, direcao: 'menor' }, semIndividual: true },
+      // individual (semIndividual), só o gráfico de Equipe. Na prática é o
+      // Daniel quem faz esse processo, então o rótulo mostra o nome dele
+      // em vez de "Equipe"/"só equipe" (equipeLabel).
+      { key: 'tempo_logo', label: 'Tempo retorno teste de logo', unidade: 'tempo', agregacao: 'media', meta: { valor: 30 * 60, direcao: 'menor' }, semIndividual: true, equipeLabel: 'Daniel' },
     ],
   },
 };
@@ -240,9 +242,10 @@ function ieRenderMetricas() {
       </div>`;
     }).join('');
 
+    const nomeEquipe = m.equipeLabel || 'Equipe';
     const diasEquipe = ieDiasAtuais.map((dia, di) => {
       const v = equipeSerie[di];
-      const bar = ieBarCol(v, maxValEquipe, null, `Equipe: ${ieFormatValor(v, m.unidade)}`);
+      const bar = ieBarCol(v, maxValEquipe, null, `${nomeEquipe}: ${ieFormatValor(v, m.unidade)}`);
       return `<div class="ie-day-group">
         <div class="ie-bars-row">${bar}</div>
         <div class="ie-day-label ${dia.hoje ? 'hoje' : ''}">${dia.label}</div>
@@ -251,10 +254,10 @@ function ieRenderMetricas() {
 
     return `<div class="ie-metrica">
       <div class="ie-metrica-head">
-        <div class="ie-metrica-titulo">${m.label}${m.semIndividual ? ' <span class="ie-metrica-tag">só equipe</span>' : ''}</div>
+        <div class="ie-metrica-titulo">${m.label}${m.semIndividual ? ` <span class="ie-metrica-tag">${m.equipeLabel || 'só equipe'}</span>` : ''}</div>
         <div class="ie-metrica-meta">${m.meta ? 'Meta: ' + (m.meta.direcao === 'menor' ? '&lt;' : '&gt;') + ' ' + ieFormatValor(m.meta.valor, m.unidade) : ''}</div>
       </div>
-      <div class="ie-metrica-total">Equipe no período: <strong>${ieFormatValor(totalEquipe, m.unidade)}</strong></div>
+      <div class="ie-metrica-total">${nomeEquipe} no período: <strong>${ieFormatValor(totalEquipe, m.unidade)}</strong></div>
       ${m.semIndividual ? '' : `
         <div class="ie-legend">${legend}</div>
         <div class="ie-chart ${denso ? 'ie-chart-mes' : ''}">${dias}</div>
