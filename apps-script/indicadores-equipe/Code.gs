@@ -70,7 +70,14 @@ function buscarDados(time, desdeStr, ateStr) {
   const desde = parseDateBR(desdeStr), ate = parseDateBR(ateStr);
   ate.setHours(23, 59, 59, 999);
 
-  const linhas = aba.getDataRange().getValues().slice(2); // linhas 1-2 são cabeçalho
+  // getDisplayValues() (não getValues()) — lê o texto exatamente como aparece
+  // na tela ("0:22:00", "13/07/2026"), sem passar por conversão de data/hora
+  // do Apps Script. Isso importa porque essa conversão depende do fuso do
+  // PROJETO do Apps Script (não da planilha) — testado ao vivo e achado um
+  // desvio constante de ~256-257min em toda métrica de tempo (compatível com
+  // o projeto ter fuso diferente do painel-sac). Lendo como texto, o
+  // resultado não depende de nenhuma configuração de fuso horário.
+  const linhas = aba.getDataRange().getDisplayValues().slice(2); // linhas 1-2 são cabeçalho
   const linhasNoPeriodo = linhas.filter((r) => {
     const d = parseDate(r[0]);
     return d && d >= desde && d <= ate;
@@ -124,23 +131,11 @@ function parseDateBR(s) {
   return null;
 }
 
-// ── Helpers portados de painel-sac/Code.gs (mesma planilha/convenções) ──
+// ── Parsing por texto — com getDisplayValues(), toda célula chega aqui como
+// string (o texto exatamente como aparece na planilha), nunca Date/number. ──
 
 function parseDate(val) {
-  if (!val && val !== 0) return null;
-  if (val instanceof Date) {
-    if (isNaN(val.getTime())) return null;
-    return new Date(val.getUTCFullYear(), val.getUTCMonth(), val.getUTCDate());
-  }
-  if (typeof val === 'number') {
-    if (val > 40000 && val < 100000) {
-      const d = new Date((val - 25569) * 86400000);
-      if (isNaN(d.getTime())) return null;
-      return new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
-    }
-    return null;
-  }
-  const s = String(val).trim();
+  const s = String(val || '').trim();
   if (!s) return null;
   const m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
   if (m) return new Date(parseInt(m[3]), parseInt(m[2]) - 1, parseInt(m[1]));
@@ -151,19 +146,7 @@ function parseDate(val) {
 }
 
 function toMinutos(val) {
-  if (val === null || val === undefined || val === '') return null;
-  if (val instanceof Date) {
-    const BASE_MS = -2209161600000;
-    const totalMs = val.getTime() - BASE_MS;
-    if (totalMs <= 0) return null;
-    return Math.round(totalMs / 60000);
-  }
-  if (typeof val === 'number') {
-    if (val === 0) return null;
-    if (val >= 1000) return null;
-    return Math.round(val * 24 * 60);
-  }
-  const str = String(val).trim();
+  const str = String(val || '').trim();
   if (!str || str === '0') return null;
   const partes = str.split(':');
   if (partes.length >= 2) {
