@@ -119,7 +119,7 @@ function buscarDados(time, desdeStr, ateStr) {
 // ocorrência (uma resolução em zero segundos não existe); pra quantidade,
 // 0 é uma contagem real (pode ter tido zero atendimentos mesmo).
 function valorPorTipo(tipo) {
-  if (tipo === 'tempo') return (v) => { const min = toMinutos(v); return min && min > 0 ? min : null; };
+  if (tipo === 'tempo') return (v) => { const seg = toSegundos(v); return seg && seg > 0 ? seg : null; };
   if (tipo === 'pct') return (v) => parsePct(v);
   return (v) => { const n = parseInt(v, 10); return isNaN(n) ? null : n; };
 }
@@ -145,15 +145,18 @@ function parseDate(val) {
   return isNaN(d.getTime()) ? null : d;
 }
 
-function toMinutos(val) {
+// Devolve segundos (não minutos) — o hub arredondava pra minuto aqui e
+// perdia precisão antes de sair do Apps Script; agora quem decide como
+// exibir é o cliente.
+function toSegundos(val) {
   const str = String(val || '').trim();
   if (!str || str === '0') return null;
   const partes = str.split(':');
   if (partes.length >= 2) {
     const h = parseInt(partes[0]) || 0;
     const min = parseInt(partes[1]) || 0;
-    const seg = partes[2] ? parseInt(partes[2]) : 0;
-    const total = h * 60 + min + seg / 60;
+    const seg = partes[2] ? parseFloat(partes[2]) : 0;
+    const total = h * 3600 + min * 60 + seg;
     return total > 0 ? Math.round(total) : null;
   }
   return null;

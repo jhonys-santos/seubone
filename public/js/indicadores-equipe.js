@@ -7,14 +7,15 @@ const IE_CORES = ['ie-c-0', 'ie-c-1', 'ie-c-2', 'ie-c-3', 'ie-c-4', 'ie-c-5'];
 // tendência (SVG), que não lê classe CSS.
 const IE_CORES_HEX = ['#4C8DFF', '#3DAF72', '#9c6cd4', '#E8618C', '#F0954D', '#4FD1C5'];
 
-function ieFormatMinutos(mins) {
-  if (mins == null) return '—';
-  const h = Math.floor(mins / 60), m = Math.round(mins % 60);
-  return h + ':' + String(m).padStart(2, '0');
+function ieFormatSegundos(segs) {
+  if (segs == null) return '—';
+  const total = Math.round(segs);
+  const h = Math.floor(total / 3600), m = Math.floor((total % 3600) / 60), s = total % 60;
+  return h + ':' + String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
 }
 function ieFormatValor(valor, unidade) {
   if (valor == null) return '—';
-  if (unidade === 'tempo') return ieFormatMinutos(valor);
+  if (unidade === 'tempo') return ieFormatSegundos(valor);
   if (unidade === 'pct') return valor.toFixed(0) + '%';
   return String(Math.round(valor));
 }
@@ -76,11 +77,11 @@ const IE_TIMES = {
     consultores: ['Iasmin Cristina', 'Nathalia Guedes', 'Francis Medeiros'],
     resumoKeys: ['tma', 'csat', 'atendimentos', 'tickets_refab', 'tmt_refab'],
     metricas: [
-      { key: 'tma', label: 'TMA', unidade: 'tempo', agregacao: 'media', meta: { valor: 30, direcao: 'menor' } },
+      { key: 'tma', label: 'TMA', unidade: 'tempo', agregacao: 'media', meta: { valor: 30 * 60, direcao: 'menor' } },
       { key: 'csat', label: 'CSAT', unidade: 'pct', agregacao: 'media', meta: { valor: 95, direcao: 'maior' } },
       { key: 'atendimentos', label: 'Atendimentos', unidade: 'num', agregacao: 'soma' },
       { key: 'tickets_refab', label: 'Tickets Refabricação', unidade: 'num', agregacao: 'soma' },
-      { key: 'tmt_refab', label: 'TMT Refabricação', unidade: 'tempo', agregacao: 'media', meta: { valor: 84 * 60, direcao: 'menor' } },
+      { key: 'tmt_refab', label: 'TMT Refabricação', unidade: 'tempo', agregacao: 'media', meta: { valor: 84 * 60 * 60, direcao: 'menor' } },
     ],
   },
   resolucao: {
@@ -94,7 +95,7 @@ const IE_TIMES = {
       // Planilha só tem essa métrica no nível de Equipe, sem quebra por
       // consultor — por isso não entra em resumoKeys nem tem gráfico
       // individual (semIndividual), só o gráfico de Equipe.
-      { key: 'tempo_logo', label: 'Tempo retorno teste de logo', unidade: 'tempo', agregacao: 'media', meta: { valor: 120, direcao: 'menor' }, semIndividual: true },
+      { key: 'tempo_logo', label: 'Tempo retorno teste de logo', unidade: 'tempo', agregacao: 'media', meta: { valor: 120 * 60, direcao: 'menor' }, semIndividual: true },
     ],
   },
 };
