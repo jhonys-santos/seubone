@@ -126,8 +126,16 @@ function salvarPrint(base64, mimeType, id) {
   const blob = Utilities.newBlob(bytes, mimeType || 'image/jpeg', 'corrida-' + id + '.' + extensao);
   const arquivo = pasta.createFile(blob);
   // "Qualquer um com o link" (só visualizar) — pra dar pra abrir o print
-  // direto do hub sem pedir login Google de novo.
-  arquivo.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  // direto do hub sem pedir login Google de novo. Algumas contas Google
+  // Workspace bloqueiam compartilhamento "qualquer um com o link" por
+  // política do admin — nesse caso não deixa travar o cadastro inteiro
+  // (o arquivo já foi salvo; só não vira link público, abre normalmente
+  // pra quem já tem acesso à pasta/domínio).
+  try {
+    arquivo.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  } catch (err) {
+    // segue mesmo assim
+  }
   return arquivo.getUrl();
 }
 
