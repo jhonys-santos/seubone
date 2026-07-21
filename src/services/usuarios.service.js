@@ -65,6 +65,18 @@ function podeAcessarPainel(usuarioSessao, painel) {
   return usuarioSessao.paineis.includes(painel);
 }
 
+// Além do allowlist geral (podeAcessarPainel), um painel do catálogo pode se
+// restringir ainda mais por "somenteRole" (um papel) e/ou "somenteSlugs"
+// (lista de usuários específicos) — quando QUALQUER um dos dois bate, o
+// painel aparece (ex: Corridas Avulsas é só do Wallac + qualquer gestor).
+// Sem nenhum dos dois campos no catálogo, fica liberado como sempre.
+function podeVerPainelRestrito(usuarioSessao, painel) {
+  if (!painel.somenteRole && !painel.somenteSlugs) return true;
+  if (painel.somenteRole && usuarioSessao.role === painel.somenteRole) return true;
+  if (painel.somenteSlugs && painel.somenteSlugs.includes(usuarioSessao.slug)) return true;
+  return false;
+}
+
 async function criarOuAtualizarUsuario({ usuario, senha, nome, slug, role, tipo, paineis, indicadoresPendentes }) {
   const existente = buscarPorUsuario(usuario);
   const senhaHash = await bcrypt.hash(senha, 10);
@@ -122,6 +134,7 @@ module.exports = {
   autenticar,
   sessaoPublica,
   podeAcessarPainel,
+  podeVerPainelRestrito,
   criarOuAtualizarUsuario,
   alterarSenha,
 };

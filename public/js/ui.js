@@ -242,6 +242,35 @@ function copiarTexto(texto, btn) {
   };
 })();
 
+// Lembrete "Solicitar pagamento" (Corridas Avulsas) — toda sexta a partir
+// das 16h, pra quem tem acesso ao painel (Wallac + gestores; a sidebar só
+// renderiza o banner pra quem pode ver o painel). Dismissível por dia via
+// localStorage, então volta a aparecer na sexta seguinte mesmo se fechado.
+(function () {
+  function chaveDismissHoje() {
+    const hoje = new Date();
+    return 'ca_lembrete_dismiss_' + hoje.getFullYear() + '-' + (hoje.getMonth() + 1) + '-' + hoje.getDate();
+  }
+
+  function inicializarLembreteCorridas() {
+    const banner = document.getElementById('sidebarLembreteCorridas');
+    if (!banner) return;
+    const hoje = new Date();
+    const ehSextaTarde = hoje.getDay() === 5 && hoje.getHours() >= 16;
+    let dismissado = false;
+    try { dismissado = localStorage.getItem(chaveDismissHoje()) === '1'; } catch (e) {}
+    if (ehSextaTarde && !dismissado) banner.style.display = 'flex';
+  }
+
+  window.caFecharLembrete = function caFecharLembrete() {
+    const banner = document.getElementById('sidebarLembreteCorridas');
+    if (banner) banner.style.display = 'none';
+    try { localStorage.setItem(chaveDismissHoje(), '1'); } catch (e) {}
+  };
+
+  document.addEventListener('DOMContentLoaded', inicializarLembreteCorridas);
+})();
+
 // Substitui os alert()/confirm() nativos do navegador (que bloqueiam a
 // página inteira e destoam do resto do visual) por um diálogo no mesmo
 // padrão do hub. Carregado em toda página via partials/head.

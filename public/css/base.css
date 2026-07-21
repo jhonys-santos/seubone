@@ -296,6 +296,22 @@ i.ti { line-height: 1; }
 .sidebar-user-name { font-size: 13px; font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sidebar-role-badge { font-size: 9.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--gold); }
 
+.sidebar-lembrete {
+  display: flex; align-items: center; gap: 6px; margin: 4px 0 10px;
+  background: var(--warn-bg); border: 1px solid var(--warn); border-radius: var(--radius-sm);
+}
+.sidebar-lembrete-link {
+  display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; padding: 8px 4px 8px 10px;
+  font-size: 12px; font-weight: 600; color: var(--warn-text, var(--warn)); text-decoration: none;
+}
+.sidebar-lembrete-link i { font-size: 15px; flex-shrink: 0; }
+.sidebar-lembrete-link span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sidebar-lembrete-fechar {
+  background: none; border: none; color: var(--warn-text, var(--warn)); opacity: .7; cursor: pointer;
+  padding: 8px 10px 8px 4px; display: flex; align-items: center; flex-shrink: 0;
+}
+.sidebar-lembrete-fechar:hover { opacity: 1; }
+
 .sidebar-nav { display: flex; flex-direction: column; gap: 2px; }
 .sidebar-label {
   font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;

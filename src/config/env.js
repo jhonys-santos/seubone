@@ -30,6 +30,7 @@ module.exports = {
   registroDemandasAppsScriptUrl: required('REGISTRO_DEMANDAS_APPS_SCRIPT_URL', ''),
   quitacoesAppsScriptUrl: required('QUITACOES_APPS_SCRIPT_URL', ''),
   indicadoresEquipeAppsScriptUrl: required('INDICADORES_EQUIPE_APPS_SCRIPT_URL', ''),
+  corridasAvulsasAppsScriptUrl: required('CORRIDAS_AVULSAS_APPS_SCRIPT_URL', ''),
 
   rankingSacCsvUrls: {
     atd: required('RANKING_SAC_CSV_ATD', ''),

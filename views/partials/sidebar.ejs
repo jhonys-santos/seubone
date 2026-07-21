@@ -14,6 +14,18 @@
   </div>
   <% } %>
 
+  <% if (typeof usuario !== 'undefined' && usuario && paineisVisiveis.some(function (p) { return p.chave === 'corridas-avulsas'; })) { %>
+  <div class="sidebar-lembrete" id="sidebarLembreteCorridas" style="display:none">
+    <a href="/corridas-avulsas" class="sidebar-lembrete-link">
+      <i class="ti ti-alert-triangle" aria-hidden="true"></i>
+      <span>Lembrete: solicitar pagamento hoje</span>
+    </a>
+    <button type="button" class="sidebar-lembrete-fechar" onclick="caFecharLembrete()" aria-label="Fechar lembrete">
+      <i class="ti ti-x" aria-hidden="true"></i>
+    </button>
+  </div>
+  <% } %>
+
   <nav class="sidebar-nav">
     <a href="/" class="sidebar-item <%= rotaAtual === '/' ? 'active' : '' %>">
       <i class="ti ti-home" aria-hidden="true"></i> Home

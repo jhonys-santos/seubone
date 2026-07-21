@@ -6,9 +6,14 @@
 // pra quem tem exatamente aquele slug (ex: Gestão de Estoque é só do
 // Wallac) — não usa o sistema geral de permissões por painel, que é
 // tudo-ou-nada por usuário. "somenteRole" funciona do mesmo jeito, mas
-// filtrando por papel (ex: Indicadores Equipe é só pra gestor) — também é
-// reforçado no middleware da rota, a sidebar só evita mostrar pra quem
-// não pode mesmo abrir.
+// filtrando por papel (ex: Indicadores Equipe é só pra gestor).
+//
+// No nível do PAINEL (não da subpágina), "somenteRole" e "somenteSlugs"
+// (lista) se combinam com OU, não com E — um painel com os dois definidos
+// aparece pra quem bater em QUALQUER um deles (ex: Corridas Avulsas é só
+// do Wallac + qualquer gestor). Sem nenhum dos dois, fica liberado pra
+// todo mundo. Em ambos os casos, também é reforçado no middleware da
+// rota — a sidebar só evita mostrar pra quem não pode mesmo abrir.
 module.exports = [
   {
     chave: 'painel-sac', titulo: 'Meus Indicadores', descricao: 'Indicadores pessoais, escala e sugestões',
@@ -63,5 +68,9 @@ module.exports = [
       { titulo: 'Histórico', url: '/registro-demandas/historico', icone: 'ti-history' },
       { titulo: 'Histórico de Reembolsos', url: '/registro-demandas/historico-reembolso', icone: 'ti-receipt' },
     ],
+  },
+  {
+    chave: 'corridas-avulsas', titulo: 'Corridas Avulsas', descricao: 'Registro de corridas avulsas (Uber parceiro) pra solicitar pagamento ao financeiro',
+    url: '/corridas-avulsas', icone: 'ti-truck-delivery', somenteRole: 'gestor', somenteSlugs: ['wallac'],
   },
 ];
