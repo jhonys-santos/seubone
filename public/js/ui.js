@@ -41,6 +41,19 @@
   document.addEventListener('DOMContentLoaded', atualizarBotoes);
 })();
 
+// Menu retrátil (abaixo de 900px) — mesma sidebar de desktop, só que fora
+// da tela por padrão e trazida como camada ao tocar no botão do topo.
+function alternarSidebarMobile() {
+  document.getElementById('appSidebar').classList.toggle('mobile-open');
+  document.getElementById('sidebarBackdrop').classList.toggle('mobile-open');
+}
+function fecharSidebarMobile() {
+  document.getElementById('appSidebar').classList.remove('mobile-open');
+  document.getElementById('sidebarBackdrop').classList.remove('mobile-open');
+}
+window.alternarSidebarMobile = alternarSidebarMobile;
+window.fecharSidebarMobile = fecharSidebarMobile;
+
 // Expande/colapsa um grupo de sub-páginas na sidebar (Produção SBP,
 // Pedidos Urgentes, Registro de Demandas). Um grupo por vez fecha os
 // outros, pra sidebar não crescer demais.

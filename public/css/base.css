@@ -264,10 +264,11 @@ i.ti { line-height: 1; }
 .hub-dialog-btn-secondary { background: none; border: 1px solid var(--border); color: var(--text-muted); }
 .hub-dialog-btn-secondary:hover { border-color: var(--text-muted); color: var(--text); }
 
-/* ── APP SHELL / SIDEBAR ─────────────────────────────────────
-   Layout de desktop por enquanto — o comportamento em telas
-   estreitas (menu retrátil) fica pra uma etapa seguinte. */
+/* ── APP SHELL / SIDEBAR ───────────────────────────────────── */
 .app-shell { display: flex; min-height: 100vh; align-items: flex-start; }
+
+.mobile-topbar { display: none; }
+.sidebar-backdrop { display: none; }
 
 .app-sidebar {
   width: 250px; flex-shrink: 0;
@@ -355,6 +356,39 @@ button.sidebar-item { width: 100%; text-align: left; background: none; cursor: p
    dentro de .app-main (ex: loading de Meus Indicadores) não tem em relação
    a quê se esticar quando o conteúdo normal ainda não apareceu. */
 .app-main { flex: 1; min-width: 0; min-height: 100vh; position: relative; }
+
+/* Abaixo de 900px a sidebar (250px fixos) não cabe do lado do conteúdo —
+   vira um menu retrátil: escondida fora da tela por padrão, entra como
+   camada sobre o conteúdo (com fundo escurecido) ao tocar no botão de
+   menu da barra superior. Não afeta nada no layout de desktop. */
+@media (max-width: 900px) {
+  .mobile-topbar {
+    display: flex; align-items: center; gap: 10px; position: fixed; top: 0; left: 0; right: 0;
+    height: 52px; padding: 0 14px; background: var(--surface); border-bottom: 1px solid var(--border);
+    z-index: 150;
+  }
+  .mobile-topbar-btn {
+    background: none; border: none; color: var(--text); font-size: 20px; padding: 6px;
+    display: flex; align-items: center; cursor: pointer; flex-shrink: 0;
+  }
+  .mobile-topbar-brand { display: flex; align-items: center; gap: 8px; text-decoration: none; font-size: 15px; font-weight: 700; color: var(--text); }
+  .mobile-topbar-brand img { width: 24px; height: 24px; flex-shrink: 0; }
+
+  .sidebar-backdrop {
+    display: block; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 160;
+    opacity: 0; pointer-events: none; transition: opacity .2s ease;
+  }
+  .sidebar-backdrop.mobile-open { opacity: 1; pointer-events: auto; }
+
+  .app-sidebar {
+    position: fixed; top: 0; left: 0; height: 100vh; z-index: 170;
+    transform: translateX(-100%); transition: transform .22s ease;
+    box-shadow: 4px 0 20px rgba(0,0,0,0.3);
+  }
+  .app-sidebar.mobile-open { transform: translateX(0); }
+
+  .app-main { padding-top: 52px; }
+}
 
 /* ── POPUP GENÉRICO (avisos, confirmações pontuais) ──────────
    Base compartilhada entre páginas — cada popup só define o que

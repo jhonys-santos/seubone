@@ -1,4 +1,15 @@
-<aside class="app-sidebar">
+<div class="mobile-topbar">
+  <button type="button" class="mobile-topbar-btn" onclick="alternarSidebarMobile()" aria-label="Abrir menu">
+    <i class="ti ti-menu-2" aria-hidden="true"></i>
+  </button>
+  <a href="/" class="mobile-topbar-brand">
+    <img src="/img/logo-seubone.png" alt="SeuBoné">
+    <span>Seu<span class="gold">Boné</span></span>
+  </a>
+</div>
+<div class="sidebar-backdrop" id="sidebarBackdrop" onclick="fecharSidebarMobile()"></div>
+
+<aside class="app-sidebar" id="appSidebar">
   <a href="/" class="sidebar-brand">
     <img src="/img/logo-seubone.png" alt="SeuBoné">
     <span class="sidebar-brand-text">Seu<span class="gold">Boné</span></span>
