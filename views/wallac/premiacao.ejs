@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<%- include('../partials/head') %>
+<title>Premiação — Produção SBP — SeuBoné</title>
+<link rel="stylesheet" href="/css/wallac.css">
+<link rel="stylesheet" href="/css/wallac-premiacao.css">
+</head>
+<body>
+<div class="app-shell">
+<%- include('../partials/sidebar') %>
+<div class="app-main">
+
+<div class="wallac-container">
+  <div class="wallac-header">
+    <h2><i class="ti ti-award" aria-hidden="true"></i> Premiação — SB Coin</h2>
+  </div>
+  <p class="premiacao-subtitulo">Fechamento semanal automático · peças finalizadas dentro do prazo de produção (PPF).</p>
+
+  <div class="premiacao-resumo">
+    <div class="premiacao-resumo-topo">
+      <div class="premiacao-resumo-titulo" id="mes-atual">Carregando...</div>
+      <div class="premiacao-resumo-coins" id="coins-mes">- <span>coins no mês</span></div>
+    </div>
+  </div>
+
+  <div class="premiacao-table-wrap">
+    <table class="premiacao-table">
+      <thead>
+        <tr>
+          <th>Semana</th>
+          <th>Peças no prazo</th>
+          <th>Faixa</th>
+          <th>Coins</th>
+        </tr>
+      </thead>
+      <tbody id="corpo-tabela">
+        <tr><td colspan="4" class="premiacao-vazio">Carregando...</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+</div>
+</div>
+
+<script src="/js/wallac-premiacao.js"></script>
+</body>
+</html>

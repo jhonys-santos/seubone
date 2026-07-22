@@ -1,5 +1,5 @@
 const express = require('express');
-const { requireAuth, requirePainel, requireSlug } = require('../middleware/auth');
+const { requireAuth, requirePainel, requireSlug, requireSlugOuRole } = require('../middleware/auth');
 const { chamarAppsScript } = require('../services/appsScriptClient');
 const env = require('../config/env');
 
@@ -89,6 +89,20 @@ router.post('/api/estoque/remover', requireAuth, requireSlug('wallac'), async (r
     res.json(json);
   } catch (err) {
     res.status(502).json({ ok: false, erro: 'Falha ao remover produto: ' + err.message });
+  }
+});
+
+// ── Premiação (SB Coin) — o Wallac e qualquer gestor acompanham ──────────
+router.get('/premiacao', requireAuth, requireSlugOuRole('wallac', 'gestor'), (req, res) => {
+  res.render('wallac/premiacao');
+});
+
+router.get('/api/premiacao-historico', requireAuth, requireSlugOuRole('wallac', 'gestor'), async (req, res) => {
+  try {
+    const json = await chamarAppsScript(env.wallacAppsScriptUrl, { params: { acao: 'premiacao_historico' } });
+    res.json(json);
+  } catch (err) {
+    res.status(502).json({ ok: false, erro: 'Falha ao buscar histórico de premiação: ' + err.message });
   }
 });
 

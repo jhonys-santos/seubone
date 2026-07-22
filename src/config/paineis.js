@@ -35,6 +35,7 @@ module.exports = [
       { titulo: 'Gestão de Estoque', url: '/wallac/estoque', somenteSlug: 'wallac', icone: 'ti-box' },
       { titulo: 'Histórico', url: '/wallac/historico', icone: 'ti-history' },
       { titulo: 'Solicitar Personalização', url: '/wallac/solicitar', icone: 'ti-brush' },
+      { titulo: 'Premiação', url: '/wallac/premiacao', somenteSlug: 'wallac', somenteRole: 'gestor', icone: 'ti-award' },
     ],
   },
   {

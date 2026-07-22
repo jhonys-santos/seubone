@@ -46,7 +46,15 @@
       <div class="sidebar-label">Painéis</div>
       <% paineisVisiveis.forEach(function (p) { %>
         <%
-          var subVisiveis = (p.subpaginas || []).filter(function (s) { return !s.somenteSlug || s.somenteSlug === usuario.slug; });
+          // "somenteSlug" e "somenteRole" na subpágina se combinam com OU,
+          // igual ao mecanismo do painel (ex: Premiação é só do Wallac +
+          // qualquer gestor). Sem nenhum dos dois, fica liberada.
+          var subVisiveis = (p.subpaginas || []).filter(function (s) {
+            if (!s.somenteSlug && !s.somenteRole) return true;
+            if (s.somenteSlug && s.somenteSlug === usuario.slug) return true;
+            if (s.somenteRole && s.somenteRole === usuario.role) return true;
+            return false;
+          });
           var subAtiva = subVisiveis.some(function (s) { return rotaAtual === s.url; });
         %>
         <% if (subVisiveis.length) { %>

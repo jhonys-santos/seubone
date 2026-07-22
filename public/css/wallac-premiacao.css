@@ -1,0 +1,30 @@
+/* ── PREMIAÇÃO WALLAC (SB Coin) ──────────────────────────────
+   Histórico semanal de peças no prazo, faixa e coins. Portado do
+   premiacao_wallac_2.html original, com as cores fixas trocadas pelos
+   tokens do design system (tema claro/escuro já funciona sem esforço). */
+
+.premiacao-subtitulo { font-size: 13px; color: var(--text-muted); margin: -8px 0 20px; }
+
+.premiacao-resumo { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px 20px; margin-bottom: 22px; }
+.premiacao-resumo-topo { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.premiacao-resumo-titulo { font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .06em; font-weight: 700; }
+.premiacao-resumo-coins { font-size: 26px; font-weight: 800; color: var(--gold); font-variant-numeric: tabular-nums; }
+.premiacao-resumo-coins span { font-size: 13px; color: var(--text-muted); font-weight: 400; }
+
+.premiacao-table-wrap { overflow-x: auto; }
+.premiacao-table { width: 100%; border-collapse: collapse; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+.premiacao-table th { text-align: left; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--text-hint); padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+.premiacao-table td { padding: 10px 12px; border-bottom: 1px solid var(--border); font-size: 13px; color: var(--text-muted); }
+.premiacao-table tr:last-child td { border-bottom: none; }
+
+/* Ouro/prata/bronze não têm token próprio (cor de medalha, não de status
+   do hub) — ficam com o hex fixo mesmo, como no arquivo original. */
+.selo-faixa { display: inline-block; font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 20px; white-space: nowrap; }
+.selo-faixa.ouro { background: rgba(252,191,4,0.18); color: var(--gold); }
+.selo-faixa.prata { background: rgba(199,203,209,0.18); color: #C7CBD1; }
+.selo-faixa.bronze { background: rgba(205,127,50,0.2); color: #CD7F32; }
+.selo-faixa.nenhuma { background: var(--surface-2); color: var(--text-hint); }
+
+.coins-semana { font-weight: 700; color: var(--gold); font-variant-numeric: tabular-nums; }
+
+.premiacao-vazio { text-align: center; color: var(--text-hint); font-size: 13px; padding: 24px; }
