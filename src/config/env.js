@@ -32,6 +32,13 @@ module.exports = {
   indicadoresEquipeAppsScriptUrl: required('INDICADORES_EQUIPE_APPS_SCRIPT_URL', ''),
   corridasAvulsasAppsScriptUrl: required('CORRIDAS_AVULSAS_APPS_SCRIPT_URL', ''),
 
+  // Integração com n8n (Solicitações Financeiro): o hub avisa o n8n quando
+  // uma solicitação é criada (URL de saída); quando o financeiro conclui
+  // lá, o n8n chama de volta o webhook do hub (segredo de entrada, ver
+  // src/routes/registroDemandas.routes.js).
+  n8nRegistroDemandasWebhookUrl: required('N8N_REGISTRO_DEMANDAS_WEBHOOK_URL', ''),
+  n8nWebhookSecret: required('N8N_WEBHOOK_SECRET', ''),
+
   rankingSacCsvUrls: {
     atd: required('RANKING_SAC_CSV_ATD', ''),
     rsl: required('RANKING_SAC_CSV_RSL', ''),
