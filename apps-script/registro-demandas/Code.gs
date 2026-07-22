@@ -81,11 +81,11 @@ function criarRegistro(body) {
     id,
     body.data || '',
     body.dataVencimento || '',
-    body.idCompra || '',
+    '', // IDCompra — escrito abaixo como texto puro (appendRow não respeita
     body.linkCard || '',
     body.solicitante || '',
     body.empresa || '',
-    body.numeroCorporativo || '',
+    '', // NumeroCorporativo — idem
     body.tipoDemanda || '',
     body.demandaSolicitada || '',
     body.observacao || '',
@@ -95,6 +95,13 @@ function criarRegistro(body) {
     '',
     new Date(),
   ]);
+
+  // appendRow() converte string numérica (ex: "0012") pra número mesmo com
+  // a coluna formatada como texto — só setNumberFormat + setValue direto
+  // na célula, feitos juntos, garantem que o zero à esquerda não se perca.
+  const linha = aba.getLastRow();
+  aba.getRange(linha, 4).setNumberFormat('@').setValue(body.idCompra || '');
+  aba.getRange(linha, 8).setNumberFormat('@').setValue(body.numeroCorporativo || '');
 
   return { ok: true, id: id, anexos: anexos };
 }
@@ -156,15 +163,15 @@ function criarReembolso(body) {
   aba.appendRow([
     id,
     body.dataVencimento || '',
-    body.id || '', // referência digitada pelo solicitante (não é o ID interno)
-    body.cpfCnpj || '',
+    '', // IDReferencia — escrito abaixo como texto puro
+    '', // CPFCNPJ — idem
     body.email || '',
     body.motivo || '',
     body.razaoSocial || '',
     body.banco || '',
-    body.agencia || '',
-    body.conta || '',
-    body.chavePix || '',
+    '', // Agencia — idem
+    '', // Conta — idem
+    '', // ChavePix — idem
     body.tipoChave || '',
     Number(body.valor) || 0,
     body.empresaResponsavel || '',
@@ -173,6 +180,16 @@ function criarReembolso(body) {
     '',
     new Date(),
   ]);
+
+  // appendRow() converte string numérica (ex: "0099") pra número mesmo com
+  // a coluna formatada como texto — só setNumberFormat + setValue direto
+  // na célula, feitos juntos, garantem que o zero à esquerda não se perca.
+  const linha = aba.getLastRow();
+  aba.getRange(linha, 3).setNumberFormat('@').setValue(body.id || ''); // referência digitada pelo solicitante (não é o ID interno)
+  aba.getRange(linha, 4).setNumberFormat('@').setValue(body.cpfCnpj || '');
+  aba.getRange(linha, 9).setNumberFormat('@').setValue(body.agencia || '');
+  aba.getRange(linha, 10).setNumberFormat('@').setValue(body.conta || '');
+  aba.getRange(linha, 11).setNumberFormat('@').setValue(body.chavePix || '');
 
   return { ok: true, id: id, anexos: anexos };
 }
