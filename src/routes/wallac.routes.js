@@ -106,6 +106,17 @@ router.get('/api/premiacao-historico', requireAuth, requireSlugOuRole('wallac', 
   }
 });
 
+// Progresso da semana em andamento — calculado na hora, não espera o
+// fechamento oficial de sexta-feira (que só grava no histórico).
+router.get('/api/premiacao-semana-atual', requireAuth, requireSlugOuRole('wallac', 'gestor'), async (req, res) => {
+  try {
+    const json = await chamarAppsScript(env.wallacAppsScriptUrl, { params: { acao: 'premiacao_semana_atual' } });
+    res.json(json);
+  } catch (err) {
+    res.status(502).json({ ok: false, erro: 'Falha ao buscar semana atual: ' + err.message });
+  }
+});
+
 // ── Solicitar personalização — página pública, sem login. Pode ser
 // compartilhada com gente de fora do hub (outro setor); por isso mesmo o
 // navegador continua sem falar direto com o Apps Script — passa pelo

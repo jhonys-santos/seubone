@@ -80,6 +80,9 @@ function doGet(e) {
     if (acao === 'premiacao_historico') {
       return responderJSON({ ok: true, historico: premiacaoHistorico() });
     }
+    if (acao === 'premiacao_semana_atual') {
+      return responderJSON({ ok: true, semana: premiacaoSemanaAtual() });
+    }
     return responderJSON({ ok: true, cards: buscarCards() });
   } catch (err) {
     return responderJSON({ ok: false, erro: err.message });
@@ -563,6 +566,22 @@ function getAbaPremiacaoHistorico(ss) {
   return aba;
 }
 
+// Progresso da semana em andamento (não grava nada — só calcula na hora
+// pra tela de Premiação mostrar em tempo real, sem esperar sexta-feira).
+function premiacaoSemanaAtual() {
+  const segunda = premiacaoSegunda(new Date());
+  const sexta = new Date(segunda.getFullYear(), segunda.getMonth(), segunda.getDate() + 4);
+  const pecas = premiacaoCalcularSemana(segunda);
+  const resultado = premiacaoFaixaECoins(pecas);
+  return {
+    semana_inicio: Utilities.formatDate(segunda, Session.getScriptTimeZone(), 'yyyy-MM-dd'),
+    semana_fim: Utilities.formatDate(sexta, Session.getScriptTimeZone(), 'yyyy-MM-dd'),
+    pecas_no_prazo: pecas,
+    faixa: resultado.faixa,
+    coins_projetado: resultado.coins
+  };
+}
+
 // Roda sozinha toda sexta 16h30 via gatilho (ver configurarGatilhoPremiacao).
 function fecharSemanaPremiacao() {
   const lock = LockService.getScriptLock();
@@ -571,21 +590,25 @@ function fecharSemanaPremiacao() {
     const hoje = new Date();
     const segunda = premiacaoSegunda(hoje);
     const sexta = new Date(segunda.getFullYear(), segunda.getMonth(), segunda.getDate() + 4);
-
-    const pecas = premiacaoCalcularSemana(segunda);
-    const resultado = premiacaoFaixaECoins(pecas);
+    const segundaStr = Utilities.formatDate(segunda, Session.getScriptTimeZone(), 'yyyy-MM-dd');
 
     const ss = SpreadsheetApp.openById(SHEET_ID);
     const aba = getAbaPremiacaoHistorico(ss);
 
+    // Evita duplicar se essa semana já foi fechada.
+    const linhasExistentes = aba.getDataRange().getValues().slice(1);
+    if (linhasExistentes.some((r) => String(r[0]) === segundaStr)) return;
+
+    const pecas = premiacaoCalcularSemana(segunda);
+    const resultado = premiacaoFaixaECoins(pecas);
+
     const mesReferencia = Utilities.formatDate(sexta, Session.getScriptTimeZone(), 'yyyy-MM');
-    const linhasAnteriores = aba.getDataRange().getValues().slice(1);
-    const coinsAcumuladosAntes = linhasAnteriores
+    const coinsAcumuladosAntes = linhasExistentes
       .filter((r) => String(r[5]) === mesReferencia)
       .reduce((soma, r) => soma + (Number(r[4]) || 0), 0);
 
     aba.appendRow([
-      Utilities.formatDate(segunda, Session.getScriptTimeZone(), 'yyyy-MM-dd'),
+      segundaStr,
       Utilities.formatDate(sexta, Session.getScriptTimeZone(), 'yyyy-MM-dd'),
       pecas, resultado.faixa, resultado.coins, mesReferencia, coinsAcumuladosAntes + resultado.coins
     ]);

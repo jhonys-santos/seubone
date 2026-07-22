@@ -60,4 +60,41 @@ async function carregarHistorico() {
   }
 }
 
+// Limites das faixas — precisam bater com premiacaoFaixaECoins no Apps
+// Script (só usados aqui pra montar a barra/legenda de progresso).
+const PREMIACAO_LIMITES = [
+  { faixa: 'Bronze', min: 30 },
+  { faixa: 'Prata', min: 50 },
+  { faixa: 'Ouro', min: 80 },
+];
+
+function premiacaoNota(pecas) {
+  const proxima = PREMIACAO_LIMITES.find((l) => pecas < l.min);
+  if (!proxima) return 'Faixa Ouro atingida — máximo de coins da semana garantido! 🏆';
+  const faltam = proxima.min - pecas;
+  return `Faltam ${faltam} peça${faltam === 1 ? '' : 's'} no prazo pra faixa ${proxima.faixa}.`;
+}
+
+async function carregarSemanaAtual() {
+  try {
+    const resp = await fetch('/wallac/api/premiacao-semana-atual');
+    const dados = await resp.json();
+    if (!dados.ok) throw new Error(dados.erro);
+
+    const s = dados.semana;
+    document.getElementById('semana-atual-pecas').textContent = s.pecas_no_prazo;
+    const faixaEl = document.getElementById('semana-atual-faixa');
+    faixaEl.textContent = s.faixa;
+    faixaEl.className = 'selo-faixa ' + classeFaixa(s.faixa);
+    document.getElementById('progresso-fill').style.width = Math.min(100, s.pecas_no_prazo) + '%';
+    document.getElementById('semana-atual-nota').textContent = premiacaoNota(s.pecas_no_prazo);
+  } catch (err) {
+    document.getElementById('semana-atual-nota').textContent = 'Não foi possível carregar o progresso da semana.';
+  }
+}
+
 carregarHistorico();
+carregarSemanaAtual();
+// Atualiza sozinho enquanto a tela ficar aberta, pra acompanhar a
+// evolução conforme os cards vão sendo finalizados no Kanban.
+setInterval(carregarSemanaAtual, 60000);

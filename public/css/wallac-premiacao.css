@@ -5,6 +5,30 @@
 
 .premiacao-subtitulo { font-size: 13px; color: var(--text-muted); margin: -8px 0 20px; }
 
+.premiacao-semana-atual { background: var(--surface); border: 1px solid var(--gold-dark, var(--border)); border-radius: var(--radius); padding: 18px 20px; margin-bottom: 22px; }
+.premiacao-semana-atual-topo { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+.premiacao-semana-atual-titulo { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--text-muted); display: flex; align-items: center; gap: 6px; }
+.premiacao-semana-atual-titulo i { color: var(--gold); }
+.premiacao-semana-atual-pecas { margin-bottom: 12px; }
+.premiacao-semana-atual-pecas strong { font-size: 30px; font-weight: 800; color: var(--text); font-variant-numeric: tabular-nums; }
+.premiacao-semana-atual-pecas span { font-size: 12px; color: var(--text-muted); margin-left: 4px; }
+
+.premiacao-progresso-bar {
+  position: relative; height: 10px; border-radius: 6px; overflow: hidden;
+  background: linear-gradient(to right,
+    var(--surface-2) 0%, var(--surface-2) 30%,
+    rgba(205,127,50,0.35) 30%, rgba(205,127,50,0.35) 50%,
+    rgba(199,203,209,0.35) 50%, rgba(199,203,209,0.35) 80%,
+    rgba(252,191,4,0.35) 80%, rgba(252,191,4,0.35) 100%);
+}
+.premiacao-progresso-fill { position: absolute; top: 0; left: 0; height: 100%; width: 0%; background: var(--gold); transition: width .4s ease; border-radius: 6px; }
+.premiacao-progresso-marca { position: absolute; top: 0; bottom: 0; width: 1px; background: rgba(0,0,0,0.25); }
+.premiacao-progresso-legendas { position: relative; height: 14px; margin-top: 6px; }
+.premiacao-progresso-legendas span { position: absolute; top: 0; transform: translateX(-50%); font-size: 10px; color: var(--text-hint); white-space: nowrap; }
+.premiacao-progresso-legendas span:first-child { transform: translateX(0); }
+.premiacao-progresso-legendas span:last-child { transform: translateX(-100%); }
+.premiacao-semana-atual-nota { font-size: 12px; color: var(--text-muted); margin-top: 12px; }
+
 .premiacao-resumo { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px 20px; margin-bottom: 22px; }
 .premiacao-resumo-topo { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
 .premiacao-resumo-titulo { font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .06em; font-weight: 700; }
