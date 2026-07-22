@@ -83,6 +83,7 @@ async function carregarSemanaAtual() {
 
     const s = dados.semana;
     document.getElementById('semana-atual-pecas').textContent = s.pecas_no_prazo;
+    document.getElementById('semana-atual-coins').textContent = s.coins_projetado;
     const faixaEl = document.getElementById('semana-atual-faixa');
     faixaEl.textContent = s.faixa;
     faixaEl.className = 'selo-faixa ' + classeFaixa(s.faixa);
