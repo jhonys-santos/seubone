@@ -60,10 +60,15 @@
 .ie-legend-dot { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
 
 /* Gráfico de barras agrupadas: um grupo por dia, uma barra por consultor. */
-.ie-chart { display: flex; align-items: flex-end; gap: 10px; height: 140px; overflow-x: auto; padding-bottom: 2px; }
+.ie-chart {
+  display: flex; align-items: flex-end; gap: 10px; height: 140px; overflow-x: auto; padding-bottom: 2px;
+  scrollbar-width: thin; scrollbar-color: transparent transparent;
+}
+.ie-chart:hover { scrollbar-color: var(--border-strong) transparent; }
 .ie-chart::-webkit-scrollbar { height: 5px; }
 .ie-chart::-webkit-scrollbar-track { background: transparent; }
-.ie-chart::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 10px; }
+.ie-chart::-webkit-scrollbar-thumb { background: transparent; border-radius: 10px; }
+.ie-chart:hover::-webkit-scrollbar-thumb { background: var(--border-strong); }
 .ie-day-group { display: flex; flex-direction: column; align-items: center; flex-shrink: 0; min-width: 44px; }
 .ie-bars-row { display: flex; align-items: flex-end; gap: 3px; height: 108px; }
 .ie-bar-col { position: relative; width: 10px; height: 100%; display: flex; align-items: flex-end; }

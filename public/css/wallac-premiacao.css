@@ -37,7 +37,12 @@
 .premiacao-resumo-coins { font-size: 26px; font-weight: 800; color: var(--gold); font-variant-numeric: tabular-nums; }
 .premiacao-resumo-coins span { font-size: 13px; color: var(--text-muted); font-weight: 400; }
 
-.premiacao-table-wrap { overflow-x: auto; }
+.premiacao-table-wrap { overflow-x: auto; scrollbar-width: thin; scrollbar-color: transparent transparent; }
+.premiacao-table-wrap:hover { scrollbar-color: var(--border-strong) transparent; }
+.premiacao-table-wrap::-webkit-scrollbar { height: 5px; }
+.premiacao-table-wrap::-webkit-scrollbar-track { background: transparent; }
+.premiacao-table-wrap::-webkit-scrollbar-thumb { background: transparent; border-radius: 10px; }
+.premiacao-table-wrap:hover::-webkit-scrollbar-thumb { background: var(--border-strong); }
 .premiacao-table { width: 100%; border-collapse: collapse; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
 .premiacao-table th { text-align: left; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--text-hint); padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: nowrap; }
 .premiacao-table td { padding: 10px 12px; border-bottom: 1px solid var(--border); font-size: 13px; color: var(--text-muted); }

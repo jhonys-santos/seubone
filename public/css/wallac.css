@@ -62,7 +62,13 @@
   grid-template-columns: repeat(4, minmax(260px, 1fr));
   gap: 14px;
   overflow-x: auto;
+  scrollbar-width: thin; scrollbar-color: transparent transparent;
 }
+.board:hover { scrollbar-color: var(--border-strong) transparent; }
+.board::-webkit-scrollbar { height: 5px; }
+.board::-webkit-scrollbar-track { background: transparent; }
+.board::-webkit-scrollbar-thumb { background: transparent; border-radius: 10px; }
+.board:hover::-webkit-scrollbar-thumb { background: var(--border-strong); }
 
 .coluna {
   background: var(--surface);

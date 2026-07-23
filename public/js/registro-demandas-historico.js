@@ -86,7 +86,7 @@ function renderizar() {
       <td>${formatarData(s.Data)}</td>
       <td>${formatarData(s.DataVencimento) || '—'}</td>
       <td>${escapeHtml(s.IDCompra)}</td>
-      <td>${s.LinkCard ? `<a class="link-btn" href="${escapeHtml(s.LinkCard)}" target="_blank" rel="noopener"><i class="ti ti-external-link" aria-hidden="true"></i> Abrir card</a>` : '—'}</td>
+      <td>${s.LinkCard ? `<a class="link-btn" href="${escapeHtml(s.LinkCard)}" target="_blank" rel="noopener"><i class="ti ti-external-link" aria-hidden="true"></i> Abrir</a>` : '—'}</td>
       <td>${escapeHtml(s.Solicitante)}</td>
       <td>${escapeHtml(s.Empresa) || '—'}</td>
       <td>${escapeHtml(s.DemandaSolicitada) || '—'}</td>

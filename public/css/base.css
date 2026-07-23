@@ -414,4 +414,34 @@ button.sidebar-item { width: 100%; text-align: left; background: none; cursor: p
 /* ── MODAL GENÉRICO (confirmações/formulários em overlay) ────── */
 .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.65); display: none; align-items: center; justify-content: center; z-index: 500; padding: 1rem; backdrop-filter: blur(2px); }
 .modal-overlay.show { display: flex; }
-.modal-box { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1.5rem; width: 100%; max-height: 90vh; overflow-y: auto; box-shadow: 0 8px 40px rgba(0,0,0,0.5); }
+.modal-box {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1.5rem;
+  width: 100%; max-height: 90vh; overflow-y: auto; box-shadow: 0 8px 40px rgba(0,0,0,0.5);
+  scrollbar-width: thin; scrollbar-color: transparent transparent;
+}
+.modal-box:hover { scrollbar-color: var(--border-strong) transparent; }
+.modal-box::-webkit-scrollbar { width: 5px; }
+.modal-box::-webkit-scrollbar-track { background: transparent; }
+.modal-box::-webkit-scrollbar-thumb { background: transparent; border-radius: 10px; }
+.modal-box:hover::-webkit-scrollbar-thumb { background: var(--border-strong); }
+
+/* Listas roláveis dentro de modal (Acessos, avisos, auditoria) — mesma
+   barra discreta de todo o resto do hub, escondida até passar o mouse. */
+#troca-pendente-lista, #audit-modal-lista, #acessos-lista {
+  scrollbar-width: thin; scrollbar-color: transparent transparent;
+}
+#troca-pendente-lista:hover, #audit-modal-lista:hover, #acessos-lista:hover {
+  scrollbar-color: var(--border-strong) transparent;
+}
+#troca-pendente-lista::-webkit-scrollbar, #audit-modal-lista::-webkit-scrollbar, #acessos-lista::-webkit-scrollbar {
+  width: 5px;
+}
+#troca-pendente-lista::-webkit-scrollbar-track, #audit-modal-lista::-webkit-scrollbar-track, #acessos-lista::-webkit-scrollbar-track {
+  background: transparent;
+}
+#troca-pendente-lista::-webkit-scrollbar-thumb, #audit-modal-lista::-webkit-scrollbar-thumb, #acessos-lista::-webkit-scrollbar-thumb {
+  background: transparent; border-radius: 10px;
+}
+#troca-pendente-lista:hover::-webkit-scrollbar-thumb, #audit-modal-lista:hover::-webkit-scrollbar-thumb, #acessos-lista:hover::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+}
