@@ -61,6 +61,21 @@ function ehData(v) {
   return Object.prototype.toString.call(v) === '[object Date]' && !isNaN(v.getTime());
 }
 
+// Coluna "printUrl" guarda um array JSON de URLs (ex: '["https://...","https://..."]').
+// Linhas antigas, de antes de suportar múltiplos prints, têm só a URL pura
+// na célula (sem JSON) — o catch cobre esse caso legado.
+function parsePrintUrls(v) {
+  const str = String(v || '');
+  if (!str) return [];
+  try {
+    const parsed = JSON.parse(str);
+    if (Array.isArray(parsed)) return parsed;
+  } catch (err) {
+    // não era JSON: célula legada com uma única URL em texto puro
+  }
+  return [str];
+}
+
 function linhaParaItem(r) {
   return {
     id: String(r[0]),
@@ -69,7 +84,7 @@ function linhaParaItem(r) {
     numeroNf: String(r[3] || ''),
     endereco: String(r[4] || ''),
     valor: Number(r[5]) || 0,
-    printUrl: String(r[6] || ''),
+    printUrls: parsePrintUrls(r[6]),
     registradoPorSlug: String(r[7] || ''),
     registradoPorNome: String(r[8] || ''),
     nomeMotorista: String(r[9] || ''),
@@ -105,7 +120,14 @@ function cadastrarCorrida(body) {
   const ss = SpreadsheetApp.openById(SHEET_ID);
   const aba = getAbaCorridas(ss);
   const id = gerarId();
-  const printUrl = body.imagemBase64 ? salvarPrint(body.imagemBase64, body.imagemTipo, id) : '';
+  // "imagens" é o formato novo (array de {base64, tipo}, um ou mais prints).
+  // "imagemBase64"/"imagemTipo" é o formato antigo (um só print) — mantido
+  // aqui só por segurança, caso alguma versão velha do JS do painel ainda
+  // esteja em cache no navegador de alguém no dia da troca.
+  const imagens = Array.isArray(body.imagens) && body.imagens.length
+    ? body.imagens
+    : (body.imagemBase64 ? [{ base64: body.imagemBase64, tipo: body.imagemTipo }] : []);
+  const urls = imagens.map((img, i) => salvarPrint(img.base64, img.tipo, imagens.length > 1 ? id + '-' + (i + 1) : id));
   aba.appendRow([
     id,
     new Date(),
@@ -113,12 +135,12 @@ function cadastrarCorrida(body) {
     body.numeroNf || '',
     body.endereco || '',
     Number(body.valor) || 0,
-    printUrl,
+    JSON.stringify(urls),
     body.registradoPorSlug || '',
     body.registradoPorNome || '',
     body.nomeMotorista || '',
   ]);
-  return { ok: true, id: id, printUrl: printUrl };
+  return { ok: true, id: id, printUrls: urls };
 }
 
 function salvarPrint(base64, mimeType, id) {

@@ -251,7 +251,12 @@ button.adicionar { background: var(--gold); color: var(--on-gold); width: 100%; 
 }
 .solicitar-container textarea { resize: vertical; min-height: 60px; }
 #qtd-disponivel { font-size: 11px; color: var(--text-hint); margin-top: 3px; }
-#preview-logo { max-width: 100px; max-height: 100px; border-radius: var(--radius-sm); margin-top: 8px; display: none; border: 1px solid var(--border); }
+.preview-arquivo {
+  display: none; align-items: center; gap: 6px; margin-top: 8px; padding: 6px 10px;
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm);
+  font-size: 12px; color: var(--text-muted); width: fit-content;
+}
+.preview-arquivo i { color: var(--gold); font-size: 14px; }
 .solicitar-container button[type="submit"] {
   width: 100%; margin-top: 20px; background: var(--gold); color: var(--on-gold);
   border: none; border-radius: var(--radius-sm); padding: 12px; font-size: 14px; font-weight: 700;

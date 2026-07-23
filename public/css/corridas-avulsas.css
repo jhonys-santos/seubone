@@ -39,7 +39,7 @@
 .ca-table td { font-size: 12px; color: var(--text-muted); padding: 9px 8px; border-bottom: 1px solid rgba(255,255,255,0.03); vertical-align: middle; }
 .ca-table tr:last-child td { border-bottom: none; }
 .ca-table td.ca-td-valor { color: var(--text); font-weight: 700; font-variant-numeric: tabular-nums; text-align: right; }
-.ca-table td.ca-td-print a { color: var(--gold); text-decoration: none; display: inline-flex; align-items: center; gap: 4px; }
+.ca-table td.ca-td-print a { color: var(--gold); text-decoration: none; display: inline-flex; align-items: center; gap: 4px; margin-right: 8px; }
 .ca-table td.ca-td-print a:hover { text-decoration: underline; }
 
 .ca-empty { font-size: 12px; color: var(--text-hint); text-align: center; padding: 2rem; }

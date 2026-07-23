@@ -42,9 +42,9 @@
     <label for="observacoes">Observações</label>
     <textarea id="observacoes" placeholder="Detalhes da personalização, cores, posição do logo, etc."></textarea>
 
-    <label for="logo">Logo (imagem)</label>
-    <input type="file" id="logo" accept="image/*" required>
-    <img id="preview-logo" alt="preview">
+    <label for="logo">Logo (DXF)</label>
+    <input type="file" id="logo" accept=".dxf" required>
+    <div id="preview-logo" class="preview-arquivo"><i class="ti ti-file" aria-hidden="true"></i> <span></span></div>
 
     <button type="submit" id="botao-enviar">Enviar solicitação</button>
     <div id="mensagem"></div>

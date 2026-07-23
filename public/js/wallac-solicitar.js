@@ -77,14 +77,14 @@ document.getElementById('produto').addEventListener('change', (e) => {
 
 document.getElementById('logo').addEventListener('change', (e) => {
   const arquivo = e.target.files[0];
-  if (!arquivo) { logoBase64 = null; return; }
+  const preview = document.getElementById('preview-logo');
+  if (!arquivo) { logoBase64 = null; logoNome = null; preview.style.display = 'none'; return; }
   logoNome = arquivo.name;
   const reader = new FileReader();
   reader.onload = () => {
     logoBase64 = reader.result;
-    const preview = document.getElementById('preview-logo');
-    preview.src = logoBase64;
-    preview.style.display = 'block';
+    preview.querySelector('span').textContent = logoNome;
+    preview.style.display = 'flex';
   };
   reader.readAsDataURL(arquivo);
 });
@@ -114,7 +114,7 @@ document.getElementById('form-solicitacao').addEventListener('submit', async (e)
     }
   }
   if (!logoBase64) {
-    mensagem.textContent = 'A imagem do logo é obrigatória.';
+    mensagem.textContent = 'O arquivo DXF do logo é obrigatório.';
     mensagem.className = 'erro';
     return;
   }
@@ -149,6 +149,7 @@ document.getElementById('form-solicitacao').addEventListener('submit', async (e)
       document.getElementById('grupo-outros').style.display = 'none';
       document.getElementById('preview-logo').style.display = 'none';
       logoBase64 = null;
+      logoNome = null;
       await carregarProdutos();
     } else {
       mensagem.textContent = dados.erro || 'Erro ao enviar solicitação.';

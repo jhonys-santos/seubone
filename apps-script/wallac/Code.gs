@@ -304,7 +304,7 @@ function solicitarPersonalizacao(dados) {
       return { ok: false, erro: 'ID venda/Cliente, prazo de produção e prazo de entrega são obrigatórios.' };
     }
     if (!dados.logo_base64) {
-      return { ok: false, erro: 'A imagem do logo é obrigatória.' };
+      return { ok: false, erro: 'O arquivo DXF do logo é obrigatório.' };
     }
 
     const ehOutro = !!dados.eh_outro;
@@ -329,7 +329,7 @@ function solicitarPersonalizacao(dados) {
       abaEstoque.getRange(linhaEstoque, COL_ESTOQUE.QUANTIDADE).setValue(qtdAtual - qtdSolicitada);
     }
 
-    const logoUrl = salvarLogo(dados.logo_base64, dados.logo_nome || 'logo.png');
+    const logoUrl = salvarLogo(dados.logo_base64, dados.logo_nome || 'logo.dxf');
 
     const agora = new Date();
     abaSolicitacoes.appendRow([
@@ -356,7 +356,9 @@ function solicitarPersonalizacao(dados) {
 
 function salvarLogo(base64Data, nomeArquivo) {
   const partesBase64 = base64Data.indexOf(',') > -1 ? base64Data.split(',')[1] : base64Data;
-  const blob = Utilities.newBlob(Utilities.base64Decode(partesBase64), 'image/png', nomeArquivo);
+  const extensao = String(nomeArquivo).split('.').pop().toLowerCase();
+  const mimeType = extensao === 'dxf' ? 'application/dxf' : 'application/octet-stream';
+  const blob = Utilities.newBlob(Utilities.base64Decode(partesBase64), mimeType, nomeArquivo);
   const pasta = obterPastaLogos();
   const arquivo = pasta.createFile(blob);
   arquivo.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);

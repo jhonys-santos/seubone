@@ -45,7 +45,8 @@
     </datalist>
 
     <label>Print do motorista (valor cobrado) *</label>
-    <input type="file" id="caPrint" accept="image/*">
+    <input type="file" id="caPrint" accept="image/*" multiple>
+    <div class="ca-hint" id="caArquivosInfo"></div>
 
     <div style="font-size:12px;color:var(--text-muted);margin-top:16px;display:flex;align-items:center;gap:6px;"><i class="ti ti-user-circle" aria-hidden="true"></i> Registrando como <strong style="color:var(--text)"><%= usuario.nome %></strong></div>
     <button class="btn-primary" id="caBtnEnviar" onclick="caEnviar()"><i class="ti ti-send" aria-hidden="true"></i> Registrar corrida</button>

@@ -12,6 +12,14 @@ function toBase64(file) {
   });
 }
 
+const CA_TAMANHO_MAX_TOTAL = 20 * 1024 * 1024;
+
+document.getElementById('caPrint').addEventListener('change', (e) => {
+  const arquivos = Array.from(e.target.files);
+  const info = document.getElementById('caArquivosInfo');
+  info.textContent = arquivos.length ? `${arquivos.length} arquivo(s): ${arquivos.map((f) => f.name).join(', ')}` : '';
+});
+
 function caFmtISO(d) {
   return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
 }
@@ -46,13 +54,20 @@ async function caEnviar() {
   const motorista = document.getElementById('caMotorista').value.trim();
   const valor = document.getElementById('caValor').value;
   const printInput = document.getElementById('caPrint');
-  const arquivo = printInput.files[0];
+  const arquivos = Array.from(printInput.files);
 
   const msg = document.getElementById('caMsg');
   msg.className = 'msg';
 
-  if (!data || !nf || !endereco || !motorista || !valor || !arquivo) {
+  if (!data || !nf || !endereco || !motorista || !valor || !arquivos.length) {
     msg.textContent = 'Preencha todos os campos obrigatórios (*), incluindo o print do motorista.';
+    msg.classList.add('err');
+    return;
+  }
+
+  const tamanhoTotal = arquivos.reduce((soma, f) => soma + f.size, 0);
+  if (tamanhoTotal > CA_TAMANHO_MAX_TOTAL) {
+    msg.textContent = 'Os prints somados passam de 20 MB. Envie arquivos menores.';
     msg.classList.add('err');
     return;
   }
@@ -62,15 +77,17 @@ async function caEnviar() {
   btn.textContent = 'Enviando...';
 
   try {
-    const imagemBase64 = await toBase64(arquivo);
+    const imagens = await Promise.all(arquivos.map(async (arquivo) => ({
+      base64: await toBase64(arquivo),
+      tipo: arquivo.type,
+    })));
     const payload = {
       dataCorrida: data,
       numeroNf: nf,
       endereco,
       nomeMotorista: motorista,
       valor,
-      imagemBase64,
-      imagemTipo: arquivo.type,
+      imagens,
     };
 
     const resp = await fetch('/corridas-avulsas/api/cadastrar', {
@@ -88,6 +105,7 @@ async function caEnviar() {
       document.getElementById('caMotorista').value = '';
       document.getElementById('caValor').value = '';
       printInput.value = '';
+      document.getElementById('caArquivosInfo').textContent = '';
       document.getElementById('caData').value = caFmtISO(new Date());
       if (caSemanaOffset === 0) caCarregarSemana();
     } else {
@@ -166,7 +184,7 @@ function caRenderLista() {
       <td>${caEsc(it.endereco)}</td>
       <td>${caEsc(it.nomeMotorista)}</td>
       <td class="ca-td-valor">${caFmtBRL(it.valor)}</td>
-      <td class="ca-td-print">${it.printUrl ? `<a href="${it.printUrl}" target="_blank" rel="noopener"><i class="ti ti-photo" aria-hidden="true"></i> Ver</a>` : '—'}</td>
+      <td class="ca-td-print">${(it.printUrls && it.printUrls.length) ? it.printUrls.map((url, i) => `<a href="${url}" target="_blank" rel="noopener"><i class="ti ti-photo" aria-hidden="true"></i> ${it.printUrls.length > 1 ? i + 1 : 'Ver'}</a>`).join(' ') : '—'}</td>
     </tr>
   `).join('');
 
