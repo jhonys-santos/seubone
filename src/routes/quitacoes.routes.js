@@ -15,7 +15,7 @@ router.get('/historico', (req, res) => res.render('quitacoes/historico'));
 // quem cobrar). A planilha sempre devolve tudo — o filtro que importa de
 // verdade é este aqui, no servidor, nunca só escondido na tela.
 function podeVer(usuario, item) {
-  return usuario.role === 'gestor' || item.cadastrado_por_slug === usuario.slug;
+  return usuario.role === 'gestor' || item.cadastradoPorSlug === usuario.slug;
 }
 
 router.post('/api/cadastrar', async (req, res) => {
@@ -61,7 +61,7 @@ router.post('/api/marcar-pago', async (req, res) => {
     if (u.role !== 'gestor') {
       const atual = await chamarAppsScript(env.quitacoesAppsScriptUrl, { params: { action: 'lista', status: 'pendente' } });
       const item = (atual.itens || []).find((i) => String(i.id) === String(id));
-      if (!item || item.cadastrado_por_slug !== u.slug) {
+      if (!item || item.cadastradoPorSlug !== u.slug) {
         return res.status(403).json({ ok: false, erro: 'Você só pode marcar como pago pedidos que você mesmo cadastrou.' });
       }
     }
