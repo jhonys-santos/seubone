@@ -25,15 +25,13 @@ function renderizarAnexos(anexosJson) {
     return '—';
   }
   if (!anexos || !anexos.length) return '—';
-  return anexos.map((a, i) => {
+  const botoes = anexos.map((a, i) => {
     const rotulo = 'Anexo ' + (i + 1);
     const nomeArquivo = escapeHtml(a.nome) || rotulo;
-    const abrir = `<a href="${escapeHtml(a.url)}" target="_blank" rel="noopener" title="${nomeArquivo}">${rotulo}</a>`;
-    const download = a.downloadUrl
-      ? ` <a href="${escapeHtml(a.downloadUrl)}" target="_blank" rel="noopener" title="Baixar ${nomeArquivo}">(baixar)</a>`
-      : '';
-    return abrir + download;
-  }).join('<br>');
+    const href = escapeHtml(a.downloadUrl || a.url);
+    return `<a class="link-btn" href="${href}" target="_blank" rel="noopener" title="${nomeArquivo}"><i class="ti ti-download" aria-hidden="true"></i> ${rotulo}</a>`;
+  }).join('');
+  return `<div style="display:flex;flex-direction:column;gap:6px;">${botoes}</div>`;
 }
 
 async function carregar() {
@@ -85,7 +83,6 @@ function renderizar() {
   tbody.innerHTML = lista.map((s) => `
     <tr>
       <td>${formatarData(s.Data)}</td>
-      <td>${formatarData(s.DataVencimento) || '—'}</td>
       <td>${escapeHtml(s.IDCompra)}</td>
       <td>${s.LinkCard ? `<a class="link-btn" href="${escapeHtml(s.LinkCard)}" target="_blank" rel="noopener"><i class="ti ti-external-link" aria-hidden="true"></i> Abrir</a>` : '—'}</td>
       <td>${escapeHtml(s.Solicitante)}</td>
