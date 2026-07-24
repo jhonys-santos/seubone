@@ -26,10 +26,11 @@ function renderizarAnexos(anexosJson) {
   }
   if (!anexos || !anexos.length) return '—';
   return anexos.map((a, i) => {
-    const nome = escapeHtml(a.nome) || ('anexo ' + (i + 1));
-    const abrir = `<a href="${escapeHtml(a.url)}" target="_blank" rel="noopener">${nome}</a>`;
+    const rotulo = 'Anexo ' + (i + 1);
+    const nomeArquivo = escapeHtml(a.nome) || rotulo;
+    const abrir = `<a href="${escapeHtml(a.url)}" target="_blank" rel="noopener" title="${nomeArquivo}">${rotulo}</a>`;
     const download = a.downloadUrl
-      ? ` <a href="${escapeHtml(a.downloadUrl)}" target="_blank" rel="noopener" title="Baixar ${nome}">(baixar)</a>`
+      ? ` <a href="${escapeHtml(a.downloadUrl)}" target="_blank" rel="noopener" title="Baixar ${nomeArquivo}">(baixar)</a>`
       : '';
     return abrir + download;
   }).join('<br>');
@@ -88,38 +89,13 @@ function renderizar() {
       <td>${escapeHtml(s.IDCompra)}</td>
       <td>${s.LinkCard ? `<a class="link-btn" href="${escapeHtml(s.LinkCard)}" target="_blank" rel="noopener"><i class="ti ti-external-link" aria-hidden="true"></i> Abrir</a>` : '—'}</td>
       <td>${escapeHtml(s.Solicitante)}</td>
-      <td>${escapeHtml(s.Empresa) || '—'}</td>
       <td>${escapeHtml(s.DemandaSolicitada) || '—'}</td>
       <td>${escapeHtml(s.Observacao) || '—'}</td>
       <td>${renderizarAnexos(s.Anexos)}</td>
       <td><span class="badge ${s.Status === 'Feito' ? 'ok' : 'warn'}">${s.Status}</span></td>
       <td>${escapeHtml(s.FeitoPor) || '—'}</td>
-      <td><button class="btn-secondary" style="width:auto;padding:7px 12px;font-size:12px;" onclick="alternarStatus('${s.ID}', '${s.Status}')">
-        ${s.Status === 'Feito' ? 'Marcar pendente' : 'Marcar feito'}
-      </button></td>
     </tr>
   `).join('');
-}
-
-async function alternarStatus(id, statusAtual) {
-  const novoStatus = statusAtual === 'Feito' ? 'Pendente' : 'Feito';
-  let marcadoPor = '';
-  if (novoStatus === 'Feito') {
-    marcadoPor = await hubPrompt('Seu nome (quem está marcando como feito):', { textoConfirmar: 'Marcar feito' });
-    if (!marcadoPor) return;
-  }
-  try {
-    const resp = await fetch('/registro-demandas/api/marcar', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: id, status: novoStatus, marcadoPor: marcadoPor }),
-    });
-    const data = await resp.json();
-    if (!data.ok) throw new Error(data.erro || 'erro ao atualizar');
-    carregar();
-  } catch (err) {
-    await hubAlert('Erro ao atualizar status: ' + err.message, 'erro');
-  }
 }
 
 document.getElementById('btn-filtrar').addEventListener('click', renderizar);

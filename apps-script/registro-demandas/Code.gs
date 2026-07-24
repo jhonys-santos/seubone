@@ -251,12 +251,12 @@ function marcarGenerico(cfg, body) {
     if (body.status) aba.getRange(linhaEncontrada, cfg.colStatus).setValue(body.status);
     if (body.marcadoPor !== undefined) aba.getRange(linhaEncontrada, cfg.colFeitoPor).setValue(body.marcadoPor || '');
 
+    // Substitui os anexos originais pelo comprovante do financeiro — só o
+    // que volta do n8n deve ficar visível depois que a solicitação é
+    // concluída (decisão do usuário; antes isso somava aos anexos antigos).
     if (body.anexos && body.anexos.length) {
       const anexosNovos = processarAnexos(body.anexos);
-      const celAnexos = aba.getRange(linhaEncontrada, cfg.colAnexos);
-      let anexosAtuais = [];
-      try { anexosAtuais = JSON.parse(celAnexos.getValue() || '[]'); } catch (e) {}
-      celAnexos.setValue(JSON.stringify(anexosAtuais.concat(anexosNovos)));
+      aba.getRange(linhaEncontrada, cfg.colAnexos).setValue(JSON.stringify(anexosNovos));
     }
 
     return { ok: true };
@@ -300,7 +300,7 @@ function formatarDataSaida(v) {
 }
 
 function processarAnexos(lista) {
-  if (!lista || !lista.length) return [];
+  if (!Array.isArray(lista) || !lista.length) return [];
   return lista.map((a) => salvarAnexo(a.base64, a.tipo, a.nome));
 }
 
