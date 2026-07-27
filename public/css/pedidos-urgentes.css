@@ -115,6 +115,18 @@ button { cursor: pointer; font-family: inherit; font-weight: 700; border: none; 
 .link-btn:hover { border-color: var(--gold-dark); color: var(--gold); }
 .link-btn i { font-size: 13px; }
 
+/* Anexos em tabela — mais discreto que .link-btn (usado em botões de ação
+   isolados), pra não pesar quando tem vários numa coluna só. */
+.anexo-btn {
+  display: inline-flex; align-items: center; gap: 4px; white-space: nowrap;
+  padding: 4px 9px;
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm);
+  color: var(--text-muted); font-size: 11px; font-weight: 600; font-family: inherit;
+  text-decoration: none; cursor: pointer; transition: all .15s;
+}
+.anexo-btn:hover { border-color: var(--gold-dark); color: var(--gold); }
+.anexo-btn i { font-size: 12px; }
+
 .pedido-actions { display: flex; gap: 8px; justify-content: flex-end; }
 
 .observacao { background: var(--warn-bg); color: var(--warn); border: 1px solid rgba(255,158,44,0.3); border-radius: var(--radius-sm); padding: 10px 12px; font-size: 13px; font-weight: 600; margin: 4px 0 14px; display: flex; align-items: flex-start; gap: 8px; }

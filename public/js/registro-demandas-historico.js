@@ -29,9 +29,9 @@ function renderizarAnexos(anexosJson) {
     const rotulo = 'Anexo ' + (i + 1);
     const nomeArquivo = escapeHtml(a.nome) || rotulo;
     const href = escapeHtml(a.downloadUrl || a.url);
-    return `<a class="link-btn" href="${href}" target="_blank" rel="noopener" title="${nomeArquivo}"><i class="ti ti-download" aria-hidden="true"></i> ${rotulo}</a>`;
+    return `<a class="anexo-btn" href="${href}" target="_blank" rel="noopener" title="${nomeArquivo}"><i class="ti ti-download" aria-hidden="true"></i> ${rotulo}</a>`;
   }).join('');
-  return `<div style="display:flex;flex-direction:column;gap:6px;">${botoes}</div>`;
+  return `<div style="display:flex;flex-direction:column;align-items:flex-start;gap:4px;">${botoes}</div>`;
 }
 
 async function carregar() {
