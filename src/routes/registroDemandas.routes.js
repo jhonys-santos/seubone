@@ -110,10 +110,12 @@ router.post('/api/create-reembolso', async (req, res) => {
     if (json.ok) {
       // "id" no req.body é a referência que a pessoa digitou no formulário
       // (coluna IDReferencia na planilha), não o ID interno gerado pelo
-      // Apps Script — precisa sair do spread, senão sobrescreve json.id
-      // (que é o ID que o callback do n8n vai usar pra achar a linha depois).
+      // Apps Script — precisa sair do spread, senão sobrescreve o ID real.
+      // Manda como "idPainelSc" (mesmo nome do campo customizado já usado
+      // no ClickUp do Registro) pra não ficar ambíguo com "idReferencia" na
+      // hora de mapear os campos no n8n.
       const { anexos, id: idReferencia, ...campos } = req.body;
-      notificarN8n('reembolso', { id: json.id, idReferencia, ...campos, anexos: json.anexos || [] });
+      notificarN8n('reembolso', { idPainelSc: json.id, idReferencia, ...campos, anexos: json.anexos || [] });
     }
     res.json(json);
   } catch (err) {
