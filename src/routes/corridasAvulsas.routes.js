@@ -1,6 +1,7 @@
 const express = require('express');
 const { requireAuth } = require('../middleware/auth');
 const { chamarAppsScript } = require('../services/appsScriptClient');
+const notificacoesService = require('../services/notificacoes.service');
 const env = require('../config/env');
 
 const router = express.Router();
@@ -22,6 +23,10 @@ router.post('/webhook/n8n', async (req, res) => {
       method: 'POST',
       body: { action: 'marcar', id, concluidoPor: concluidoPor || 'Financeiro (n8n)', anexos: anexos || [] },
     });
+    if (json.ok) {
+      notificacoesService.adicionar(`Pagamento ${id} foi concluído pelo financeiro.`, '/corridas-avulsas')
+        .catch((err) => console.error('[corridas-avulsas] falha ao criar notificação:', err.message));
+    }
     res.json(json);
   } catch (err) {
     res.status(502).json({ ok: false, erro: 'Falha ao processar retorno do n8n: ' + err.message });

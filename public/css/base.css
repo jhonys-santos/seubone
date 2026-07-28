@@ -297,6 +297,35 @@ i.ti { line-height: 1; }
 .sidebar-user-name { font-size: 13px; font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sidebar-role-badge { font-size: 9.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--gold); }
 
+.sidebar-bell {
+  position: relative; margin-left: auto; flex-shrink: 0;
+  background: none; border: none; cursor: pointer; color: var(--text-muted);
+  font-size: 17px; padding: 6px; border-radius: var(--radius-sm); transition: all .15s;
+}
+.sidebar-bell:hover { background: var(--surface-2); color: var(--gold); }
+.sidebar-bell-badge {
+  position: absolute; top: 1px; right: 1px; min-width: 15px; height: 15px; padding: 0 3px;
+  background: var(--bad); color: #fff; font-size: 9.5px; font-weight: 700;
+  border-radius: 20px; display: flex; align-items: center; justify-content: center;
+  line-height: 1; font-family: inherit;
+}
+
+.notificacao-item {
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm);
+  padding: 10px 12px; display: flex; align-items: flex-start; gap: 10px;
+}
+.notificacao-item-texto { flex: 1; min-width: 0; }
+.notificacao-item-msg { font-size: 12.5px; color: var(--text); line-height: 1.4; }
+.notificacao-item-msg a { color: var(--gold); text-decoration: none; }
+.notificacao-item-msg a:hover { text-decoration: underline; }
+.notificacao-item-data { font-size: 10.5px; color: var(--text-hint); margin-top: 3px; }
+.notificacao-item-marcar {
+  background: none; border: 1px solid var(--border); border-radius: var(--radius-sm);
+  padding: 5px 8px; color: var(--text-muted); cursor: pointer; flex-shrink: 0; font-size: 13px;
+  transition: all .15s;
+}
+.notificacao-item-marcar:hover { border-color: var(--gold-dark); color: var(--gold); }
+
 .sidebar-lembrete {
   display: flex; align-items: center; gap: 6px; margin: 4px 0 10px;
   background: var(--warn-bg); border: 1px solid var(--warn); border-radius: var(--radius-sm);

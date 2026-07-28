@@ -16,6 +16,7 @@ const PASTA_ANEXOS_ID = 'PREENCHA_APENAS_NO_APPS_SCRIPT_REAL';
 
 const ABA_REGISTRO = 'Registro';
 const ABA_REEMBOLSO = 'Reembolso';
+const ABA_NOTIFICACOES = 'Notificacoes';
 
 // Só o hub chama este Apps Script (nunca o navegador direto) — por isso a
 // única autenticação aqui é o segredo compartilhado, sem login de usuário.
@@ -28,6 +29,7 @@ function doGet(e) {
     // é o formato que o front-end do hub já espera pra essas duas ações.
     if (p.action === 'list') return out(listarRegistros());
     if (p.action === 'listReembolso') return out(listarReembolsos());
+    if (p.action === 'listarNotificacoes') return out(listarNotificacoes());
     return out({ erro: 'Acao desconhecida' });
   } catch (err) {
     return out({ erro: err.message });
@@ -46,6 +48,9 @@ function doPost(e) {
     if (body.action === 'marcarReembolso') {
       return out(marcarGenerico({ nomeAba: ABA_REEMBOLSO, colStatus: 16, colFeitoPor: 17, colAnexos: 15 }, body));
     }
+    if (body.action === 'criarNotificacao') return out(criarNotificacao(body));
+    if (body.action === 'marcarNotificacaoLida') return out(marcarNotificacaoLida(body));
+    if (body.action === 'excluirNotificacao') return out(excluirNotificacao(body));
     return out({ ok: false, erro: 'Acao desconhecida' });
   } catch (err) {
     return out({ ok: false, erro: err.message });
@@ -263,6 +268,83 @@ function marcarGenerico(cfg, body) {
   } finally {
     lock.releaseLock();
   }
+}
+
+// ---------- NOTIFICAÇÕES (sininho da sidebar) ----------
+// Colunas (1-indexed): ID, Mensagem, Link, LidaPor, CriadoEm. Fica na mesma
+// planilha do Registro/Reembolso só por conveniência (evita depender de
+// disco local do Render, que se perde a cada deploy) — sem relação de
+// dados com as outras abas. "LidaPor" é um array JSON de slugs — quem já
+// leu; toda a lógica de "quem vê o quê" e "quando apagar" fica no hub
+// (src/services/notificacoes.service.js), aqui é só CRUD cru.
+
+function getAbaNotificacoes(ss) {
+  let aba = ss.getSheetByName(ABA_NOTIFICACOES);
+  if (!aba) {
+    aba = ss.insertSheet(ABA_NOTIFICACOES);
+    aba.appendRow(['ID', 'Mensagem', 'Link', 'LidaPor', 'CriadoEm']);
+  }
+  return aba;
+}
+
+function listarNotificacoes() {
+  const ss = SpreadsheetApp.openById(SHEET_ID);
+  const aba = getAbaNotificacoes(ss);
+  const linhas = aba.getDataRange().getValues().slice(1).filter((r) => r[0] !== '');
+  return linhas.map((r) => {
+    let lidaPor = [];
+    try { lidaPor = JSON.parse(r[3] || '[]'); } catch (err) {}
+    return {
+      id: String(r[0]),
+      mensagem: String(r[1] || ''),
+      link: r[2] || null,
+      lidaPor: lidaPor,
+      criadoEm: formatarDataSaida(r[4]),
+    };
+  });
+}
+
+function criarNotificacao(body) {
+  const ss = SpreadsheetApp.openById(SHEET_ID);
+  const aba = getAbaNotificacoes(ss);
+  const id = gerarId('NTF');
+  aba.appendRow([id, body.mensagem || '', body.link || '', '[]', new Date()]);
+  return { ok: true, id: id };
+}
+
+function marcarNotificacaoLida(body) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    const ss = SpreadsheetApp.openById(SHEET_ID);
+    const aba = getAbaNotificacoes(ss);
+    const dados = aba.getDataRange().getValues();
+    for (let i = 1; i < dados.length; i++) {
+      if (String(dados[i][0]) === String(body.id)) {
+        let lidaPor = [];
+        try { lidaPor = JSON.parse(dados[i][3] || '[]'); } catch (err) {}
+        if (lidaPor.indexOf(body.slug) === -1) lidaPor.push(body.slug);
+        aba.getRange(i + 1, 4).setValue(JSON.stringify(lidaPor));
+        return { ok: true };
+      }
+    }
+    return { ok: false, erro: 'Notificacao nao encontrada: ' + body.id };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function excluirNotificacao(body) {
+  const ss = SpreadsheetApp.openById(SHEET_ID);
+  const aba = getAbaNotificacoes(ss);
+  const dados = aba.getDataRange().getValues();
+  for (let i = 1; i < dados.length; i++) {
+    if (String(dados[i][0]) === String(body.id)) {
+      aba.deleteRow(i + 1);
+      return { ok: true };
+    }
+  }
+  return { ok: false, erro: 'Notificacao nao encontrada: ' + body.id };
 }
 
 // ---------- HELPERS ----------

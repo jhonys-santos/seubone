@@ -284,6 +284,108 @@ function copiarTexto(texto, btn) {
   document.addEventListener('DOMContentLoaded', inicializarLembreteCorridas);
 })();
 
+// Sininho de notificações (topo da sidebar) — avisa quando uma solicitação
+// (Registro, Reembolso, Pagamento) volta do financeiro marcada como
+// concluída. Faz polling da API a cada 25s; toca um som só quando aparece
+// notificação nova (não a cada poll), pra não repetir o som toda vez que
+// alguém reabre o pop-up sem ter nada de novo.
+(function () {
+  let idsConhecidos = new Set();
+  let primeiraCarga = true;
+
+  function tocarCampainha() {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      [1046, 784].forEach((f, i) => {
+        const o = ctx.createOscillator(), g = ctx.createGain();
+        o.connect(g); g.connect(ctx.destination);
+        o.type = 'sine'; o.frequency.value = f;
+        const t = ctx.currentTime + i * .14;
+        g.gain.setValueAtTime(0, t);
+        g.gain.linearRampToValueAtTime(.18, t + .04);
+        g.gain.linearRampToValueAtTime(0, t + .3);
+        o.start(t); o.stop(t + .32);
+      });
+    } catch (e) {}
+  }
+
+  function formatarDataNotificacao(iso) {
+    const d = new Date(iso);
+    const hoje = new Date();
+    const mesmoDia = d.toDateString() === hoje.toDateString();
+    const hora = String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+    if (mesmoDia) return 'Hoje, ' + hora;
+    return String(d.getDate()).padStart(2, '0') + '/' + String(d.getMonth() + 1).padStart(2, '0') + ' às ' + hora;
+  }
+
+  function renderNotificacoes(lista) {
+    const container = document.getElementById('notificacoes-lista');
+    if (!container) return;
+    if (!lista.length) {
+      container.innerHTML = '<div style="font-size:12px;color:var(--text-hint);text-align:center;padding:16px">Nenhuma notificação nova.</div>';
+      return;
+    }
+    container.innerHTML = lista.map((n) => `
+      <div class="notificacao-item" id="notif-${n.id}">
+        <div class="notificacao-item-texto">
+          <div class="notificacao-item-msg">${n.link ? `<a href="${n.link}">${esc(n.mensagem)}</a>` : esc(n.mensagem)}</div>
+          <div class="notificacao-item-data">${formatarDataNotificacao(n.criadoEm)}</div>
+        </div>
+        <button class="notificacao-item-marcar" onclick="marcarNotificacaoLida('${n.id}')" title="Marcar como lida"><i class="ti ti-check"></i></button>
+      </div>
+    `).join('');
+  }
+
+  async function carregarNotificacoes() {
+    try {
+      const resp = await fetch('/api/notificacoes');
+      const json = await resp.json();
+      if (!json.ok) return;
+      const lista = json.notificacoes || [];
+
+      const idsAtuais = new Set(lista.map((n) => n.id));
+      if (!primeiraCarga) {
+        const temNova = [...idsAtuais].some((id) => !idsConhecidos.has(id));
+        if (temNova) tocarCampainha();
+      }
+      idsConhecidos = idsAtuais;
+      primeiraCarga = false;
+
+      const badge = document.getElementById('sidebarBellBadge');
+      if (badge) {
+        if (lista.length) { badge.textContent = lista.length > 9 ? '9+' : String(lista.length); badge.style.display = 'flex'; }
+        else badge.style.display = 'none';
+      }
+
+      const modalAberto = document.getElementById('modal-notificacoes')?.classList.contains('show');
+      if (modalAberto) renderNotificacoes(lista);
+    } catch (e) {}
+  }
+
+  window.abrirNotificacoes = function abrirNotificacoes() {
+    document.getElementById('modal-notificacoes').classList.add('show');
+    carregarNotificacoes();
+  };
+  window.fecharNotificacoes = function fecharNotificacoes() {
+    document.getElementById('modal-notificacoes').classList.remove('show');
+  };
+
+  window.marcarNotificacaoLida = async function marcarNotificacaoLida(id) {
+    const el = document.getElementById('notif-' + id);
+    if (el) el.remove();
+    try {
+      await fetch(`/api/notificacoes/${id}/marcar-lida`, { method: 'POST' });
+    } catch (e) {}
+    carregarNotificacoes();
+  };
+
+  document.addEventListener('DOMContentLoaded', () => {
+    if (!document.getElementById('sidebarBell')) return;
+    carregarNotificacoes();
+    setInterval(carregarNotificacoes, 25000);
+  });
+})();
+
 // Substitui os alert()/confirm() nativos do navegador (que bloqueiam a
 // página inteira e destoam do resto do visual) por um diálogo no mesmo
 // padrão do hub. Carregado em toda página via partials/head.

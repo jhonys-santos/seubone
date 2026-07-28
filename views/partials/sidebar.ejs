@@ -22,6 +22,10 @@
       <span class="sidebar-user-name"><%= usuario.nome %></span>
       <span class="sidebar-role-badge"><%= usuario.role %></span>
     </div>
+    <button type="button" class="sidebar-bell" id="sidebarBell" onclick="abrirNotificacoes()" aria-label="Notificações">
+      <i class="ti ti-bell" aria-hidden="true"></i>
+      <span class="sidebar-bell-badge" id="sidebarBellBadge" style="display:none">0</span>
+    </button>
   </div>
   <% } %>
 
@@ -164,6 +168,22 @@
       </div>
       <div id="acesso-erro" style="display:none;font-size:11px;color:var(--bad-text);margin-top:8px"></div>
     </div>
+  </div>
+</div>
+<% } %>
+
+<% if (typeof usuario !== 'undefined' && usuario) { %>
+<!-- MODAL NOTIFICAÇÕES -->
+<div class="modal-overlay" id="modal-notificacoes" onclick="if(event.target===this)fecharNotificacoes()">
+  <div class="modal-box" style="max-width:420px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem">
+      <div>
+        <div style="font-size:15px;font-weight:700"><i class="ti ti-bell" style="color:var(--gold);margin-right:6px"></i>Notificações</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:2px">Solicitações concluídas pelo financeiro</div>
+      </div>
+      <button onclick="fecharNotificacoes()" style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:20px;line-height:1;padding:4px"><i class="ti ti-x"></i></button>
+    </div>
+    <div id="notificacoes-lista" style="display:flex;flex-direction:column;gap:8px;max-height:400px;overflow-y:auto;padding-right:2px"></div>
   </div>
 </div>
 <% } %>
