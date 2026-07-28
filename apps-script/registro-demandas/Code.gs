@@ -43,10 +43,10 @@ function doPost(e) {
     if (body.action === 'create') return out(criarRegistro(body));
     if (body.action === 'createReembolso') return out(criarReembolso(body));
     if (body.action === 'marcar') {
-      return out(marcarGenerico({ nomeAba: ABA_REGISTRO, colStatus: 14, colFeitoPor: 15, colAnexos: 13 }, body));
+      return out(marcarGenerico({ nomeAba: ABA_REGISTRO, colStatus: 14, colFeitoPor: 15, colAnexos: 13, colReferencia: 4 }, body));
     }
     if (body.action === 'marcarReembolso') {
-      return out(marcarGenerico({ nomeAba: ABA_REEMBOLSO, colStatus: 16, colFeitoPor: 17, colAnexos: 15 }, body));
+      return out(marcarGenerico({ nomeAba: ABA_REEMBOLSO, colStatus: 16, colFeitoPor: 17, colAnexos: 15, colReferencia: 3 }, body));
     }
     if (body.action === 'criarNotificacao') return out(criarNotificacao(body));
     if (body.action === 'marcarNotificacaoLida') return out(marcarNotificacaoLida(body));
@@ -264,7 +264,12 @@ function marcarGenerico(cfg, body) {
       aba.getRange(linhaEncontrada, cfg.colAnexos).setValue(JSON.stringify(anexosNovos));
     }
 
-    return { ok: true };
+    // Devolve a referência legível (ID da venda no Registro, ID digitado
+    // no Reembolso) pro hub poder montar a notificação sem usar o ID
+    // interno (RD.../RB...), que não significa nada pra quem só quer saber
+    // qual solicitação foi concluída.
+    const referencia = cfg.colReferencia ? String(aba.getRange(linhaEncontrada, cfg.colReferencia).getValue() || '') : '';
+    return { ok: true, referencia: referencia };
   } finally {
     lock.releaseLock();
   }

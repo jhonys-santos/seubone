@@ -26,9 +26,9 @@ router.post('/webhook/n8n', async (req, res) => {
       body: { action, id, status: 'Feito', marcadoPor: concluidoPor || 'Financeiro (n8n)', anexos: anexos || [] },
     });
     if (json.ok) {
-      const rotulo = tipo === 'reembolso' ? 'Reembolso' : 'Demanda';
       const link = tipo === 'reembolso' ? '/registro-demandas/historico-reembolso' : '/registro-demandas/historico';
-      notificacoesService.adicionar(`${rotulo} ${id} foi concluído pelo financeiro.`, link)
+      const referencia = json.referencia || id;
+      notificacoesService.adicionar(`Solicitação referente ao ID ${referencia} foi concluída pelo financeiro.`, link)
         .catch((err) => console.error('[registro-demandas] falha ao criar notificação:', err.message));
     }
     res.json(json);
