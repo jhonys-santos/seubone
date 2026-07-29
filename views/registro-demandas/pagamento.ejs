@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<%- include('../partials/head') %>
+<title>Pagamento — SeuBoné</title>
+<link rel="stylesheet" href="/css/pedidos-urgentes.css">
+</head>
+<body>
+<div class="app-shell">
+<%- include('../partials/sidebar') %>
+<div class="app-main">
+
+<div class="pu-scope">
+<div class="pu-container">
+  <div class="card">
+    <div class="row2">
+      <div>
+        <label>Razão social *</label>
+        <input type="text" id="pg-razaosocial" placeholder="Nome de quem vai receber o pagamento">
+      </div>
+      <div>
+        <label>Seu nome *</label>
+        <input type="text" id="pg-solicitante" list="pg-lista-solicitantes" placeholder="Quem está solicitando">
+        <datalist id="pg-lista-solicitantes">
+          <option value="Nathalia Guedes">
+          <option value="Iasmin Silva">
+          <option value="Francis Medeiros">
+          <option value="Daniel Sheldon">
+          <option value="Wallac Mauricio">
+          <option value="Gabrielle Batista">
+          <option value="Jhonys Santos">
+        </datalist>
+      </div>
+    </div>
+
+    <div class="row2">
+      <div>
+        <label>Data de vencimento *</label>
+        <input type="date" id="pg-vencimento">
+      </div>
+      <div>
+        <label>CPF/CNPJ *</label>
+        <input type="text" id="pg-cpfcnpj" placeholder="Inserir texto">
+      </div>
+    </div>
+
+    <label>E-mail do solicitante *</label>
+    <input type="email" id="pg-email" placeholder="Inserir e-mail">
+
+    <label>Motivo do pagamento *</label>
+    <textarea id="pg-motivo" rows="3" placeholder="Inserir texto"></textarea>
+
+    <div class="row2">
+      <div>
+        <label>Banco *</label>
+        <select id="pg-banco">
+          <option value="">Selecionar opção...</option>
+          <option>Banco do Brasil</option>
+          <option>Itaú</option>
+          <option>Bradesco</option>
+          <option>Santander</option>
+          <option>Caixa Econômica Federal</option>
+          <option>Nubank</option>
+          <option>Banco Inter</option>
+          <option>C6 Bank</option>
+          <option>Sicoob</option>
+          <option>Sicredi</option>
+          <option>Outro</option>
+        </select>
+      </div>
+      <div>
+        <label>Agência *</label>
+        <input type="text" id="pg-agencia" placeholder="Inserir número">
+      </div>
+    </div>
+
+    <div class="row2">
+      <div>
+        <label>Conta *</label>
+        <input type="text" id="pg-conta" placeholder="Inserir texto">
+      </div>
+      <div>
+        <label>Chave pix *</label>
+        <input type="text" id="pg-chavepix" placeholder="Inserir texto">
+      </div>
+    </div>
+
+    <div class="row2">
+      <div>
+        <label>Tipo de chave *</label>
+        <select id="pg-tipochave">
+          <option value="">Selecionar opção...</option>
+          <option>CPF</option>
+          <option>CNPJ</option>
+          <option>E-mail</option>
+          <option>Telefone</option>
+          <option>Aleatória</option>
+        </select>
+      </div>
+      <div>
+        <label>Valor *</label>
+        <input type="text" id="pg-valor" placeholder="Inserir moeda">
+      </div>
+    </div>
+
+    <div class="row2">
+      <div>
+        <label>Número da Nota Fiscal *</label>
+        <input type="text" id="pg-numeronf" placeholder="Inserir número">
+      </div>
+      <div>
+        <label>Empresa Responsável *</label>
+        <select id="pg-empresa">
+          <option value="">Selecionar opção...</option>
+          <option>SeuBoné</option>
+        </select>
+      </div>
+    </div>
+
+    <label>Anexos *</label>
+    <div style="font-size:12px;color:var(--text-muted);margin:0 0 6px;">Comprovantes ou notas para a solicitação</div>
+    <input type="file" id="pg-anexos" multiple>
+    <div style="font-size:12px;color:var(--text-muted);margin-top:6px;">Pode selecionar mais de um arquivo. Prefira arquivos de até 5 MB cada.</div>
+
+    <button class="btn-primary" id="btn-registrar"><i class="ti ti-send" aria-hidden="true"></i> Enviar</button>
+    <div class="msg" id="form-msg"></div>
+  </div>
+</div>
+</div>
+
+</div>
+</div>
+
+<script src="/js/registro-demandas-pagamento.js"></script>
+</body>
+</html>

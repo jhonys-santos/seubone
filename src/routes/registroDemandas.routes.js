@@ -58,6 +58,23 @@ async function notificarN8n(tipo, payload) {
   }
 }
 
+// Pagamento (geral) usa a mesma planilha/webhook do "Solicitar pagamento"
+// de Corridas Avulsas (env.corridasPagamentosAppsScriptUrl /
+// env.n8nCorridasPagamentosWebhookUrl) — são dois pontos de entrada pro
+// mesmo pipeline, não dois sistemas separados.
+async function notificarN8nPagamento(payload) {
+  if (!env.n8nCorridasPagamentosWebhookUrl) return;
+  try {
+    await fetch(env.n8nCorridasPagamentosWebhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+  } catch (err) {
+    console.error('[registro-demandas] falha ao notificar n8n (pagamento):', err.message);
+  }
+}
+
 // Sem restrição de painel — "visível pra todo mundo" no hub, por decisão
 // do usuário (diferente da Gestão de Estoque do Wallac, que é só de uma
 // pessoa).
@@ -77,6 +94,14 @@ router.get('/historico-reembolso', (req, res) => {
   res.render('registro-demandas/historico-reembolso');
 });
 
+router.get('/pagamento', (req, res) => {
+  res.render('registro-demandas/pagamento');
+});
+
+router.get('/historico-pagamento', (req, res) => {
+  res.render('registro-demandas/historico-pagamento');
+});
+
 router.get('/api/list', async (req, res) => {
   try {
     const json = await chamarAppsScript(env.registroDemandasAppsScriptUrl, { params: { action: 'list' } });
@@ -92,6 +117,15 @@ router.get('/api/list-reembolso', async (req, res) => {
     res.json(json);
   } catch (err) {
     res.status(502).json({ erro: 'Falha ao buscar reembolsos: ' + err.message });
+  }
+});
+
+router.get('/api/list-pagamento', async (req, res) => {
+  try {
+    const json = await chamarAppsScript(env.corridasPagamentosAppsScriptUrl, { params: { action: 'list' } });
+    res.json(json);
+  } catch (err) {
+    res.status(502).json({ erro: 'Falha ao buscar pagamentos: ' + err.message });
   }
 });
 
@@ -135,6 +169,24 @@ router.post('/api/create-reembolso', async (req, res) => {
     res.json(json);
   } catch (err) {
     res.status(502).json({ ok: false, erro: 'Falha ao registrar reembolso: ' + err.message });
+  }
+});
+
+router.post('/api/create-pagamento', async (req, res) => {
+  try {
+    const { anexos, ...campos } = req.body;
+    // "solicitanteSlug" vem sempre da sessão — ver comentário equivalente
+    // em /api/create.
+    const json = await chamarAppsScript(env.corridasPagamentosAppsScriptUrl, {
+      method: 'POST',
+      body: { action: 'create', ...req.body, solicitanteSlug: req.session.user.slug },
+    });
+    if (json.ok) {
+      notificarN8nPagamento({ id: json.id, ...campos, anexos: json.anexos || [] });
+    }
+    res.json(json);
+  } catch (err) {
+    res.status(502).json({ ok: false, erro: 'Falha ao registrar pagamento: ' + err.message });
   }
 });
 

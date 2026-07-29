@@ -24,7 +24,10 @@ router.post('/webhook/n8n', async (req, res) => {
       body: { action: 'marcar', id, concluidoPor: concluidoPor || 'Financeiro (n8n)', anexos: anexos || [] },
     });
     if (json.ok) {
-      notificacoesService.adicionar(`Pagamento ${id} foi concluído pelo financeiro.`, '/corridas-avulsas', json.solicitanteSlug || null)
+      // Link pro histórico dentro de Solicitações Financeiro — é lá que
+      // fica a lista de todos os pagamentos, venham de Corridas Avulsas
+      // ou do formulário geral (mesma planilha).
+      notificacoesService.adicionar(`Pagamento ${id} foi concluído pelo financeiro.`, '/registro-demandas/historico-pagamento', json.solicitanteSlug || null)
         .catch((err) => console.error('[corridas-avulsas] falha ao criar notificação:', err.message));
     }
     res.json(json);
