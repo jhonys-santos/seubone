@@ -24,7 +24,7 @@ router.post('/webhook/n8n', async (req, res) => {
       body: { action: 'marcar', id, concluidoPor: concluidoPor || 'Financeiro (n8n)', anexos: anexos || [] },
     });
     if (json.ok) {
-      notificacoesService.adicionar(`Pagamento ${id} foi concluído pelo financeiro.`, '/corridas-avulsas')
+      notificacoesService.adicionar(`Pagamento ${id} foi concluído pelo financeiro.`, '/corridas-avulsas', json.solicitanteSlug || null)
         .catch((err) => console.error('[corridas-avulsas] falha ao criar notificação:', err.message));
     }
     res.json(json);
@@ -58,9 +58,11 @@ router.get('/', (req, res) => res.render('corridas-avulsas/index'));
 router.post('/api/solicitar-pagamento', async (req, res) => {
   try {
     const { anexos, ...campos } = req.body;
+    // "solicitanteSlug" vem sempre da sessão, nunca do corpo enviado pelo
+    // cliente — é o que a notificação de retorno usa pra saber quem avisar.
     const json = await chamarAppsScript(env.corridasPagamentosAppsScriptUrl, {
       method: 'POST',
-      body: { action: 'create', ...req.body },
+      body: { action: 'create', ...req.body, solicitanteSlug: req.session.user.slug },
     });
     if (json.ok) {
       notificarN8nPagamento({ id: json.id, ...campos, anexos: json.anexos || [] });

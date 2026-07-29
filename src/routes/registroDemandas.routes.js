@@ -28,7 +28,10 @@ router.post('/webhook/n8n', async (req, res) => {
     if (json.ok) {
       const link = tipo === 'reembolso' ? '/registro-demandas/historico-reembolso' : '/registro-demandas/historico';
       const referencia = json.referencia || id;
-      notificacoesService.adicionar(`Solicitação referente ao ID ${referencia} foi concluída pelo financeiro.`, link)
+      // Notifica só quem criou (slug gravado na hora da criação); se a
+      // solicitação é antiga e não tem isso registrado, avisa todo mundo
+      // em vez de deixar a notificação sem destinatário nenhum.
+      notificacoesService.adicionar(`Solicitação referente ao ID ${referencia} foi concluída pelo financeiro.`, link, json.solicitanteSlug || null)
         .catch((err) => console.error('[registro-demandas] falha ao criar notificação:', err.message));
     }
     res.json(json);
@@ -94,9 +97,12 @@ router.get('/api/list-reembolso', async (req, res) => {
 
 router.post('/api/create', async (req, res) => {
   try {
+    // "solicitanteSlug" vem sempre da sessão, nunca do corpo enviado pelo
+    // cliente — é o que a notificação de retorno usa pra saber quem avisar,
+    // não pode ser algo que o navegador possa forjar.
     const json = await chamarAppsScript(env.registroDemandasAppsScriptUrl, {
       method: 'POST',
-      body: { action: 'create', ...req.body },
+      body: { action: 'create', ...req.body, solicitanteSlug: req.session.user.slug },
     });
     if (json.ok) {
       const { anexos, ...campos } = req.body;
@@ -110,9 +116,11 @@ router.post('/api/create', async (req, res) => {
 
 router.post('/api/create-reembolso', async (req, res) => {
   try {
+    // "solicitanteSlug" vem sempre da sessão — ver comentário equivalente
+    // em /api/create.
     const json = await chamarAppsScript(env.registroDemandasAppsScriptUrl, {
       method: 'POST',
-      body: { action: 'createReembolso', ...req.body },
+      body: { action: 'createReembolso', ...req.body, solicitanteSlug: req.session.user.slug },
     });
     if (json.ok) {
       // "id" no req.body é a referência que a pessoa digitou no formulário

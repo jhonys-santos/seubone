@@ -43,10 +43,10 @@ function doPost(e) {
     if (body.action === 'create') return out(criarRegistro(body));
     if (body.action === 'createReembolso') return out(criarReembolso(body));
     if (body.action === 'marcar') {
-      return out(marcarGenerico({ nomeAba: ABA_REGISTRO, colStatus: 14, colFeitoPor: 15, colAnexos: 13, colReferencia: 4 }, body));
+      return out(marcarGenerico({ nomeAba: ABA_REGISTRO, colStatus: 14, colFeitoPor: 15, colAnexos: 13, colReferencia: 4, colSolicitanteSlug: 17 }, body));
     }
     if (body.action === 'marcarReembolso') {
-      return out(marcarGenerico({ nomeAba: ABA_REEMBOLSO, colStatus: 16, colFeitoPor: 17, colAnexos: 15, colReferencia: 3 }, body));
+      return out(marcarGenerico({ nomeAba: ABA_REEMBOLSO, colStatus: 16, colFeitoPor: 17, colAnexos: 15, colReferencia: 3, colSolicitanteSlug: 19 }, body));
     }
     if (body.action === 'criarNotificacao') return out(criarNotificacao(body));
     if (body.action === 'marcarNotificacaoLida') return out(marcarNotificacaoLida(body));
@@ -60,7 +60,11 @@ function doPost(e) {
 // ---------- REGISTRO ----------
 // Colunas (1-indexed): ID, Data, DataVencimento, IDCompra, LinkCard,
 // Solicitante, Empresa, NumeroCorporativo, TipoDemanda, DemandaSolicitada,
-// Observacao, Email, Anexos, Status, FeitoPor, InseridoEm.
+// Observacao, Email, Anexos, Status, FeitoPor, InseridoEm, SolicitanteSlug.
+// "SolicitanteSlug" é o slug de quem estava logado no hub ao criar — vem
+// da sessão, nunca do texto digitado em "Solicitante" (que é só pra
+// exibição) — usado pra notificar só essa pessoa quando o financeiro
+// concluir.
 
 function getAbaRegistro(ss) {
   let aba = ss.getSheetByName(ABA_REGISTRO);
@@ -69,7 +73,7 @@ function getAbaRegistro(ss) {
     aba.appendRow([
       'ID', 'Data', 'DataVencimento', 'IDCompra', 'LinkCard', 'Solicitante', 'Empresa',
       'NumeroCorporativo', 'TipoDemanda', 'DemandaSolicitada', 'Observacao', 'Email',
-      'Anexos', 'Status', 'FeitoPor', 'InseridoEm',
+      'Anexos', 'Status', 'FeitoPor', 'InseridoEm', 'SolicitanteSlug',
     ]);
     formatarColunasComoTexto(aba, ['D2:D', 'H2:H']); // IDCompra, NumeroCorporativo
   }
@@ -99,6 +103,7 @@ function criarRegistro(body) {
     'Pendente',
     '',
     new Date(),
+    body.solicitanteSlug || '',
   ]);
 
   // appendRow() converte string numérica (ex: "0012") pra número mesmo com
@@ -129,6 +134,7 @@ function linhaParaRegistro(r) {
     Status: String(r[13] || 'Pendente'),
     FeitoPor: String(r[14] || ''),
     InseridoEm: formatarDataSaida(r[15]),
+    SolicitanteSlug: String(r[16] || ''),
   };
 }
 
@@ -142,7 +148,9 @@ function listarRegistros() {
 // ---------- REEMBOLSO ----------
 // Colunas (1-indexed): ID, DataVencimento, IDReferencia, CPFCNPJ, Email,
 // MotivoReembolso, RazaoSocialCliente, Banco, Agencia, Conta, ChavePix,
-// TipoChave, Valor, EmpresaResponsavel, Anexos, Status, FeitoPor, InseridoEm.
+// TipoChave, Valor, EmpresaResponsavel, Anexos, Status, FeitoPor,
+// InseridoEm, SolicitanteSlug. "SolicitanteSlug" — ver comentário
+// equivalente na aba Registro.
 
 function getAbaReembolso(ss) {
   let aba = ss.getSheetByName(ABA_REEMBOLSO);
@@ -151,7 +159,7 @@ function getAbaReembolso(ss) {
     aba.appendRow([
       'ID', 'DataVencimento', 'IDReferencia', 'CPFCNPJ', 'Email', 'MotivoReembolso',
       'RazaoSocialCliente', 'Banco', 'Agencia', 'Conta', 'ChavePix', 'TipoChave',
-      'Valor', 'EmpresaResponsavel', 'Anexos', 'Status', 'FeitoPor', 'InseridoEm',
+      'Valor', 'EmpresaResponsavel', 'Anexos', 'Status', 'FeitoPor', 'InseridoEm', 'SolicitanteSlug',
     ]);
     // IDReferencia, CPFCNPJ, Agencia, Conta, ChavePix
     formatarColunasComoTexto(aba, ['C2:C', 'D2:D', 'I2:I', 'J2:J', 'K2:K']);
@@ -184,6 +192,7 @@ function criarReembolso(body) {
     'Pendente',
     '',
     new Date(),
+    body.solicitanteSlug || '',
   ]);
 
   // appendRow() converte string numérica (ex: "0099") pra número mesmo com
@@ -219,6 +228,7 @@ function linhaParaReembolso(r) {
     Status: String(r[15] || 'Pendente'),
     FeitoPor: String(r[16] || ''),
     InseridoEm: formatarDataSaida(r[17]),
+    SolicitanteSlug: String(r[18] || ''),
   };
 }
 
@@ -269,25 +279,33 @@ function marcarGenerico(cfg, body) {
     // interno (RD.../RB...), que não significa nada pra quem só quer saber
     // qual solicitação foi concluída.
     const referencia = cfg.colReferencia ? String(aba.getRange(linhaEncontrada, cfg.colReferencia).getValue() || '') : '';
-    return { ok: true, referencia: referencia };
+    // Devolve também quem criou (slug da sessão, gravado na hora da
+    // criação) — o hub usa isso pra notificar só essa pessoa em vez de
+    // avisar todo mundo. Linhas antigas, criadas antes dessa coluna
+    // existir, vêm com string vazia — o hub trata isso caindo de volta
+    // pro aviso geral.
+    const solicitanteSlug = cfg.colSolicitanteSlug ? String(aba.getRange(linhaEncontrada, cfg.colSolicitanteSlug).getValue() || '') : '';
+    return { ok: true, referencia: referencia, solicitanteSlug: solicitanteSlug };
   } finally {
     lock.releaseLock();
   }
 }
 
 // ---------- NOTIFICAÇÕES (sininho da sidebar) ----------
-// Colunas (1-indexed): ID, Mensagem, Link, LidaPor, CriadoEm. Fica na mesma
-// planilha do Registro/Reembolso só por conveniência (evita depender de
-// disco local do Render, que se perde a cada deploy) — sem relação de
-// dados com as outras abas. "LidaPor" é um array JSON de slugs — quem já
-// leu; toda a lógica de "quem vê o quê" e "quando apagar" fica no hub
-// (src/services/notificacoes.service.js), aqui é só CRUD cru.
+// Colunas (1-indexed): ID, Mensagem, Link, LidaPor, CriadoEm, Destinatario.
+// Fica na mesma planilha do Registro/Reembolso só por conveniência (evita
+// depender de disco local do Render, que se perde a cada deploy) — sem
+// relação de dados com as outras abas. "LidaPor" é um array JSON de slugs
+// — quem já leu. "Destinatario" vazio = notificação pra todo mundo; com
+// slug = só pra essa pessoa. Toda a lógica de "quem vê o quê" e "quando
+// apagar" fica no hub (src/services/notificacoes.service.js), aqui é só
+// CRUD cru.
 
 function getAbaNotificacoes(ss) {
   let aba = ss.getSheetByName(ABA_NOTIFICACOES);
   if (!aba) {
     aba = ss.insertSheet(ABA_NOTIFICACOES);
-    aba.appendRow(['ID', 'Mensagem', 'Link', 'LidaPor', 'CriadoEm']);
+    aba.appendRow(['ID', 'Mensagem', 'Link', 'LidaPor', 'CriadoEm', 'Destinatario']);
   }
   return aba;
 }
@@ -305,6 +323,7 @@ function listarNotificacoes() {
       link: r[2] || null,
       lidaPor: lidaPor,
       criadoEm: formatarDataSaida(r[4]),
+      destinatario: r[5] || null,
     };
   });
 }
@@ -313,7 +332,7 @@ function criarNotificacao(body) {
   const ss = SpreadsheetApp.openById(SHEET_ID);
   const aba = getAbaNotificacoes(ss);
   const id = gerarId('NTF');
-  aba.appendRow([id, body.mensagem || '', body.link || '', '[]', new Date()]);
+  aba.appendRow([id, body.mensagem || '', body.link || '', '[]', new Date(), body.destinatario || '']);
   return { ok: true, id: id };
 }
 

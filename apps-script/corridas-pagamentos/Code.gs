@@ -45,7 +45,10 @@ function doPost(e) {
 // Colunas (1-indexed): ID, DataVencimento, CPFCNPJ, Email, Motivo,
 // RazaoSocial, Banco, Agencia, Conta, ChavePix, TipoChave, Valor,
 // EmpresaResponsavel, Solicitante, NumeroNotaFiscal, Anexos, Status,
-// FeitoPor, InseridoEm.
+// FeitoPor, InseridoEm, SolicitanteSlug. "SolicitanteSlug" é o slug de
+// quem estava logado no hub ao criar (vem da sessão, não do "Solicitante"
+// digitado) — usado pra notificar só essa pessoa quando o financeiro
+// concluir.
 
 function getAbaPagamentos(ss) {
   let aba = ss.getSheetByName(ABA_PAGAMENTOS);
@@ -55,7 +58,7 @@ function getAbaPagamentos(ss) {
       'ID', 'DataVencimento', 'CPFCNPJ', 'Email', 'Motivo', 'RazaoSocial',
       'Banco', 'Agencia', 'Conta', 'ChavePix', 'TipoChave', 'Valor',
       'EmpresaResponsavel', 'Solicitante', 'NumeroNotaFiscal', 'Anexos',
-      'Status', 'FeitoPor', 'InseridoEm',
+      'Status', 'FeitoPor', 'InseridoEm', 'SolicitanteSlug',
     ]);
     // CPFCNPJ, Agencia, Conta, ChavePix, NumeroNotaFiscal
     formatarColunasComoTexto(aba, ['C2:C', 'H2:H', 'I2:I', 'J2:J', 'O2:O']);
@@ -89,6 +92,7 @@ function criarPagamento(body) {
     'Pendente',
     '',
     new Date(),
+    body.solicitanteSlug || '',
   ]);
 
   // appendRow() converte string numérica (ex: "0099") pra número mesmo com
@@ -125,6 +129,7 @@ function linhaParaPagamento(r) {
     Status: String(r[16] || 'Pendente'),
     FeitoPor: String(r[17] || ''),
     InseridoEm: formatarDataSaida(r[18]),
+    SolicitanteSlug: String(r[19] || ''),
   };
 }
 
@@ -165,7 +170,10 @@ function marcarPagamento(body) {
       aba.getRange(linhaEncontrada, 16).setValue(JSON.stringify(anexosNovos)); // Anexos
     }
 
-    return { ok: true };
+    // Devolve quem criou (slug da sessão) pro hub notificar só essa
+    // pessoa — linhas antigas, sem essa coluna, vêm com string vazia.
+    const solicitanteSlug = String(aba.getRange(linhaEncontrada, 20).getValue() || '');
+    return { ok: true, solicitanteSlug: solicitanteSlug };
   } finally {
     lock.releaseLock();
   }
