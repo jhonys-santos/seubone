@@ -296,15 +296,28 @@ function copiarTexto(texto, btn) {
   function tocarCampainha() {
     try {
       const ctx = new (window.AudioContext || window.webkitAudioContext)();
-      [1046, 784].forEach((f, i) => {
-        const o = ctx.createOscillator(), g = ctx.createGain();
-        o.connect(g); g.connect(ctx.destination);
-        o.type = 'sine'; o.frequency.value = f;
-        const t = ctx.currentTime + i * .14;
-        g.gain.setValueAtTime(0, t);
-        g.gain.linearRampToValueAtTime(.18, t + .04);
-        g.gain.linearRampToValueAtTime(0, t + .3);
-        o.start(t); o.stop(t + .32);
+      // "Tim... dom" — queda de quarta (A5 → E5), cada nota com um
+      // harmônico sutil por cima (quinta) pra dar corpo de sino em vez de
+      // um bipe fino, e decaimento exponencial (mais parecido com sino de
+      // casa do que o linear de antes, que soava fraco/curto).
+      [880, 659].forEach((freq, i) => {
+        const t = ctx.currentTime + i * .55;
+
+        const o1 = ctx.createOscillator(), g1 = ctx.createGain();
+        o1.type = 'sine'; o1.frequency.value = freq;
+        o1.connect(g1); g1.connect(ctx.destination);
+        g1.gain.setValueAtTime(0, t);
+        g1.gain.linearRampToValueAtTime(.32, t + .03);
+        g1.gain.exponentialRampToValueAtTime(.001, t + .6);
+        o1.start(t); o1.stop(t + .62);
+
+        const o2 = ctx.createOscillator(), g2 = ctx.createGain();
+        o2.type = 'sine'; o2.frequency.value = freq * 1.5;
+        o2.connect(g2); g2.connect(ctx.destination);
+        g2.gain.setValueAtTime(0, t);
+        g2.gain.linearRampToValueAtTime(.09, t + .03);
+        g2.gain.exponentialRampToValueAtTime(.001, t + .5);
+        o2.start(t); o2.stop(t + .52);
       });
     } catch (e) {}
   }
