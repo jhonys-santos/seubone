@@ -14,9 +14,13 @@
 // do Wallac + qualquer gestor). Sem nenhum dos dois, fica liberado pra
 // todo mundo. Em ambos os casos, também é reforçado no middleware da
 // rota — a sidebar só evita mostrar pra quem não pode mesmo abrir.
+//
+// "tituloPorRole" troca o texto exibido na sidebar/aba do navegador pra
+// quem tem aquele papel específico, sem mudar o painel em si (ex: gestor
+// vê "Indicadores Individuais" em vez de "Meus Indicadores").
 module.exports = [
   {
-    chave: 'painel-sac', titulo: 'Meus Indicadores', descricao: 'Indicadores pessoais, escala e sugestões',
+    chave: 'painel-sac', titulo: 'Meus Indicadores', tituloPorRole: { gestor: 'Indicadores Individuais' }, descricao: 'Indicadores pessoais, escala e sugestões',
     url: '/painel-sac', icone: 'ti-chart-bar',
   },
   {

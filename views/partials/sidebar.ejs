@@ -60,14 +60,18 @@
             return false;
           });
           var subAtiva = subVisiveis.some(function (s) { return rotaAtual === s.url; });
+          // "tituloPorRole" troca o texto exibido pra quem tem aquele papel
+          // específico (ex: gestor vê "Indicadores Individuais" em vez de
+          // "Meus Indicadores"), sem mudar o painel em si.
+          var tituloPainel = (p.tituloPorRole && p.tituloPorRole[usuario.role]) || p.titulo;
         %>
         <% if (subVisiveis.length) { %>
           <div class="sidebar-group <%= subAtiva ? 'open' : '' %>">
             <div class="sidebar-item-row">
               <a href="<%= p.url %>" class="sidebar-item <%= !subAtiva && rotaAtual === p.url ? 'active' : '' %>">
-                <i class="ti <%= p.icone %>" aria-hidden="true"></i> <%= p.titulo %>
+                <i class="ti <%= p.icone %>" aria-hidden="true"></i> <%= tituloPainel %>
               </a>
-              <button type="button" class="sidebar-chev" onclick="alternarGrupoSidebar(this)" aria-label="Expandir <%= p.titulo %>">
+              <button type="button" class="sidebar-chev" onclick="alternarGrupoSidebar(this)" aria-label="Expandir <%= tituloPainel %>">
                 <i class="ti ti-chevron-right" aria-hidden="true"></i>
               </button>
             </div>
@@ -83,7 +87,7 @@
           </div>
         <% } else { %>
           <a href="<%= p.url %>" class="sidebar-item <%= rotaAtual === p.url ? 'active' : '' %>">
-            <i class="ti <%= p.icone %>" aria-hidden="true"></i> <%= p.titulo %>
+            <i class="ti <%= p.icone %>" aria-hidden="true"></i> <%= tituloPainel %>
           </a>
         <% } %>
       <% }); %>
