@@ -41,15 +41,19 @@ router.use(requireAuth);
 
 // Avisa o n8n quando um pagamento é solicitado — não trava nem falha o
 // cadastro se o n8n estiver fora do ar ou a URL ainda não tiver sido
-// configurada (só loga o erro). Mesmo padrão do Registro de Demandas, mas
-// com webhook de saída próprio (no ClickUp cai numa lista diferente).
+// configurada (só loga o erro). Mesma variável de ambiente reservada pra
+// Pagamento (N8N_CORRIDAS_PAGAMENTOS_WEBHOOK_URL) — hoje ela aponta pro
+// mesmo workflow n8n do Registro/Reembolso (um branch por "tipo" dentro
+// dele), mas fica separada no .env pra virar um workflow próprio depois
+// sem precisar mudar código. "tipo: 'pagamento'" é o que o n8n usa pra
+// saber qual branch seguir.
 async function notificarN8nPagamento(payload) {
   if (!env.n8nCorridasPagamentosWebhookUrl) return;
   try {
     await fetch(env.n8nCorridasPagamentosWebhookUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
+      body: JSON.stringify({ tipo: 'pagamento', ...payload }),
     });
   } catch (err) {
     console.error('[corridas-avulsas] falha ao notificar n8n:', err.message);

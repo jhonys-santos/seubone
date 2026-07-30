@@ -61,14 +61,15 @@ async function notificarN8n(tipo, payload) {
 // Pagamento (geral) usa a mesma planilha/webhook do "Solicitar pagamento"
 // de Corridas Avulsas (env.corridasPagamentosAppsScriptUrl /
 // env.n8nCorridasPagamentosWebhookUrl) — são dois pontos de entrada pro
-// mesmo pipeline, não dois sistemas separados.
+// mesmo pipeline, não dois sistemas separados. "tipo: 'pagamento'" é o
+// que o n8n usa pra saber qual branch seguir dentro do workflow.
 async function notificarN8nPagamento(payload) {
   if (!env.n8nCorridasPagamentosWebhookUrl) return;
   try {
     await fetch(env.n8nCorridasPagamentosWebhookUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
+      body: JSON.stringify({ tipo: 'pagamento', ...payload }),
     });
   } catch (err) {
     console.error('[registro-demandas] falha ao notificar n8n (pagamento):', err.message);
