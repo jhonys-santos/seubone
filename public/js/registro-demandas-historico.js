@@ -86,8 +86,8 @@ function renderizar() {
       <td>${escapeHtml(s.IDCompra)}</td>
       <td>${s.LinkCard ? `<a class="link-btn" href="${escapeHtml(s.LinkCard)}" target="_blank" rel="noopener"><i class="ti ti-external-link" aria-hidden="true"></i> Abrir</a>` : '—'}</td>
       <td>${escapeHtml(s.Solicitante)}</td>
-      <td>${escapeHtml(s.DemandaSolicitada) || '—'}</td>
-      <td>${escapeHtml(s.Observacao) || '—'}</td>
+      <td class="td-truncar" title="${escapeHtml(s.DemandaSolicitada)}">${escapeHtml(s.DemandaSolicitada) || '—'}</td>
+      <td class="td-truncar" title="${escapeHtml(s.Observacao)}">${escapeHtml(s.Observacao) || '—'}</td>
       <td>${renderizarAnexos(s.Anexos)}</td>
       <td><span class="badge ${s.Status === 'Feito' ? 'ok' : 'warn'}">${s.Status}</span></td>
       <td>${escapeHtml(s.FeitoPor) || '—'}</td>

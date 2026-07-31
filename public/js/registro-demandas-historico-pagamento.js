@@ -89,7 +89,7 @@ function renderizar() {
       <td>${escapeHtml(p.Solicitante)}</td>
       <td>${escapeHtml(p.RazaoSocial)}</td>
       <td>${escapeHtml(p.CPFCNPJ)}</td>
-      <td>${escapeHtml(p.Motivo)}</td>
+      <td class="td-truncar" title="${escapeHtml(p.Motivo)}">${escapeHtml(p.Motivo)}</td>
       <td>${escapeHtml(p.Banco)}</td>
       <td>${escapeHtml(p.Agencia)}</td>
       <td>${escapeHtml(p.Conta)}</td>
