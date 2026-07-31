@@ -19,11 +19,13 @@ router.get('/', (req, res) => {
     .join('');
 
   // Lista de colaboradores que o gestor pode "ver como" — só monta se for gestor.
-  // Gestor vê todo mundo, independente do time (sac ou ppf).
+  // Gestor vê todo mundo, independente do time (sac ou ppf). Contas de teste
+  // ("Diag..." — usadas só pra diagnosticar problema de indicador) ficam de
+  // fora: não servem pra nada nesse dropdown, só teriam poluído a lista.
   const outrosColaboradores =
     u.role === 'gestor'
       ? listarUsuarios()
-          .filter((c) => c.slug !== u.slug)
+          .filter((c) => c.slug !== u.slug && !/^diag/i.test(c.nome))
           .map((c) => ({ slug: c.slug, nome: c.nome, tipo: c.tipo, indicadoresPendentes: !!c.indicadoresPendentes }))
       : [];
 
