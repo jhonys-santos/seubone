@@ -68,6 +68,31 @@ function doGet(e) {
       // Só o segredo compartilhado autoriza — nunca é chamado pelo navegador.
       if (p.segredo !== SEGREDO_HUB) { resp = { erro: 'Nao autorizado' }; }
       else { resp = { usuarios: hubListarUsuarios() }; }
+    } else if (action === 'escalaEquipe') {
+      // Escala da equipe inteira (Home, visão de gestor) — lê todo mundo
+      // numa única execução (abre a planilha uma vez só) em vez da Home
+      // fazer 1 chamada por pessoa; é isso que estava deixando o card lento.
+      if (p.segredo !== SEGREDO_HUB) { resp = { erro: 'Nao autorizado' }; }
+      else {
+        const mes = parseInt(p.mes);
+        const ano = parseInt(p.ano);
+        const ss  = SpreadsheetApp.openById(SHEET_ID);
+        const nomes = {};
+        const abaUsuarios = ss.getSheetByName('Usuarios');
+        if (abaUsuarios) {
+          abaUsuarios.getDataRange().getValues().slice(1).forEach(function (r) {
+            const slug = String(r[0]).trim().toLowerCase();
+            if (slug) nomes[slug] = String(r[2] || r[0]).trim();
+          });
+        }
+        const pessoas = [];
+        Object.keys(ABAS_MAP).forEach(function (slug) {
+          if (ABAS_MAP[slug].escala) {
+            pessoas.push({ slug: slug, nome: nomes[slug] || slug, escala: buscarEscalaComSS(ss, slug, mes, ano) });
+          }
+        });
+        resp = { pessoas: pessoas };
+      }
     }
   } catch(err) {
     resp = { erro: err.message };
@@ -681,7 +706,15 @@ function calcAudit(rows) {
 }
 
 function buscarEscala(slug, mes, ano) {
-  const ss  = SpreadsheetApp.openById(SHEET_ID);
+  const ss = SpreadsheetApp.openById(SHEET_ID);
+  return buscarEscalaComSS(ss, slug, mes, ano);
+}
+
+// Mesma lógica de buscarEscala, mas recebendo a planilha já aberta — usada
+// por quem precisa ler a escala de várias pessoas numa execução só (ex:
+// escalaEquipe), pra não pagar o custo de abrir a planilha de novo a cada
+// pessoa.
+function buscarEscalaComSS(ss, slug, mes, ano) {
   const cfg = ABAS_MAP[slug];
   if (!cfg || !cfg.escala) return [];
   const aba = ss.getSheetByName(cfg.escala);

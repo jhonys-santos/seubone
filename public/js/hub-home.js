@@ -146,15 +146,10 @@ function parseCSV(text) {
   const API_BASE = '/painel-sac/api';
   const usuarioLogado = window.USUARIO_SESSAO;
   const MESES_ABREV = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
-  // Quem realmente participa da escala 5x2 (tem aba Escala_<Nome> na
-  // planilha) — não dá pra descobrir isso só pelos dados porque um mês
-  // recém-aberto vem vazio pra todo mundo, e aí não teria como diferenciar
-  // "time real, mês novo" de "gente como o Wallac, que nunca tem escala".
-  const ESCALA_SLUGS = ['nathalia', 'francis', 'iasmin', 'gabrielle', 'daniel'];
   let escalaMes = mesHoje, escalaAno = anoHoje;
   let trocasPendentes = [];
   let consultoresCache = [];
-  let pessoasEquipeCache = []; // consultoresCache filtrado por ESCALA_SLUGS — alimenta o grid e o modal de lote
+  let pessoasEquipeCache = []; // {slug, nome} de quem tem escala de verdade — vem pronto de /api/escala-equipe, alimenta o grid e o modal de lote
   let sabadosCache = {}; // por slug — reaproveitado tanto pro "seu sábado" quanto pro "sábado do colega"
 
   function atualizarLabelEscala() {
@@ -233,30 +228,20 @@ function parseCSV(text) {
   }
 
   // ── ESCALA DA EQUIPE (gestor) ─────────────────────────────────
-  // Não existe uma ação no Apps Script que devolva a escala de todo mundo
-  // de uma vez só — busca a lista de consultores e faz uma chamada de
-  // /api/escala por pessoa, em paralelo. Roda automaticamente ao carregar a
-  // página (sem ação do usuário), então não pode usar carregarConsultores()
-  // direto — em caso de erro ela dispara um hubAlert() que FICA TRAVADO
-  // esperando alguém clicar num modal que ninguém pediu pra abrir. Aqui é
-  // tudo silencioso: erro vira estado vazio na tela, nunca um modal preso.
+  // Uma chamada só (action=escalaEquipe no Apps Script), que já lê todo
+  // mundo numa única execução — bem mais rápido do que fazer 1 chamada por
+  // pessoa (era isso que deixava o card lento). Roda automaticamente ao
+  // carregar a página, então trata erro de forma silenciosa (nunca um
+  // modal/alerta travado esperando clique de ninguém).
   async function carregarEscalaEquipe() {
     const cont = document.getElementById('hh-equipe-grid');
     if (!cont) return; // div só existe na home de quem é gestor
     try {
-      if (!consultoresCache.length) {
-        const res = await fetchComPrazo(`${API_BASE}/consultores`, 40000);
-        const json = await res.json();
-        if (!Array.isArray(json.consultores)) throw new Error(json.erro || 'resposta inválida');
-        consultoresCache = json.consultores.filter((c) => c.slug !== usuarioLogado.slug);
-      }
-      pessoasEquipeCache = consultoresCache.filter((c) => ESCALA_SLUGS.includes(c.slug));
-      const resultados = await Promise.all(pessoasEquipeCache.map((p) =>
-        fetchComPrazo(`${API_BASE}/escala?slug=${encodeURIComponent(p.slug)}&mes=${escalaMes}&ano=${escalaAno}`, 40000)
-          .then((r) => r.json())
-          .then((json) => ({ pessoa: p, escala: json.escala || [] }))
-          .catch(() => ({ pessoa: p, escala: [] }))
-      ));
+      const res = await fetchComPrazo(`${API_BASE}/escala-equipe?mes=${escalaMes}&ano=${escalaAno}`, 40000);
+      const json = await res.json();
+      if (!Array.isArray(json.pessoas)) throw new Error(json.erro || 'resposta inválida');
+      pessoasEquipeCache = json.pessoas.map((p) => ({ slug: p.slug, nome: p.nome }));
+      const resultados = json.pessoas.map((p) => ({ pessoa: { slug: p.slug, nome: p.nome }, escala: p.escala || [] }));
       renderEscalaEquipe(resultados, escalaMes, escalaAno);
     } catch (e) {
       console.error('Erro ao carregar escala da equipe', e);
@@ -396,11 +381,10 @@ function parseCSV(text) {
     document.getElementById('lote-escala-ate').value = '';
 
     const pessoasEl = document.getElementById('lote-escala-pessoas');
-    const opcoes = pessoasEquipeCache.length ? pessoasEquipeCache : consultoresCache.filter((c) => ESCALA_SLUGS.includes(c.slug));
-    if (!opcoes.length) {
+    if (!pessoasEquipeCache.length) {
       pessoasEl.innerHTML = '<div style="font-size:12px;color:var(--text-hint)">Ainda carregando a lista de consultores — abre de novo em alguns segundos.</div>';
     } else {
-      pessoasEl.innerHTML = opcoes.map((c) => `
+      pessoasEl.innerHTML = pessoasEquipeCache.map((c) => `
         <label style="font-size:12.5px;color:var(--text);display:flex;align-items:center;gap:7px;cursor:pointer">
           <input type="checkbox" value="${c.slug}"> ${c.nome}
         </label>

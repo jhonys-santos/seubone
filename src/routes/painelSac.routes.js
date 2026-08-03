@@ -75,6 +75,20 @@ router.get('/api/escala', resolveSlug, async (req, res) => {
   }
 });
 
+// Escala da equipe inteira (Home, visão de gestor) numa chamada só — bem
+// mais rápido que buscar pessoa por pessoa (era isso que deixava lento).
+router.get('/api/escala-equipe', requireRole('gestor'), async (req, res) => {
+  try {
+    const { mes, ano } = req.query;
+    const json = await chamarAppsScript(env.painelSacAppsScriptUrl, {
+      params: { action: 'escalaEquipe', mes, ano },
+    });
+    res.json(json);
+  } catch (err) {
+    res.status(502).json({ ok: false, erro: 'Falha ao buscar escala da equipe: ' + err.message });
+  }
+});
+
 // Editar a escala de qualquer consultor direto da Home (visão de gestor) —
 // só gestor pode chamar, reforçado aqui no servidor (o Apps Script só confia
 // no segredo compartilhado, quem pode usar essa ação é decidido aqui).
