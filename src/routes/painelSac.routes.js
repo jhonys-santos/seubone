@@ -1,5 +1,5 @@
 const express = require('express');
-const { requireAuth, requirePainel } = require('../middleware/auth');
+const { requireAuth, requirePainel, requireRole } = require('../middleware/auth');
 const { resolveSlug } = require('../middleware/resolveSlug');
 const { chamarAppsScript } = require('../services/appsScriptClient');
 const { listarUsuarios } = require('../services/usuarios.service');
@@ -72,6 +72,22 @@ router.get('/api/escala', resolveSlug, async (req, res) => {
     res.json(json);
   } catch (err) {
     res.status(502).json({ ok: false, erro: 'Falha ao buscar escala: ' + err.message });
+  }
+});
+
+// Editar a escala de qualquer consultor direto da Home (visão de gestor) —
+// só gestor pode chamar, reforçado aqui no servidor (o Apps Script só confia
+// no segredo compartilhado, quem pode usar essa ação é decidido aqui).
+router.post('/api/escala', requireRole('gestor'), async (req, res) => {
+  try {
+    const { slug, dia, mes, ano, status } = req.body;
+    const json = await chamarAppsScript(env.painelSacAppsScriptUrl, {
+      method: 'POST',
+      body: { action: 'atualizarEscala', slug, dia, mes, ano, status },
+    });
+    res.json(json);
+  } catch (err) {
+    res.status(502).json({ ok: false, erro: 'Falha ao atualizar escala: ' + err.message });
   }
 });
 

@@ -180,7 +180,10 @@ function parseCSV(text) {
     });
     document.getElementById('esc-grid').innerHTML = html;
     escalaMes = mes; escalaAno = ano;
-    document.getElementById('escala-title').textContent = `Escala de serviço · ${MESES[mes].toUpperCase()} ${ano}`;
+    // Só existe pra colaborador — na visão de gestor esse título virou um
+    // texto fixo ("Minha escala"), sem id pra não ser sobrescrito aqui.
+    const tituloEl = document.getElementById('escala-title');
+    if (tituloEl) tituloEl.textContent = `Escala de serviço · ${MESES[mes].toUpperCase()} ${ano}`;
     atualizarLabelEscala();
     mostrarBadgePendente();
   }
@@ -214,17 +217,35 @@ function parseCSV(text) {
     carregarEscalaEquipe(); // independente da escala pessoal — só existe a div pra gestor
   }
 
+  // Busca com prazo máximo — nenhuma chamada da escala da equipe pode ficar
+  // pendurada pra sempre (ex: Apps Script lento/instável em produção); depois
+  // de "ms" sem resposta, desiste e quem chamou trata como falha.
+  function fetchComPrazo(url, ms) {
+    const controlador = new AbortController();
+    const timer = setTimeout(() => controlador.abort(), ms);
+    return fetch(url, { signal: controlador.signal }).finally(() => clearTimeout(timer));
+  }
+
   // ── ESCALA DA EQUIPE (gestor) ─────────────────────────────────
   // Não existe uma ação no Apps Script que devolva a escala de todo mundo
-  // de uma vez só — busca a lista de consultores (mesma usada em Trocas) e
-  // faz uma chamada de /api/escala por pessoa, em paralelo.
+  // de uma vez só — busca a lista de consultores e faz uma chamada de
+  // /api/escala por pessoa, em paralelo. Roda automaticamente ao carregar a
+  // página (sem ação do usuário), então não pode usar carregarConsultores()
+  // direto — em caso de erro ela dispara um hubAlert() que FICA TRAVADO
+  // esperando alguém clicar num modal que ninguém pediu pra abrir. Aqui é
+  // tudo silencioso: erro vira estado vazio na tela, nunca um modal preso.
   async function carregarEscalaEquipe() {
     const cont = document.getElementById('hh-equipe-grid');
     if (!cont) return; // div só existe na home de quem é gestor
     try {
-      await carregarConsultores();
+      if (!consultoresCache.length) {
+        const res = await fetchComPrazo(`${API_BASE}/consultores`, 40000);
+        const json = await res.json();
+        if (!Array.isArray(json.consultores)) throw new Error(json.erro || 'resposta inválida');
+        consultoresCache = json.consultores.filter((c) => c.slug !== usuarioLogado.slug);
+      }
       const resultados = await Promise.all(consultoresCache.map((p) =>
-        fetch(`${API_BASE}/escala?slug=${encodeURIComponent(p.slug)}&mes=${escalaMes}&ano=${escalaAno}`)
+        fetchComPrazo(`${API_BASE}/escala?slug=${encodeURIComponent(p.slug)}&mes=${escalaMes}&ano=${escalaAno}`, 40000)
           .then((r) => r.json())
           .then((json) => ({ pessoa: p, escala: json.escala || [] }))
           .catch(() => ({ pessoa: p, escala: [] }))
@@ -232,7 +253,7 @@ function parseCSV(text) {
       renderEscalaEquipe(resultados, escalaMes, escalaAno);
     } catch (e) {
       console.error('Erro ao carregar escala da equipe', e);
-      cont.innerHTML = '<div class="empty-state">Não foi possível carregar a escala da equipe.</div>';
+      cont.innerHTML = '<div class="empty-state">Não foi possível carregar a escala da equipe agora. Tente atualizar a página em alguns minutos.</div>';
     }
   }
 
@@ -248,8 +269,7 @@ function parseCSV(text) {
 
     const headCells = [];
     for (let dia = 1; dia <= diasNoMes; dia++) {
-      const sabado = new Date(ano, mes, dia).getDay() === 6;
-      headCells.push(`<div class="hh-eq-cell${sabado ? ' sabado' : ''}">${dia}</div>`);
+      headCells.push(`<div class="hh-eq-cell">${dia}</div>`);
     }
 
     const linhas = comEscala.map(({ pessoa, escala }) => {
@@ -258,8 +278,7 @@ function parseCSV(text) {
       const cells = [];
       for (let dia = 1; dia <= diasNoMes; dia++) {
         const status = porDia[dia] || '';
-        const sabado = new Date(ano, mes, dia).getDay() === 6;
-        cells.push(`<div class="hh-eq-cell st-${status || 'vazio'}${sabado ? ' sabado' : ''}" title="${pessoa.nome} · dia ${dia}${status ? ': ' + status : ' — sem dado'}">${status}</div>`);
+        cells.push(`<div class="hh-eq-cell st-${status || 'vazio'} editavel" data-slug="${pessoa.slug}" data-dia="${dia}" data-nome="${pessoa.nome}" onclick="excAbrirEditorEscala(this)" title="${pessoa.nome} · dia ${dia}${status ? ': ' + status : ' — sem dado'} (clique pra editar)">${status}</div>`);
       }
       return `<div class="hh-eq-row"><div class="hh-eq-name">${pessoa.nome.split(' ')[0]}</div><div class="hh-eq-days">${cells.join('')}</div></div>`;
     }).join('');
@@ -274,6 +293,60 @@ function parseCSV(text) {
       ${linhas}
     </div>`;
   }
+
+  // ── EDITAR ESCALA DA EQUIPE (gestor, direto no quadro) ────────
+  let editEscalaAlvo = null; // { slug, dia, nome, cellEl }
+
+  function excAbrirEditorEscala(cellEl) {
+    const statusAtual = Array.from(cellEl.classList)
+      .find((c) => c.startsWith('st-') && c !== 'st-vazio');
+    editEscalaAlvo = {
+      slug: cellEl.dataset.slug,
+      dia: parseInt(cellEl.dataset.dia),
+      nome: cellEl.dataset.nome,
+      cellEl,
+    };
+    const dataFmt = `${String(editEscalaAlvo.dia).padStart(2, '0')}/${String(escalaMes + 1).padStart(2, '0')}/${escalaAno}`;
+    document.getElementById('edit-escala-quem').textContent = `${editEscalaAlvo.nome} · ${dataFmt}`;
+    document.getElementById('edit-escala-status').value = statusAtual ? statusAtual.slice(3) : 'F';
+    document.getElementById('edit-escala-erro').style.display = 'none';
+    document.getElementById('modal-editar-escala').classList.add('show');
+  }
+  window.excAbrirEditorEscala = excAbrirEditorEscala;
+
+  function fecharEditorEscala() {
+    document.getElementById('modal-editar-escala').classList.remove('show');
+    editEscalaAlvo = null;
+  }
+  window.fecharEditorEscala = fecharEditorEscala;
+
+  async function salvarEdicaoEscala() {
+    if (!editEscalaAlvo) return;
+    const status = document.getElementById('edit-escala-status').value;
+    const erroEl = document.getElementById('edit-escala-erro');
+    erroEl.style.display = 'none';
+    try {
+      const res = await fetch(`${API_BASE}/escala`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ slug: editEscalaAlvo.slug, dia: editEscalaAlvo.dia, mes: escalaMes, ano: escalaAno, status }),
+      });
+      const json = await res.json();
+      if (!json.ok) { erroEl.textContent = json.erro || 'Erro ao salvar.'; erroEl.style.display = 'block'; return; }
+      // Atualiza a célula na hora — não faz sentido esperar outra rodada
+      // (lenta) no Apps Script só pra confirmar o que a gente já sabe que
+      // gravou.
+      const cell = editEscalaAlvo.cellEl;
+      cell.className = cell.className.replace(/st-\S+/, 'st-' + status);
+      cell.textContent = status;
+      cell.title = `${editEscalaAlvo.nome} · dia ${editEscalaAlvo.dia}: ${status} (clique pra editar)`;
+      fecharEditorEscala();
+    } catch (e) {
+      erroEl.textContent = 'Erro ao salvar: ' + e.message;
+      erroEl.style.display = 'block';
+    }
+  }
+  window.salvarEdicaoEscala = salvarEdicaoEscala;
 
   // Sábados de um slug qualquer no mês/ano atualmente exibido no calendário —
   // reaproveitado tanto pro "seu sábado" quanto pro "sábado do colega".

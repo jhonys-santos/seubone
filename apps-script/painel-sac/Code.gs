@@ -116,6 +116,20 @@ function doPost(e) {
       if (body.segredo !== SEGREDO_HUB) return out({ ok: false, erro: 'Nao autorizado' });
       return out(hubSalvarUsuario(body));
     }
+    if (body.action === 'atualizarEscala') {
+      // Editar a escala de qualquer consultor direto da Home do hub (visão
+      // de gestor) — mesmo padrão de confiança do hubSalvarUsuario: só
+      // server-to-server, quem pode chamar isso (só gestor) já foi decidido
+      // no servidor do hub antes de chegar aqui.
+      if (body.segredo !== SEGREDO_HUB) return out({ ok: false, erro: 'Nao autorizado' });
+      const status = String(body.status || '').toUpperCase();
+      if (!['T', 'F', 'FN', 'FM', 'TR', 'FE'].includes(status)) {
+        return out({ ok: false, erro: 'Status invalido.' });
+      }
+      const salvou = atualizarDiaEscala(body.slug, parseInt(body.dia), parseInt(body.mes), parseInt(body.ano), status);
+      if (!salvou) return out({ ok: false, erro: 'Nao foi possivel localizar esse dia na planilha (mes ainda nao cadastrado?).' });
+      return out({ ok: true });
+    }
   } catch(err) {
     return out({ ok: false, erro: err.message });
   }
@@ -987,9 +1001,9 @@ function responderTroca(idTroca, aceitar, usuario) {
 function atualizarDiaEscala(slug, dia, mes, ano, novoStatus) {
   const ss  = SpreadsheetApp.openById(SHEET_ID);
   const cfg = ABAS_MAP[slug];
-  if (!cfg || !cfg.escala) return;
+  if (!cfg || !cfg.escala) return false;
   const aba  = ss.getSheetByName(cfg.escala);
-  if (!aba) return;
+  if (!aba) return false;
   const rows = aba.getDataRange().getValues();
 
   const mesesPT = {'jan':0,'fev':1,'mar':2,'abr':3,'mai':4,'jun':5,'jul':6,'ago':7,'set':8,'out':9,'nov':10,'dez':11};
@@ -1006,15 +1020,16 @@ function atualizarDiaEscala(slug, dia, mes, ano, novoStatus) {
     }
     if (parsedMes === mes && parsedAno === ano) { linhaIdx = i + 1; break; }
   }
-  if (linhaIdx === -1) return;
+  if (linhaIdx === -1) return false;
 
   const cab = rows[0];
   for (let j = 1; j < cab.length; j++) {
     if (parseInt(cab[j]) === dia) {
       aba.getRange(linhaIdx, j + 1).setValue(novoStatus);
-      return;
+      return true;
     }
   }
+  return false;
 }
 
 function buscarHistoricoAuditoria(slug, periodo, mes, ano, semIniStr, semFimStr) {

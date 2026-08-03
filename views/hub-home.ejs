@@ -81,7 +81,64 @@
   </div>
   <% } %>
 
-  <% if (temPainelSac) { %>
+  <% if (temPainelSac && usuario.role === 'gestor') { %>
+  <div class="hh-escala-card">
+    <div class="hh-escala-head">
+      <div class="hh-escala-title">Escala da equipe</div>
+      <div class="hh-escala-nav">
+        <button class="hh-nav-arrow" onclick="navEscala(-1)">‹</button>
+        <span id="escala-mes-label" class="hh-escala-mes-label"></span>
+        <button class="hh-nav-arrow" onclick="navEscala(1)">›</button>
+      </div>
+    </div>
+    <div class="hh-escala-horario">Clique numa célula pra editar o status do dia</div>
+    <div id="hh-equipe-grid"><div class="empty-state">Carregando...</div></div>
+
+    <div id="hh-minha-escala-wrap" style="display:none;margin-top:18px;padding-top:14px;border-top:1px dashed var(--border)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2px">
+        <div class="hh-escala-subtitle">Minha escala</div>
+        <button id="btn-trocas" class="hh-btn-trocas" onclick="abrirTrocas()">
+          <i class="ti ti-arrows-exchange" aria-hidden="true"></i> Trocas <span id="trocas-count" class="hh-trocas-count">0</span>
+        </button>
+      </div>
+      <div class="hh-esc-hdr" id="esc-hdr"></div>
+      <div class="hh-esc-grid" id="esc-grid"></div>
+      <div class="hh-esc-legend">
+        <div class="hh-leg"><div class="hh-leg-dot" style="background:rgba(61,175,114,0.3);border:1px solid #3DAF72"></div><span class="hh-leg-lbl">Trabalha</span></div>
+        <div class="hh-leg"><div class="hh-leg-dot" style="background:rgba(212,75,75,0.3);border:1px solid #D44B4B"></div><span class="hh-leg-lbl">Folga</span></div>
+        <div class="hh-leg"><div class="hh-leg-dot" style="background:rgba(212,150,40,0.3);border:1px solid #D49628"></div><span class="hh-leg-lbl">Feriado</span></div>
+        <div class="hh-leg"><div class="hh-leg-dot" style="background:rgba(80,140,220,0.3);border:1px solid #3A7BD5"></div><span class="hh-leg-lbl">Férias/Troca</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL EDITAR ESCALA (equipe) -->
+  <div class="modal-overlay" id="modal-editar-escala" onclick="if(event.target===this)fecharEditorEscala()">
+    <div class="modal-box" style="max-width:360px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem">
+        <div style="font-size:15px;font-weight:700"><i class="ti ti-calendar-event" style="color:var(--gold);margin-right:6px"></i>Editar escala</div>
+        <button onclick="fecharEditorEscala()" style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:20px;padding:4px"><i class="ti ti-x"></i></button>
+      </div>
+      <div style="font-size:13px;color:var(--text-muted);margin-bottom:14px" id="edit-escala-quem"></div>
+      <div style="margin-bottom:16px">
+        <label style="font-size:11px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:6px">Status</label>
+        <select id="edit-escala-status" style="width:100%;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:9px 12px;font-size:13px;color:var(--text);font-family:inherit">
+          <option value="T">Trabalha</option>
+          <option value="F">Folga</option>
+          <option value="FN">Feriado nacional</option>
+          <option value="FM">Feriado municipal</option>
+          <option value="TR">Troca</option>
+          <option value="FE">Férias</option>
+        </select>
+      </div>
+      <div id="edit-escala-erro" style="display:none;font-size:11px;color:var(--bad-text);margin-bottom:10px"></div>
+      <div style="display:flex;gap:8px">
+        <button onclick="salvarEdicaoEscala()" style="flex:1;background:var(--gold);color:var(--on-gold,#1A1A18);border:none;border-radius:var(--radius-sm);padding:10px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer">Salvar</button>
+        <button onclick="fecharEditorEscala()" style="background:none;border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 18px;font-size:13px;color:var(--text-muted);font-family:inherit;cursor:pointer">Cancelar</button>
+      </div>
+    </div>
+  </div>
+  <% } else if (temPainelSac) { %>
   <div class="hh-escala-card">
     <div class="hh-escala-head">
       <div class="hh-escala-title" id="escala-title">Escala de serviço</div>
@@ -106,16 +163,6 @@
       </div>
     </div>
   </div>
-
-  <% if (usuario.role === 'gestor') { %>
-  <div class="hh-escala-card">
-    <div class="hh-escala-head">
-      <div class="hh-escala-title">Escala da equipe</div>
-      <span style="font-size:10.5px;color:var(--text-hint)">sábados em destaque</span>
-    </div>
-    <div id="hh-equipe-grid"><div class="empty-state">Carregando...</div></div>
-  </div>
-  <% } %>
   <% } %>
 
 </div>

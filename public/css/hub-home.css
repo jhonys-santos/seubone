@@ -128,8 +128,7 @@
 /* ── ESCALA DA EQUIPE (gestor) ── mesmas cores por status da escala
    pessoal (hh-d-*), só que numa faixa compacta por pessoa em vez de um
    calendário 7 colunas — cada linha é um consultor, cada coluna um dia
-   do mês. Sábado ganha contorno dourado pra saltar aos olhos, já que é
-   o único dia que roda entre pessoas (Trocas). */
+   do mês. Célula é clicável (.editavel) — abre o modal de edição. */
 .hh-eq-grid { display: flex; flex-direction: column; gap: 4px; overflow-x: auto; padding-bottom: 4px; }
 .hh-eq-grid:hover { scrollbar-color: var(--border-strong) transparent; }
 .hh-eq-row { display: flex; align-items: center; gap: 3px; }
@@ -142,12 +141,15 @@
   width: 22px; height: 22px; flex-shrink: 0; border-radius: 5px; display: flex; align-items: center;
   justify-content: center; font-size: 9px; font-weight: 700; color: var(--text-hint);
 }
-.hh-eq-cell.sabado { outline: 1.5px solid var(--gold); outline-offset: -1.5px; }
+.hh-eq-cell.editavel { cursor: pointer; transition: transform .1s, box-shadow .1s; }
+.hh-eq-cell.editavel:hover { transform: scale(1.12); box-shadow: 0 0 0 1.5px var(--gold-dark); }
 .hh-eq-head .hh-eq-name { color: var(--text-hint); font-size: 9px; text-transform: uppercase; letter-spacing: .06em; }
 .hh-eq-cell.st-T { background: rgba(61,175,114,0.22); color: #3DAF72; }
 .hh-eq-cell.st-F { background: rgba(212,75,75,0.18); color: #D44B4B; }
 .hh-eq-cell.st-FN, .hh-eq-cell.st-FM { background: rgba(212,150,40,0.2); color: #D49628; }
 .hh-eq-cell.st-TR, .hh-eq-cell.st-FE { background: rgba(80,140,220,0.2); color: #3A7BD5; }
+
+.hh-escala-subtitle { font-size: 12px; font-weight: 700; color: var(--text-muted); }
 
 /* ── FAB "Enviar sugestão" ── */
 .fab {
