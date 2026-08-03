@@ -123,6 +123,32 @@
 .hh-leg-dot { width: 8px; height: 8px; border-radius: 2px; }
 .hh-leg-lbl { font-size: 10px; color: var(--text-muted); }
 
+.empty-state { text-align: center; padding: 2rem; font-size: 12px; color: var(--text-hint); }
+
+/* ── ESCALA DA EQUIPE (gestor) ── mesmas cores por status da escala
+   pessoal (hh-d-*), só que numa faixa compacta por pessoa em vez de um
+   calendário 7 colunas — cada linha é um consultor, cada coluna um dia
+   do mês. Sábado ganha contorno dourado pra saltar aos olhos, já que é
+   o único dia que roda entre pessoas (Trocas). */
+.hh-eq-grid { display: flex; flex-direction: column; gap: 4px; overflow-x: auto; padding-bottom: 4px; }
+.hh-eq-grid:hover { scrollbar-color: var(--border-strong) transparent; }
+.hh-eq-row { display: flex; align-items: center; gap: 3px; }
+.hh-eq-name {
+  width: 82px; flex-shrink: 0; font-size: 11px; font-weight: 600; color: var(--text-muted);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.hh-eq-days { display: flex; gap: 3px; }
+.hh-eq-cell {
+  width: 22px; height: 22px; flex-shrink: 0; border-radius: 5px; display: flex; align-items: center;
+  justify-content: center; font-size: 9px; font-weight: 700; color: var(--text-hint);
+}
+.hh-eq-cell.sabado { outline: 1.5px solid var(--gold); outline-offset: -1.5px; }
+.hh-eq-head .hh-eq-name { color: var(--text-hint); font-size: 9px; text-transform: uppercase; letter-spacing: .06em; }
+.hh-eq-cell.st-T { background: rgba(61,175,114,0.22); color: #3DAF72; }
+.hh-eq-cell.st-F { background: rgba(212,75,75,0.18); color: #D44B4B; }
+.hh-eq-cell.st-FN, .hh-eq-cell.st-FM { background: rgba(212,150,40,0.2); color: #D49628; }
+.hh-eq-cell.st-TR, .hh-eq-cell.st-FE { background: rgba(80,140,220,0.2); color: #3A7BD5; }
+
 /* ── FAB "Enviar sugestão" ── */
 .fab {
   position: fixed; bottom: 1.75rem; right: 1.75rem; background: var(--gold); color: var(--on-gold, #1A1A18);
@@ -178,3 +204,7 @@ html.light .hh-d-FN .hh-day-n, html.light .hh-d-FM .hh-day-n { color: #A6580D; }
 html.light .hh-d-FN .hh-day-s, html.light .hh-d-FM .hh-day-s { color: #7A4009; }
 html.light .hh-d-TR .hh-day-n, html.light .hh-d-FE .hh-day-n { color: #1E5AA8; }
 html.light .hh-d-TR .hh-day-s, html.light .hh-d-FE .hh-day-s { color: #17458A; }
+html.light .hh-eq-cell.st-T { color: #1B7A46; }
+html.light .hh-eq-cell.st-F { color: #C62828; }
+html.light .hh-eq-cell.st-FN, html.light .hh-eq-cell.st-FM { color: #A6580D; }
+html.light .hh-eq-cell.st-TR, html.light .hh-eq-cell.st-FE { color: #1E5AA8; }

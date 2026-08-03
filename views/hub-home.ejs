@@ -94,16 +94,28 @@
         <button class="hh-nav-arrow" onclick="navEscala(1)">›</button>
       </div>
     </div>
-    <div class="hh-escala-horario">08:00 às 18:00 · 5×2</div>
-    <div class="hh-esc-hdr" id="esc-hdr"></div>
-    <div class="hh-esc-grid" id="esc-grid"></div>
-    <div class="hh-esc-legend">
-      <div class="hh-leg"><div class="hh-leg-dot" style="background:rgba(61,175,114,0.3);border:1px solid #3DAF72"></div><span class="hh-leg-lbl">Trabalha</span></div>
-      <div class="hh-leg"><div class="hh-leg-dot" style="background:rgba(212,75,75,0.3);border:1px solid #D44B4B"></div><span class="hh-leg-lbl">Folga</span></div>
-      <div class="hh-leg"><div class="hh-leg-dot" style="background:rgba(212,150,40,0.3);border:1px solid #D49628"></div><span class="hh-leg-lbl">Feriado</span></div>
-      <div class="hh-leg"><div class="hh-leg-dot" style="background:rgba(80,140,220,0.3);border:1px solid #3A7BD5"></div><span class="hh-leg-lbl">Férias/Troca</span></div>
+    <div id="hh-minha-escala-wrap">
+      <div class="hh-escala-horario">08:00 às 18:00 · 5×2</div>
+      <div class="hh-esc-hdr" id="esc-hdr"></div>
+      <div class="hh-esc-grid" id="esc-grid"></div>
+      <div class="hh-esc-legend">
+        <div class="hh-leg"><div class="hh-leg-dot" style="background:rgba(61,175,114,0.3);border:1px solid #3DAF72"></div><span class="hh-leg-lbl">Trabalha</span></div>
+        <div class="hh-leg"><div class="hh-leg-dot" style="background:rgba(212,75,75,0.3);border:1px solid #D44B4B"></div><span class="hh-leg-lbl">Folga</span></div>
+        <div class="hh-leg"><div class="hh-leg-dot" style="background:rgba(212,150,40,0.3);border:1px solid #D49628"></div><span class="hh-leg-lbl">Feriado</span></div>
+        <div class="hh-leg"><div class="hh-leg-dot" style="background:rgba(80,140,220,0.3);border:1px solid #3A7BD5"></div><span class="hh-leg-lbl">Férias/Troca</span></div>
+      </div>
     </div>
   </div>
+
+  <% if (usuario.role === 'gestor') { %>
+  <div class="hh-escala-card">
+    <div class="hh-escala-head">
+      <div class="hh-escala-title">Escala da equipe</div>
+      <span style="font-size:10.5px;color:var(--text-hint)">sábados em destaque</span>
+    </div>
+    <div id="hh-equipe-grid"><div class="empty-state">Carregando...</div></div>
+  </div>
+  <% } %>
   <% } %>
 
 </div>

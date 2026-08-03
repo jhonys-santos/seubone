@@ -198,11 +198,81 @@ function parseCSV(text) {
       const res = await fetch(`${API_BASE}/escala?mes=${escalaMes}&ano=${escalaAno}`);
       const json = await res.json();
       trocasPendentes = json.trocas_pendentes || [];
-      renderEscala(json.escala || [], escalaMes, escalaAno);
+      const minhaEscala = json.escala || [];
+      // Gestor "puro" (ex: Jhonys) não tem aba de escala própria na
+      // planilha — a API sempre devolve [] pra ele. Em vez de mostrar um
+      // calendário vazio (parece quebrado), esconde o bloco "minha escala"
+      // só nesse caso; colaborador com mês legitimamente vazio continua
+      // vendo o calendário normal (comportamento de antes).
+      const wrap = document.getElementById('hh-minha-escala-wrap');
+      if (wrap) wrap.style.display = usuarioLogado.role === 'gestor' && !minhaEscala.length ? 'none' : '';
+      renderEscala(minhaEscala, escalaMes, escalaAno);
     } catch (e) {
       console.error('Erro ao carregar escala', e);
       document.getElementById('esc-grid').innerHTML = '<div class="empty-state" style="grid-column:1/-1">Escala ainda não disponível.</div>';
     }
+    carregarEscalaEquipe(); // independente da escala pessoal — só existe a div pra gestor
+  }
+
+  // ── ESCALA DA EQUIPE (gestor) ─────────────────────────────────
+  // Não existe uma ação no Apps Script que devolva a escala de todo mundo
+  // de uma vez só — busca a lista de consultores (mesma usada em Trocas) e
+  // faz uma chamada de /api/escala por pessoa, em paralelo.
+  async function carregarEscalaEquipe() {
+    const cont = document.getElementById('hh-equipe-grid');
+    if (!cont) return; // div só existe na home de quem é gestor
+    try {
+      await carregarConsultores();
+      const resultados = await Promise.all(consultoresCache.map((p) =>
+        fetch(`${API_BASE}/escala?slug=${encodeURIComponent(p.slug)}&mes=${escalaMes}&ano=${escalaAno}`)
+          .then((r) => r.json())
+          .then((json) => ({ pessoa: p, escala: json.escala || [] }))
+          .catch(() => ({ pessoa: p, escala: [] }))
+      ));
+      renderEscalaEquipe(resultados, escalaMes, escalaAno);
+    } catch (e) {
+      console.error('Erro ao carregar escala da equipe', e);
+      cont.innerHTML = '<div class="empty-state">Não foi possível carregar a escala da equipe.</div>';
+    }
+  }
+
+  function renderEscalaEquipe(resultados, mes, ano) {
+    const cont = document.getElementById('hh-equipe-grid');
+    if (!cont) return;
+    const diasNoMes = new Date(ano, mes + 1, 0).getDate();
+
+    // Quem não tem NENHUM dia de escala nesse mês não é do time 5x2 (ex:
+    // Wallac, que também é "consultor" pra outros fins, mas não entra
+    // nessa rotação) — fora daqui, senão sobra uma linha vazia sem sentido.
+    const comEscala = resultados.filter((r) => r.escala.length);
+
+    const headCells = [];
+    for (let dia = 1; dia <= diasNoMes; dia++) {
+      const sabado = new Date(ano, mes, dia).getDay() === 6;
+      headCells.push(`<div class="hh-eq-cell${sabado ? ' sabado' : ''}">${dia}</div>`);
+    }
+
+    const linhas = comEscala.map(({ pessoa, escala }) => {
+      const porDia = {};
+      escala.forEach((d) => { porDia[d.dia] = d.status; });
+      const cells = [];
+      for (let dia = 1; dia <= diasNoMes; dia++) {
+        const status = porDia[dia] || '';
+        const sabado = new Date(ano, mes, dia).getDay() === 6;
+        cells.push(`<div class="hh-eq-cell st-${status || 'vazio'}${sabado ? ' sabado' : ''}" title="${pessoa.nome} · dia ${dia}${status ? ': ' + status : ' — sem dado'}">${status}</div>`);
+      }
+      return `<div class="hh-eq-row"><div class="hh-eq-name">${pessoa.nome.split(' ')[0]}</div><div class="hh-eq-days">${cells.join('')}</div></div>`;
+    }).join('');
+
+    if (!comEscala.length) {
+      cont.innerHTML = '<div class="empty-state">Nenhuma escala encontrada pra esse mês.</div>';
+      return;
+    }
+
+    cont.innerHTML = `<div class="hh-eq-grid">
+      <div class="hh-eq-row hh-eq-head"><div class="hh-eq-name"></div><div class="hh-eq-days">${headCells.join('')}</div></div>
+      ${linhas}
+    </div>`;
   }
 
   // Sábados de um slug qualquer no mês/ano atualmente exibido no calendário —
