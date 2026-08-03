@@ -86,6 +86,9 @@
     <div class="hh-escala-head">
       <div class="hh-escala-title">Escala da equipe</div>
       <div class="hh-escala-nav">
+        <button id="btn-lote-escala" class="hh-btn-trocas" onclick="abrirLoteEscala()">
+          <i class="ti ti-calendar-plus" aria-hidden="true"></i> Férias/Feriado
+        </button>
         <button class="hh-nav-arrow" onclick="navEscala(-1)">‹</button>
         <span id="escala-mes-label" class="hh-escala-mes-label"></span>
         <button class="hh-nav-arrow" onclick="navEscala(1)">›</button>
@@ -135,6 +138,56 @@
       <div style="display:flex;gap:8px">
         <button onclick="salvarEdicaoEscala()" style="flex:1;background:var(--gold);color:var(--on-gold,#1A1A18);border:none;border-radius:var(--radius-sm);padding:10px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer">Salvar</button>
         <button onclick="fecharEditorEscala()" style="background:none;border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 18px;font-size:13px;color:var(--text-muted);font-family:inherit;cursor:pointer">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL CADASTRAR FÉRIAS/FERIADO (equipe, em lote) -->
+  <div class="modal-overlay" id="modal-lote-escala" onclick="if(event.target===this)fecharLoteEscala()">
+    <div class="modal-box" style="max-width:400px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem">
+        <div style="font-size:15px;font-weight:700"><i class="ti ti-calendar-plus" style="color:var(--gold);margin-right:6px"></i>Cadastrar férias/feriado</div>
+        <button onclick="fecharLoteEscala()" style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:20px;padding:4px"><i class="ti ti-x"></i></button>
+      </div>
+
+      <div style="margin-bottom:14px">
+        <label style="font-size:11px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:6px">O que é</label>
+        <select id="lote-escala-status" onchange="excAjustarLoteStatus()" style="width:100%;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:9px 12px;font-size:13px;color:var(--text);font-family:inherit">
+          <option value="FE">Férias</option>
+          <option value="FN">Feriado nacional</option>
+          <option value="FM">Feriado municipal</option>
+          <option value="F">Folga</option>
+          <option value="T">Trabalha</option>
+          <option value="TR">Troca</option>
+        </select>
+      </div>
+
+      <div style="margin-bottom:14px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+          <label style="font-size:11px;font-weight:600;color:var(--text-muted)">Quem</label>
+          <label style="font-size:11px;color:var(--text-muted);display:flex;align-items:center;gap:5px;cursor:pointer">
+            <input type="checkbox" id="lote-escala-todos" onchange="excLoteMarcarTodos(this.checked)"> Todo mundo
+          </label>
+        </div>
+        <div id="lote-escala-pessoas" style="display:flex;flex-direction:column;gap:6px;max-height:140px;overflow-y:auto;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px"></div>
+      </div>
+
+      <div style="display:flex;gap:10px;margin-bottom:14px">
+        <div style="flex:1">
+          <label style="font-size:11px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:6px">De</label>
+          <input type="date" id="lote-escala-de" style="width:100%;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:9px 10px;font-size:13px;color:var(--text);font-family:inherit">
+        </div>
+        <div style="flex:1">
+          <label style="font-size:11px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:6px">Até</label>
+          <input type="date" id="lote-escala-ate" style="width:100%;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:9px 10px;font-size:13px;color:var(--text);font-family:inherit">
+        </div>
+      </div>
+
+      <div id="lote-escala-erro" style="display:none;font-size:11px;color:var(--bad-text);margin-bottom:10px"></div>
+      <div id="lote-escala-sucesso" style="display:none;font-size:11px;color:var(--ok-text);margin-bottom:10px"></div>
+      <div style="display:flex;gap:8px">
+        <button id="lote-escala-btn-salvar" onclick="salvarLoteEscala()" style="flex:1;background:var(--gold);color:var(--on-gold,#1A1A18);border:none;border-radius:var(--radius-sm);padding:10px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer">Cadastrar</button>
+        <button onclick="fecharLoteEscala()" style="background:none;border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 18px;font-size:13px;color:var(--text-muted);font-family:inherit;cursor:pointer">Cancelar</button>
       </div>
     </div>
   </div>

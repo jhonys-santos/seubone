@@ -130,6 +130,26 @@ function doPost(e) {
       if (!salvou) return out({ ok: false, erro: 'Nao foi possivel localizar esse dia na planilha (mes ainda nao cadastrado?).' });
       return out({ ok: true });
     }
+    if (body.action === 'atualizarEscalaLote') {
+      // Cadastro em lote (Ferias/Feriados) — mesma escrita de atualizarEscala,
+      // só que pra varios dias e/ou varias pessoas de uma vez so (ex: ferias
+      // de 15 dias de 1 pessoa, ou feriado que afeta todo mundo no mesmo dia).
+      if (body.segredo !== SEGREDO_HUB) return out({ ok: false, erro: 'Nao autorizado' });
+      const status = String(body.status || '').toUpperCase();
+      if (!['T', 'F', 'FN', 'FM', 'TR', 'FE'].includes(status)) {
+        return out({ ok: false, erro: 'Status invalido.' });
+      }
+      const slugs = Array.isArray(body.slugs) ? body.slugs : [];
+      const dias  = Array.isArray(body.dias)  ? body.dias  : [];
+      let gravados = 0, falhas = 0;
+      slugs.forEach(function (slug) {
+        dias.forEach(function (d) {
+          const ok = atualizarDiaEscala(slug, parseInt(d.dia), parseInt(d.mes), parseInt(d.ano), status);
+          if (ok) gravados++; else falhas++;
+        });
+      });
+      return out({ ok: true, gravados: gravados, falhas: falhas });
+    }
   } catch(err) {
     return out({ ok: false, erro: err.message });
   }

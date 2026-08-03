@@ -91,6 +91,20 @@ router.post('/api/escala', requireRole('gestor'), async (req, res) => {
   }
 });
 
+// Cadastro em lote (Férias/Feriados) — mesma trava de gestor, mesmo padrão.
+router.post('/api/escala-lote', requireRole('gestor'), async (req, res) => {
+  try {
+    const { slugs, dias, status } = req.body;
+    const json = await chamarAppsScript(env.painelSacAppsScriptUrl, {
+      method: 'POST',
+      body: { action: 'atualizarEscalaLote', slugs, dias, status },
+    });
+    res.json(json);
+  } catch (err) {
+    res.status(502).json({ ok: false, erro: 'Falha ao cadastrar em lote: ' + err.message });
+  }
+});
+
 // ── Consultores/sábados: listagem entre colegas para pedido de troca.       ──
 // Não usa resolveSlug — qualquer colaborador autenticado pode ver a lista de
 // colegas e os sábados de qualquer um (é assim que a troca peer-to-peer já

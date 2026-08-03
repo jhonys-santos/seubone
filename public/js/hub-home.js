@@ -149,6 +149,7 @@ function parseCSV(text) {
   let escalaMes = mesHoje, escalaAno = anoHoje;
   let trocasPendentes = [];
   let consultoresCache = [];
+  let equipeComEscalaCache = []; // subconjunto de consultoresCache que tem escala de verdade (ver renderEscalaEquipe)
   let sabadosCache = {}; // por slug — reaproveitado tanto pro "seu sábado" quanto pro "sábado do colega"
 
   function atualizarLabelEscala() {
@@ -266,6 +267,9 @@ function parseCSV(text) {
     // Wallac, que também é "consultor" pra outros fins, mas não entra
     // nessa rotação) — fora daqui, senão sobra uma linha vazia sem sentido.
     const comEscala = resultados.filter((r) => r.escala.length);
+    // Mesma lista alimenta o checklist do modal de Férias/Feriado — não faz
+    // sentido oferecer alguém que nunca vai ter um dia de escala de verdade.
+    equipeComEscalaCache = comEscala.map((r) => r.pessoa);
 
     const headCells = [];
     for (let dia = 1; dia <= diasNoMes; dia++) {
@@ -347,6 +351,122 @@ function parseCSV(text) {
     }
   }
   window.salvarEdicaoEscala = salvarEdicaoEscala;
+
+  // ── CADASTRAR FÉRIAS/FERIADO EM LOTE (gestor) ─────────────────
+  // "YYYY-MM-DD" (valor nativo de <input type="date">) como data local, pra
+  // não cair um dia por causa de fuso horário se interpretasse como UTC —
+  // mesmo cuidado que Indicadores Equipe já toma pro mesmo tipo de input.
+  function excParseDataLocal(str) {
+    const [ano, mes, dia] = str.split('-').map(Number);
+    return new Date(ano, mes - 1, dia);
+  }
+
+  const LOTE_MAX_DIAS = 62; // ~2 meses — cada dia é uma escrita na planilha, não deixa abrir um intervalo enorme por engano
+
+  function excAjustarLoteStatus() {
+    const status = document.getElementById('lote-escala-status').value;
+    // Feriado é regra geral (todo mundo); férias/folga/trabalho/troca são
+    // individuais — só ajuda a marcar o padrão mais comum, não trava nada.
+    const todosCheckbox = document.getElementById('lote-escala-todos');
+    if (status === 'FN' || status === 'FM') {
+      todosCheckbox.checked = true;
+      excLoteMarcarTodos(true);
+    } else {
+      todosCheckbox.checked = false;
+      excLoteMarcarTodos(false);
+    }
+  }
+  window.excAjustarLoteStatus = excAjustarLoteStatus;
+
+  function excLoteMarcarTodos(marcar) {
+    document.querySelectorAll('#lote-escala-pessoas input[type="checkbox"]').forEach((cb) => { cb.checked = marcar; });
+  }
+  window.excLoteMarcarTodos = excLoteMarcarTodos;
+
+  async function abrirLoteEscala() {
+    const erroEl = document.getElementById('lote-escala-erro');
+    const sucessoEl = document.getElementById('lote-escala-sucesso');
+    erroEl.style.display = 'none';
+    sucessoEl.style.display = 'none';
+    document.getElementById('lote-escala-status').value = 'FE';
+    document.getElementById('lote-escala-todos').checked = false;
+    document.getElementById('lote-escala-de').value = '';
+    document.getElementById('lote-escala-ate').value = '';
+
+    const pessoasEl = document.getElementById('lote-escala-pessoas');
+    const opcoes = equipeComEscalaCache.length ? equipeComEscalaCache : consultoresCache;
+    if (!opcoes.length) {
+      pessoasEl.innerHTML = '<div style="font-size:12px;color:var(--text-hint)">Ainda carregando a lista de consultores — abre de novo em alguns segundos.</div>';
+    } else {
+      pessoasEl.innerHTML = opcoes.map((c) => `
+        <label style="font-size:12.5px;color:var(--text);display:flex;align-items:center;gap:7px;cursor:pointer">
+          <input type="checkbox" value="${c.slug}"> ${c.nome}
+        </label>
+      `).join('');
+    }
+    document.getElementById('modal-lote-escala').classList.add('show');
+  }
+  window.abrirLoteEscala = abrirLoteEscala;
+
+  function fecharLoteEscala() {
+    document.getElementById('modal-lote-escala').classList.remove('show');
+  }
+  window.fecharLoteEscala = fecharLoteEscala;
+
+  async function salvarLoteEscala() {
+    const erroEl = document.getElementById('lote-escala-erro');
+    const sucessoEl = document.getElementById('lote-escala-sucesso');
+    erroEl.style.display = 'none';
+    sucessoEl.style.display = 'none';
+
+    const status = document.getElementById('lote-escala-status').value;
+    const slugs = Array.from(document.querySelectorAll('#lote-escala-pessoas input[type="checkbox"]:checked')).map((cb) => cb.value);
+    const deStr = document.getElementById('lote-escala-de').value;
+    const ateStr = document.getElementById('lote-escala-ate').value;
+
+    if (!slugs.length) { erroEl.textContent = 'Selecione ao menos uma pessoa.'; erroEl.style.display = 'block'; return; }
+    if (!deStr || !ateStr) { erroEl.textContent = 'Selecione as duas datas.'; erroEl.style.display = 'block'; return; }
+    if (deStr > ateStr) { erroEl.textContent = '"De" precisa vir antes de "Até".'; erroEl.style.display = 'block'; return; }
+
+    const de = excParseDataLocal(deStr), ate = excParseDataLocal(ateStr);
+    const dias = [];
+    const atual = new Date(de);
+    while (atual <= ate) {
+      dias.push({ dia: atual.getDate(), mes: atual.getMonth(), ano: atual.getFullYear() });
+      atual.setDate(atual.getDate() + 1);
+    }
+    if (dias.length > LOTE_MAX_DIAS) {
+      erroEl.textContent = `Selecione um intervalo de até ${LOTE_MAX_DIAS} dias.`;
+      erroEl.style.display = 'block';
+      return;
+    }
+
+    const btn = document.getElementById('lote-escala-btn-salvar');
+    btn.disabled = true;
+    btn.textContent = 'Cadastrando... (pode demorar até 1 min)';
+    try {
+      const res = await fetch(`${API_BASE}/escala-lote`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ slugs, dias, status }),
+      });
+      const json = await res.json();
+      if (!json.ok) { erroEl.textContent = json.erro || 'Erro ao cadastrar.'; erroEl.style.display = 'block'; return; }
+      sucessoEl.textContent = `${json.gravados || 0} dia(s) gravado(s)${json.falhas ? ' — ' + json.falhas + ' falharam (mês fora do que já existe na planilha?)' : ''}.`;
+      sucessoEl.style.display = 'block';
+      // Muda várias células de uma vez (várias pessoas × vários dias) — mais
+      // simples recarregar a escala da equipe do zero do que remendar célula
+      // por célula na tela.
+      carregarEscalaEquipe();
+    } catch (e) {
+      erroEl.textContent = 'Erro ao cadastrar: ' + e.message;
+      erroEl.style.display = 'block';
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Cadastrar';
+    }
+  }
+  window.salvarLoteEscala = salvarLoteEscala;
 
   // Sábados de um slug qualquer no mês/ano atualmente exibido no calendário —
   // reaproveitado tanto pro "seu sábado" quanto pro "sábado do colega".
