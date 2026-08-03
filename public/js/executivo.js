@@ -43,29 +43,26 @@ async function excCarregarKpis() {
   }
 }
 
+// Só o valor agregado do período + meta — sem gráfico diário, pra dar uma
+// leitura rápida da equipe no período (semana/mês), no mesmo estilo de
+// card usado no NPS e no resto do dashboard (verde dentro da meta, vermelho
+// fora dela).
 function excRenderKpisChart(porEquipe) {
   const cont = document.getElementById('exec-kpis-chart');
-  const denso = excDiasAtuais.length > 10;
 
   cont.innerHTML = EXEC_METRICAS.map(({ time, key }) => {
     const m = IE_TIMES[time].metricas.find((mm) => mm.key === key);
     const serie = porEquipe[time][key] || [];
     const totalPeriodo = ieAgregar(serie, m.agregacao);
-    const maxVal = Math.max(1, ...serie.filter((v) => v != null));
     const atinge = ieAtingeMeta(totalPeriodo, m.meta);
-    const cls = atinge === null ? '' : atinge ? 'ok' : 'bad';
-    const metaTxt = m.meta ? 'Meta: ' + (m.meta.direcao === 'menor' ? '&lt;' : '&gt;') + ' ' + ieFormatValor(m.meta.valor, m.unidade) : '';
+    const cardCls = atinge === null ? '' : atinge ? 'status-ok' : 'status-danger';
+    const valCls = atinge === null ? '' : atinge ? 'ok' : 'danger';
+    const metaTxt = m.meta ? (m.meta.direcao === 'menor' ? '&lt;' : '&gt;') + ' ' + ieFormatValor(m.meta.valor, m.unidade) : '';
 
-    const dias = excDiasAtuais.map((dia, di) => {
-      const v = serie[di];
-      const bar = ieBarCol(v, maxVal, null, `${dia.label}: ${ieFormatValor(v, m.unidade)}`);
-      return `<div class="ie-day-group"><div class="ie-bars-row">${bar}</div><div class="ie-day-label ${dia.hoje ? 'hoje' : ''}">${dia.label}</div></div>`;
-    }).join('');
-
-    return `<div class="exec-chart-card">
-      <div class="exec-chart-head"><span class="exec-chart-title">${m.label}</span><span class="exec-chart-meta">${metaTxt}</span></div>
-      <div class="exec-chart-total ${cls}">${ieFormatValor(totalPeriodo, m.unidade)}</div>
-      <div class="ie-chart ie-chart-equipe ${denso ? 'ie-chart-mes' : ''}">${dias}</div>
+    return `<div class="hh-kpi-card ${cardCls}">
+      <div class="hh-kpi-label">${m.label}</div>
+      <div class="hh-kpi-value ${valCls}">${ieFormatValor(totalPeriodo, m.unidade)}</div>
+      <div class="hh-kpi-meta">Meta: <span>${metaTxt}</span></div>
     </div>`;
   }).join('');
 }

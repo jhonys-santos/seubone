@@ -1,22 +1,8 @@
 /* ── DASHBOARD EXECUTIVO (rascunho, gestor) ───────────────────
    Reaproveita o vocabulário visual de hub-home.css (.hh-wrap, .hh-header,
    .hh-section-label, .hh-kpis-grid/.hh-kpi-card pros stat-tiles) e de
-   indicadores-equipe.css (.ie-chart-equipe pros gráficos de barra) — aqui
-   só entra o que nenhum dos dois já cobre. */
-
-.exec-charts-grid {
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 12px; margin-bottom: 2rem;
-}
-.exec-chart-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.1rem; }
-.exec-chart-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 2px; flex-wrap: wrap; }
-.exec-chart-title { font-size: 12.5px; font-weight: 700; color: var(--text); }
-.exec-chart-meta { font-size: 10.5px; color: var(--text-hint); }
-.exec-chart-total { font-size: 18px; font-weight: 800; margin-bottom: 10px; font-variant-numeric: tabular-nums; }
-.exec-chart-total.ok { color: var(--ok-text, var(--ok)); }
-.exec-chart-total.bad { color: var(--bad-text, var(--bad)); }
-.exec-chart-card .ie-chart { height: 90px; }
-.exec-chart-card .ie-chart .ie-bars-row { height: 66px; }
+   indicadores-equipe.css (.ie-tabs pro seletor de período) — aqui só entra
+   o que nenhum dos dois já cobre. */
 
 /* Estado "sem acesso a este painel" (Quitações/Wallac quando a API
    devolve HTML de 403 em vez de JSON) — mesmo tom neutro do .ie-empty,
