@@ -148,6 +148,7 @@
 .hh-eq-cell.st-F { background: rgba(212,75,75,0.18); color: #D44B4B; }
 .hh-eq-cell.st-FN, .hh-eq-cell.st-FM { background: rgba(212,150,40,0.2); color: #D49628; }
 .hh-eq-cell.st-TR, .hh-eq-cell.st-FE { background: rgba(80,140,220,0.2); color: #3A7BD5; }
+.hh-eq-cell.st-vazio { border: 1px dashed var(--border-strong); }
 
 .hh-escala-subtitle { font-size: 12px; font-weight: 700; color: var(--text-muted); }
 

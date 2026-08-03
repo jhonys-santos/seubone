@@ -146,10 +146,15 @@ function parseCSV(text) {
   const API_BASE = '/painel-sac/api';
   const usuarioLogado = window.USUARIO_SESSAO;
   const MESES_ABREV = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+  // Quem realmente participa da escala 5x2 (tem aba Escala_<Nome> na
+  // planilha) — não dá pra descobrir isso só pelos dados porque um mês
+  // recém-aberto vem vazio pra todo mundo, e aí não teria como diferenciar
+  // "time real, mês novo" de "gente como o Wallac, que nunca tem escala".
+  const ESCALA_SLUGS = ['nathalia', 'francis', 'iasmin', 'gabrielle', 'daniel'];
   let escalaMes = mesHoje, escalaAno = anoHoje;
   let trocasPendentes = [];
   let consultoresCache = [];
-  let equipeComEscalaCache = []; // subconjunto de consultoresCache que tem escala de verdade (ver renderEscalaEquipe)
+  let pessoasEquipeCache = []; // consultoresCache filtrado por ESCALA_SLUGS — alimenta o grid e o modal de lote
   let sabadosCache = {}; // por slug — reaproveitado tanto pro "seu sábado" quanto pro "sábado do colega"
 
   function atualizarLabelEscala() {
@@ -245,7 +250,8 @@ function parseCSV(text) {
         if (!Array.isArray(json.consultores)) throw new Error(json.erro || 'resposta inválida');
         consultoresCache = json.consultores.filter((c) => c.slug !== usuarioLogado.slug);
       }
-      const resultados = await Promise.all(consultoresCache.map((p) =>
+      pessoasEquipeCache = consultoresCache.filter((c) => ESCALA_SLUGS.includes(c.slug));
+      const resultados = await Promise.all(pessoasEquipeCache.map((p) =>
         fetchComPrazo(`${API_BASE}/escala?slug=${encodeURIComponent(p.slug)}&mes=${escalaMes}&ano=${escalaAno}`, 40000)
           .then((r) => r.json())
           .then((json) => ({ pessoa: p, escala: json.escala || [] }))
@@ -263,34 +269,30 @@ function parseCSV(text) {
     if (!cont) return;
     const diasNoMes = new Date(ano, mes + 1, 0).getDate();
 
-    // Quem não tem NENHUM dia de escala nesse mês não é do time 5x2 (ex:
-    // Wallac, que também é "consultor" pra outros fins, mas não entra
-    // nessa rotação) — fora daqui, senão sobra uma linha vazia sem sentido.
-    const comEscala = resultados.filter((r) => r.escala.length);
-    // Mesma lista alimenta o checklist do modal de Férias/Feriado — não faz
-    // sentido oferecer alguém que nunca vai ter um dia de escala de verdade.
-    equipeComEscalaCache = comEscala.map((r) => r.pessoa);
+    if (!resultados.length) {
+      cont.innerHTML = '<div class="empty-state">Nenhum colaborador encontrado.</div>';
+      return;
+    }
 
     const headCells = [];
     for (let dia = 1; dia <= diasNoMes; dia++) {
       headCells.push(`<div class="hh-eq-cell">${dia}</div>`);
     }
 
-    const linhas = comEscala.map(({ pessoa, escala }) => {
+    // Mês sem nenhuma linha ainda na planilha (ex: mês futuro nunca aberto)
+    // devolve escala vazia pra todo mundo — mesmo assim desenha o calendário
+    // completo, só que com células em branco: dá pra clicar e ir preenchendo
+    // (ex: só os sábados, como pedido), em vez de sumir com o quadro inteiro.
+    const linhas = resultados.map(({ pessoa, escala }) => {
       const porDia = {};
       escala.forEach((d) => { porDia[d.dia] = d.status; });
       const cells = [];
       for (let dia = 1; dia <= diasNoMes; dia++) {
         const status = porDia[dia] || '';
-        cells.push(`<div class="hh-eq-cell st-${status || 'vazio'} editavel" data-slug="${pessoa.slug}" data-dia="${dia}" data-nome="${pessoa.nome}" onclick="excAbrirEditorEscala(this)" title="${pessoa.nome} · dia ${dia}${status ? ': ' + status : ' — sem dado'} (clique pra editar)">${status}</div>`);
+        cells.push(`<div class="hh-eq-cell st-${status || 'vazio'} editavel" data-slug="${pessoa.slug}" data-dia="${dia}" data-nome="${pessoa.nome}" onclick="excAbrirEditorEscala(this)" title="${pessoa.nome} · dia ${dia}${status ? ': ' + status : ' — sem dado ainda'} (clique pra editar)">${status}</div>`);
       }
       return `<div class="hh-eq-row"><div class="hh-eq-name">${pessoa.nome.split(' ')[0]}</div><div class="hh-eq-days">${cells.join('')}</div></div>`;
     }).join('');
-
-    if (!comEscala.length) {
-      cont.innerHTML = '<div class="empty-state">Nenhuma escala encontrada pra esse mês.</div>';
-      return;
-    }
 
     cont.innerHTML = `<div class="hh-eq-grid">
       <div class="hh-eq-row hh-eq-head"><div class="hh-eq-name"></div><div class="hh-eq-days">${headCells.join('')}</div></div>
@@ -394,7 +396,7 @@ function parseCSV(text) {
     document.getElementById('lote-escala-ate').value = '';
 
     const pessoasEl = document.getElementById('lote-escala-pessoas');
-    const opcoes = equipeComEscalaCache.length ? equipeComEscalaCache : consultoresCache;
+    const opcoes = pessoasEquipeCache.length ? pessoasEquipeCache : consultoresCache.filter((c) => ESCALA_SLUGS.includes(c.slug));
     if (!opcoes.length) {
       pessoasEl.innerHTML = '<div style="font-size:12px;color:var(--text-hint)">Ainda carregando a lista de consultores — abre de novo em alguns segundos.</div>';
     } else {

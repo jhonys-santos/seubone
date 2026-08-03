@@ -1026,7 +1026,8 @@ function atualizarDiaEscala(slug, dia, mes, ano, novoStatus) {
   if (!aba) return false;
   const rows = aba.getDataRange().getValues();
 
-  const mesesPT = {'jan':0,'fev':1,'mar':2,'abr':3,'mai':4,'jun':5,'jul':6,'ago':7,'set':8,'out':9,'nov':10,'dez':11};
+  const mesesPT    = {'jan':0,'fev':1,'mar':2,'abr':3,'mai':4,'jun':5,'jul':6,'ago':7,'set':8,'out':9,'nov':10,'dez':11};
+  const mesesPTInv = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
 
   let linhaIdx = -1;
   for (let i = 1; i < rows.length; i++) {
@@ -1040,9 +1041,19 @@ function atualizarDiaEscala(slug, dia, mes, ano, novoStatus) {
     }
     if (parsedMes === mes && parsedAno === ano) { linhaIdx = i + 1; break; }
   }
-  if (linhaIdx === -1) return false;
 
   const cab = rows[0];
+
+  if (linhaIdx === -1) {
+    // Mes ainda nao tem linha nessa aba (ex: mes futuro nunca aberto) — cria
+    // agora, com todo mundo de folga por padrao, em vez de falhar. O gestor
+    // ajusta depois clicando nas celulas (ou usando o cadastro em lote).
+    const novaLinha = [mesesPTInv[mes] + '/' + ano];
+    for (let j = 1; j < cab.length; j++) novaLinha.push('F');
+    aba.appendRow(novaLinha);
+    linhaIdx = aba.getLastRow();
+  }
+
   for (let j = 1; j < cab.length; j++) {
     if (parseInt(cab[j]) === dia) {
       aba.getRange(linhaIdx, j + 1).setValue(novoStatus);
