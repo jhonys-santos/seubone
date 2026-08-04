@@ -25,6 +25,23 @@ function lerArquivoBase64(file) {
   });
 }
 
+// Busca solicitações já registradas pra esse mesmo ID de venda — usado pra
+// avisar antes de registrar de novo (ex: duplo clique, ou esqueceu que já
+// tinha pedido). Não bloqueia: se a checagem falhar (rede, Apps Script fora
+// do ar), deixa passar em vez de travar um registro legítimo por causa de
+// um problema numa verificação secundária.
+async function buscarDuplicidadeIdVenda(idCompra) {
+  try {
+    const resp = await fetch('/registro-demandas/api/list');
+    const lista = await resp.json();
+    if (!Array.isArray(lista)) return null;
+    return lista.filter((r) => String(r.IDCompra || '').trim() === idCompra);
+  } catch (e) {
+    console.warn('Não foi possível checar duplicidade do ID da venda:', e.message);
+    return null;
+  }
+}
+
 document.getElementById('btn-registrar').addEventListener('click', async () => {
   const solicitante = document.getElementById('f-solicitante').value.trim();
   const empresa = document.getElementById('f-empresa').value;
@@ -54,6 +71,22 @@ document.getElementById('btn-registrar').addEventListener('click', async () => {
 
   const btn = document.getElementById('btn-registrar');
   btn.disabled = true;
+  btn.textContent = 'Verificando...';
+
+  const duplicados = await buscarDuplicidadeIdVenda(idCompra);
+  if (duplicados && duplicados.length) {
+    const resumo = duplicados.slice(0, 3).map((r) => `${r.TipoDemanda || 'Demanda'} (${r.Status || 'Pendente'})`).join(', ');
+    const confirmado = await hubConfirm(
+      `Já ${duplicados.length > 1 ? `existem ${duplicados.length} solicitações` : 'existe uma solicitação'} registrada${duplicados.length > 1 ? 's' : ''} para o ID da venda ${idCompra}: ${resumo}. Registrar mesmo assim?`,
+      { textoConfirmar: 'Registrar mesmo assim', textoCancelar: 'Cancelar' }
+    );
+    if (!confirmado) {
+      btn.disabled = false;
+      btn.textContent = 'Registrar solicitação';
+      return;
+    }
+  }
+
   btn.textContent = arquivos.length ? 'Enviando anexos...' : 'Registrando...';
 
   try {
