@@ -159,12 +159,21 @@
    pessoal (hh-d-*), só que numa faixa compacta por pessoa em vez de um
    calendário 7 colunas — cada linha é um consultor, cada coluna um dia
    do mês. Célula é clicável (.editavel) — abre o modal de edição. */
-.hh-eq-grid { display: flex; flex-direction: column; gap: 4px; overflow-x: auto; padding-bottom: 4px; }
+.hh-eq-grid { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; overflow-x: auto; padding-bottom: 4px; }
 .hh-eq-grid:hover { scrollbar-color: var(--border-strong) transparent; }
+/* align-items:flex-start acima faz cada linha crescer pra caber as 31
+   colunas de dia (em vez de esticar só até a largura visível do grid) —
+   sem isso o .hh-eq-name sticky abaixo perde a referência de até onde
+   pode ficar fixo e solta o nome antes do fim do scroll. */
 .hh-eq-row { display: flex; align-items: center; gap: 3px; }
 .hh-eq-name {
   width: 82px; flex-shrink: 0; font-size: 11px; font-weight: 600; color: var(--text-muted);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  /* Sticky no eixo horizontal — com 31 colunas o grid quase sempre precisa
+     rolar de lado (principalmente no mobile, onde só ~10 dias cabem na
+     tela), e sem isso o nome do consultor some da vista junto com o
+     scroll, perdendo a referência de qual linha é de quem. */
+  position: sticky; left: 0; z-index: 1; background: var(--surface);
 }
 .hh-eq-days { display: flex; gap: 3px; }
 .hh-eq-cell {
