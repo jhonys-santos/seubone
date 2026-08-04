@@ -9,6 +9,66 @@ const router = express.Router();
 
 router.use(requireAuth, requirePainel('painel-sac'));
 
+// ── Auditoria de processos (time de atendimento) ──────────────────────────
+// Até aqui essa seção vinha de abas internas da planilha do Painel SAC
+// (Auditoria_Nathalia/Francis/Iasmin, com layout de colunas fixas por
+// semana/mês). Passou a vir da planilha "Sistema_Registro" da Auditoria de
+// Qualidade — mesmas regras de exibição (nota % do período, lista de
+// atendimentos com nota individual 0-100), só trocou a fonte. Gabrielle e
+// Daniel (time PPF) ficam de fora: o "auditorias" deles é uma contagem
+// simples vs meta, processo diferente, não passou pela Auditoria de
+// Qualidade — mantido como estava, lendo da planilha antiga.
+const SAC_AGENTE_POR_SLUG = { nathalia: 'Nathalia', francis: 'Francis', iasmin: 'Iasmin' };
+
+// Compara datas como inteiro AAAAMMDD (sem Date/fuso horário no meio) —
+// evita virada de dia por conversão de timezone entre o que a planilha
+// devolve e o que a semana/mês pedidos representam.
+function dataParaChave(dataStr) {
+  const d = new Date(dataStr);
+  if (isNaN(d)) return null;
+  return d.getUTCFullYear() * 10000 + (d.getUTCMonth() + 1) * 100 + d.getUTCDate();
+}
+function dataBrParaChave(dataBr) {
+  const [dia, mes, ano] = String(dataBr).split('/').map(Number);
+  if (!dia || !mes || !ano) return null;
+  return ano * 10000 + mes * 100 + dia;
+}
+function registroNoPeriodo(dataStr, periodo, mes, ano, semIniStr, semFimStr) {
+  const chave = dataParaChave(dataStr);
+  if (chave === null) return false;
+  if (periodo === 'semana' && semIniStr && semFimStr) {
+    const ini = dataBrParaChave(semIniStr);
+    const fim = dataBrParaChave(semFimStr);
+    return ini !== null && fim !== null && chave >= ini && chave <= fim;
+  }
+  const d = new Date(dataStr);
+  return d.getUTCMonth() === Number(mes) && d.getUTCFullYear() === Number(ano);
+}
+
+// Busca as auditorias do consultor pro período pedido e devolve no mesmo
+// formato que o front-end já espera (indicadores.audit + auditorias_historico).
+async function buscarAuditoriaSac(slugAlvo, periodo, mes, ano, semIni, semFim) {
+  const agente = SAC_AGENTE_POR_SLUG[slugAlvo];
+  if (!agente) return null;
+
+  const json = await chamarAppsScript(env.auditoriaAppsScriptUrl);
+  if (!json || !json.ok) return null;
+
+  const doPeriodo = (json.data || [])
+    .filter((r) => String(r.Agente || '').trim().toLowerCase() === agente.toLowerCase())
+    .filter((r) => registroNoPeriodo(r.Data, periodo, mes, ano, semIni, semFim));
+
+  const total = doPeriodo.length;
+  const ok = doPeriodo.filter((r) => r.Classificacao !== 'CRITICO').length;
+  const nota = total > 0 ? Math.round(doPeriodo.reduce((soma, r) => soma + Number(r.Total || 0), 0) / total) : null;
+  const itens = doPeriodo.map((r) => ({ id: String(r.ConversationId || ''), obs: String(r.Observacoes || ''), score: Number(r.Total || 0) }));
+
+  return {
+    audit: { pct: nota !== null ? nota : 0, ok, total },
+    historico: { nota, itens },
+  };
+}
+
 router.get('/', (req, res) => {
   const u = req.session.user;
   const iniciais = u.nome
@@ -57,6 +117,21 @@ router.get('/api/dados', resolveSlug, async (req, res) => {
     const json = await chamarAppsScript(env.painelSacAppsScriptUrl, {
       params: { action: 'dados', usuario: req.slugAlvo, periodo, mes, ano, sem_ini, sem_fim },
     });
+
+    if (SAC_AGENTE_POR_SLUG[req.slugAlvo] && json.indicadores) {
+      try {
+        const auditoria = await buscarAuditoriaSac(req.slugAlvo, periodo, mes, ano, sem_ini, sem_fim);
+        if (auditoria) {
+          json.indicadores.audit = auditoria.audit;
+          json.auditorias_historico = auditoria.historico;
+        }
+      } catch (err) {
+        // Não deixa uma falha na Auditoria de Qualidade quebrar o resto dos
+        // indicadores — pior caso, essa seção específica fica sem dado.
+        console.error('[painel-sac] falha ao buscar auditoria da Auditoria de Qualidade:', err.message);
+      }
+    }
+
     res.json(json);
   } catch (err) {
     res.status(502).json({ ok: false, erro: 'Falha ao buscar indicadores: ' + err.message });
