@@ -4,17 +4,23 @@
 <%- include('partials/head') %>
 <title>SeuBoné</title>
 <link rel="stylesheet" href="/css/hub-home.css">
+<% if (usuario && usuario.role === 'gestor') { %>
+<link rel="stylesheet" href="/css/indicadores-equipe.css">
+<% } %>
 </head>
 <body>
 <%
   var temPainelSac = paineisVisiveis.some(function (p) { return p.chave === 'painel-sac'; });
   var temRankingSac = paineisVisiveis.some(function (p) { return p.chave === 'ranking-sac'; });
+  // Gestor sempre tem o que ver aqui (visão consolidada da operação),
+  // mesmo sem acesso a painel-sac/ranking-sac especificamente.
+  var mostrarConteudo = temPainelSac || temRankingSac || usuario.role === 'gestor';
 %>
 <div class="app-shell">
 <%- include('partials/sidebar') %>
 <div class="app-main">
 
-<% if (!temPainelSac && !temRankingSac) { %>
+<% if (!mostrarConteudo) { %>
 <div class="hh-fallback">
   <i class="ti ti-layout-dashboard" aria-hidden="true"></i>
   <h1>Olá, <%= usuario.nome.split(' ')[0] %></h1>
@@ -34,36 +40,47 @@
     </div>
   </div>
 
-  <% if (temRankingSac) { %>
-  <div class="hh-section-label">KPIs da Equipe</div>
-  <div class="hh-kpis-grid" id="hh-kpis-grid">
-    <div class="hh-kpi-card" id="hh-card-tma">
-      <div class="hh-kpi-label">TMA da Equipe</div>
-      <div class="hh-kpi-value" id="hh-val-tma">--<span class="hh-kpi-unit">h</span></div>
-      <div class="hh-kpi-meta">Meta: <span>&lt; 00:30:00h</span></div>
+  <% if (usuario.role === 'gestor') { %>
+  <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px">
+    <div class="hh-section-label" style="margin-bottom:0">KPIs da Equipe</div>
+    <div class="ie-tabs">
+      <button class="ie-tab active" data-periodo="semana" onclick="excSetPeriodo('semana', this)">Semana</button>
+      <button class="ie-tab" data-periodo="mes" onclick="excSetPeriodo('mes', this)">Mês</button>
     </div>
-    <div class="hh-kpi-card" id="hh-card-csat">
-      <div class="hh-kpi-label">CSAT da Equipe</div>
-      <div class="hh-kpi-value" id="hh-val-csat">--<span class="hh-kpi-unit">%</span></div>
-      <div class="hh-kpi-meta">Meta: <span>&gt; 95%</span></div>
-    </div>
-    <div class="hh-kpi-card" id="hh-card-nps">
+  </div>
+  <div class="hh-kpis-grid">
+    <div class="hh-kpi-card" id="exec-card-nps">
       <div class="hh-kpi-label">NPS</div>
-      <div class="hh-kpi-value" id="hh-val-nps">--</div>
-      <div class="hh-kpi-meta">Meta: <span>&gt; 80</span></div>
+      <div class="hh-kpi-value" id="exec-val-nps">--</div>
+      <div class="hh-kpi-meta">Meta: <span>&gt; 80</span> · sem histórico disponível</div>
     </div>
-    <div class="hh-kpi-card" id="hh-card-refab">
-      <div class="hh-kpi-label">TMR Refabricação</div>
-      <div class="hh-kpi-value" id="hh-val-refab">--<span class="hh-kpi-unit">h</span></div>
-      <div class="hh-kpi-meta">Meta: <span>&lt; 84:00:00h</span></div>
-    </div>
-    <div class="hh-kpi-card" id="hh-card-ppf">
-      <div class="hh-kpi-label">TMR PPF +1</div>
-      <div class="hh-kpi-value" id="hh-val-ppf">--<span class="hh-kpi-unit">h</span></div>
-      <div class="hh-kpi-meta">Meta: <span>&lt; 24:00:00h</span></div>
+    <div id="exec-kpis-chart" style="display:contents">
+      <div class="ie-carregando"><i class="ti ti-loader-2" aria-hidden="true"></i> Carregando indicadores...</div>
     </div>
   </div>
 
+  <div class="hh-section-label">Solicitações ao Financeiro</div>
+  <div class="hh-kpis-grid" id="exec-financeiro">
+    <div class="ie-carregando"><i class="ti ti-loader-2" aria-hidden="true"></i> Carregando...</div>
+  </div>
+
+  <div class="hh-section-label">Quitações Pendentes</div>
+  <div class="hh-kpis-grid" id="exec-quitacoes">
+    <div class="ie-carregando"><i class="ti ti-loader-2" aria-hidden="true"></i> Carregando...</div>
+  </div>
+
+  <div class="hh-section-label">Produção (Wallac)</div>
+  <div class="hh-kpis-grid" id="exec-wallac">
+    <div class="ie-carregando"><i class="ti ti-loader-2" aria-hidden="true"></i> Carregando...</div>
+  </div>
+
+  <div class="hh-section-label">Corridas Avulsas</div>
+  <div class="hh-kpis-grid" id="exec-corridas">
+    <div class="ie-carregando"><i class="ti ti-loader-2" aria-hidden="true"></i> Carregando...</div>
+  </div>
+  <% } %>
+
+  <% if (temRankingSac) { %>
   <div class="hh-foco-banner">
     <div class="hh-foco-icon"><i class="ti ti-target-arrow" aria-hidden="true"></i></div>
     <div class="hh-foco-text-wrap">
@@ -393,10 +410,13 @@
 </script>
 <% } %>
 
-<% if (temPainelSac || temRankingSac) { %>
+<% if (mostrarConteudo) { %>
 <script>
   window.USUARIO_SESSAO = <%- JSON.stringify(usuario) %>;
 </script>
+<% if (usuario.role === 'gestor') { %>
+<script src="/js/indicadores-equipe.js"></script>
+<% } %>
 <script src="/js/hub-home.js"></script>
 <% } %>
 </body>

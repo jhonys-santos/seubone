@@ -1,10 +1,19 @@
 /* ── HOME (visão executiva) ──────────────────────────────────
-   KPIs da equipe (Ranking SAC), agenda + foco da semana (Ranking SAC),
-   escala de serviço + trocas + sugestão (Painel SAC) — tudo reunido
-   aqui pra quem loga já ver o que importa, sem precisar abrir painel
-   por painel. */
+   KPIs da equipe + Solicitações/Quitações/Wallac/Corridas (visão de
+   gestor, veio do Dashboard Executivo fundido aqui), agenda + foco da
+   semana (Ranking SAC), escala de serviço + trocas + sugestão (Painel
+   SAC) — tudo reunido pra quem loga já ver o que importa, sem precisar
+   abrir painel por painel. */
 
 .hh-wrap { max-width: 1160px; margin: 0 auto; padding: 1.5rem 1.25rem 5rem; }
+
+/* Estado "sem acesso a este painel" (Quitações/Wallac quando a API
+   devolve HTML de 403 em vez de JSON) — mesmo tom neutro do .ie-empty,
+   só com um texto mais específico. */
+.exec-sem-acesso {
+  grid-column: 1 / -1; font-size: 12px; color: var(--text-hint); text-align: center;
+  padding: 1.5rem; background: var(--surface); border: 1px dashed var(--border); border-radius: var(--radius);
+}
 
 .hh-header {
   display: flex; align-items: flex-end; justify-content: space-between;

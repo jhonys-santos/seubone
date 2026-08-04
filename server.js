@@ -29,7 +29,6 @@ const indicadoresEquipeRoutes = require('./src/routes/indicadoresEquipe.routes')
 const quitacoesRoutes = require('./src/routes/quitacoes.routes');
 const corridasAvulsasRoutes = require('./src/routes/corridasAvulsas.routes');
 const notificacoesRoutes = require('./src/routes/notificacoes.routes');
-const executivoRoutes = require('./src/routes/executivo.routes');
 const agendaSemanaRoutes = require('./src/routes/agendaSemana.routes');
 
 const app = express();
@@ -105,7 +104,6 @@ app.use('/registro-demandas', registroDemandasRoutes);
 app.use('/indicadores-equipe', indicadoresEquipeRoutes);
 app.use('/quitacoes', quitacoesRoutes);
 app.use('/corridas-avulsas', corridasAvulsasRoutes);
-app.use('/executivo', executivoRoutes);
 app.use('/agenda-semana', agendaSemanaRoutes);
 app.use(notificacoesRoutes);
 
