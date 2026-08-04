@@ -16,6 +16,19 @@ function mostrarMsg(texto, tipo) {
   setTimeout(() => { el.className = 'msg'; }, 5000);
 }
 
+// "Link do card no Bitrix" precisa chegar como URL de verdade no n8n — tem
+// gente digitando o nome do card em vez de colar o link, o que quebra a
+// automação lá na frente.
+function pareceUrl(valor) {
+  if (!/^https?:\/\//i.test(valor)) return false;
+  try {
+    new URL(valor);
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
 function lerArquivoBase64(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -60,6 +73,11 @@ document.getElementById('btn-registrar').addEventListener('click', async () => {
   if (!solicitante || !empresa || !data || !tipoDemanda || !demandaSolicitada || !observacao ||
       !dataVencimento || !email || !idCompra || !linkCard) {
     mostrarMsg('Preencha todos os campos obrigatórios (marcados com *).', 'err');
+    return;
+  }
+
+  if (!pareceUrl(linkCard)) {
+    mostrarMsg('O campo "Link do card no Bitrix" precisa ser um link (começando com http:// ou https://), não um nome ou texto.', 'err');
     return;
   }
 
