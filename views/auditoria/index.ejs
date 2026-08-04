@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<%- include('../partials/head') %>
+<title>Auditoria de Qualidade — SeuBoné</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+<link rel="stylesheet" href="/css/auditoria.css">
+</head>
+<body>
+<div class="app-shell">
+<%- include('../partials/sidebar') %>
+<div class="app-main">
+
+<div class="ad-scope">
+
+  <div class="ad-header">
+    <h1>Auditoria de Qualidade</h1>
+    <nav class="ad-nav" id="ad-nav">
+      <button data-view="dashboard">Dashboard</button>
+      <button data-view="registro">Registro</button>
+      <button data-view="agentes">Agentes</button>
+      <button data-view="nova" class="active">Nova Auditoria</button>
+    </nav>
+  </div>
+
+  <!-- ===================== NOVA AUDITORIA ===================== -->
+  <section id="ad-view-nova" class="ad-view active">
+    <p class="subtitle" style="color:var(--text-muted);margin:0 0 20px;">Preencha os critérios de avaliação do atendimento. O score é calculado automaticamente.</p>
+
+    <div id="ad-form-error"></div>
+
+    <form id="ad-audit-form">
+      <div class="ad-card ad-grid2">
+        <div>
+          <label>Data</label>
+          <input type="date" id="ad-f-data" required />
+        </div>
+        <div>
+          <label>ID da Conversa</label>
+          <input type="text" id="ad-f-conversationId" required />
+        </div>
+        <div>
+          <label>Auditado por</label>
+          <input type="text" id="ad-f-auditadoPor" disabled />
+        </div>
+        <div>
+          <label>Agente auditado</label>
+          <input type="text" id="ad-f-agente" list="ad-agent-options" required placeholder="Nome do agente" />
+          <datalist id="ad-agent-options"></datalist>
+        </div>
+        <div>
+          <label>Tipo de Ocorrência</label>
+          <input type="text" id="ad-f-tipoOcorrencia" list="ad-occurrence-options" required />
+          <datalist id="ad-occurrence-options"></datalist>
+        </div>
+        <div>
+          <label>Canal</label>
+          <input type="text" id="ad-f-canal" list="ad-channel-options" required />
+          <datalist id="ad-channel-options"></datalist>
+        </div>
+      </div>
+
+      <div id="ad-sections-container"></div>
+
+      <div class="ad-card ad-fg-card">
+        <h2 style="font-size:16px;margin:0 0 4px;">Falhas Graves — qualquer marcação zera o score</h2>
+        <div id="ad-fg-container" style="margin-top:12px;"></div>
+      </div>
+
+      <div class="ad-card">
+        <label>Observações</label>
+        <textarea id="ad-f-observacoes" rows="3"></textarea>
+      </div>
+
+      <div class="ad-bottom-bar">
+        <div class="ad-bottom-bar-inner">
+          <div style="display:flex;align-items:center;gap:12px;font-size:14px;flex-wrap:wrap;">
+            <span id="ad-score-badge" class="ad-badge ad-badge-CRITICO">CRITICO</span>
+            <span style="color:var(--text-muted);">Score total: <b id="ad-score-total" style="color:var(--text);">0</b>/100</span>
+            <span id="ad-score-fg-warning" style="color:var(--bad-text, var(--bad));font-weight:500;"></span>
+          </div>
+          <button type="submit" class="ad-btn-primary" id="ad-submit-btn">Salvar Auditoria</button>
+        </div>
+      </div>
+    </form>
+  </section>
+
+  <!-- ===================== REGISTRO ===================== -->
+  <section id="ad-view-registro" class="ad-view">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:20px;">
+      <div>
+        <p style="color:var(--text-muted);margin:0;" id="ad-registro-count">0 auditorias encontradas</p>
+      </div>
+      <button class="ad-btn-secondary" id="ad-export-csv-btn">Exportar CSV</button>
+    </div>
+
+    <div class="ad-card ad-filters">
+      <select id="ad-filter-agente"><option value="">Todos os agentes</option></select>
+      <select id="ad-filter-semana"><option value="">Todas as semanas</option></select>
+      <select id="ad-filter-tipo"><option value="">Todos os tipos</option></select>
+      <select id="ad-filter-canal"><option value="">Todos os canais</option></select>
+      <select id="ad-filter-class">
+        <option value="">Todas classificações</option>
+        <option value="EXCELENTE">Excelente</option>
+        <option value="BOM">Bom</option>
+        <option value="REGULAR">Regular</option>
+        <option value="CRITICO">Crítico</option>
+      </select>
+      <button class="ad-btn-secondary" id="ad-filter-clear">Limpar</button>
+    </div>
+
+    <div class="ad-card ad-table-wrap" style="padding:0;">
+      <table>
+        <thead>
+          <tr>
+            <th>Data</th><th>Semana</th><th>Agente</th><th>Tipo de Ocorrência</th><th>Canal</th>
+            <th>S1</th><th>S2</th><th>S3</th><th>Total</th><th>Classificação</th><th>Auditor</th><th>ID Conversa</th>
+          </tr>
+        </thead>
+        <tbody id="ad-registro-tbody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ===================== AGENTES ===================== -->
+  <section id="ad-view-agentes" class="ad-view">
+    <p class="subtitle" style="color:var(--text-muted);margin:0 0 20px;">Selecione um agente para ver o histórico individual.</p>
+
+    <div class="ad-card" style="padding:14px;">
+      <div class="ad-agent-tabs" id="ad-agent-tabs"></div>
+    </div>
+
+    <div id="ad-agent-detail"></div>
+  </section>
+
+  <!-- ===================== DASHBOARD ===================== -->
+  <section id="ad-view-dashboard" class="ad-view">
+    <p class="subtitle" style="color:var(--text-muted);margin:0 0 20px;">Visão geral das auditorias de qualidade</p>
+
+    <div id="ad-dash-alert"></div>
+
+    <div class="ad-kpis" id="ad-dash-kpis"></div>
+
+    <div class="ad-card" id="ad-dash-week-compare" style="display:none;"></div>
+
+    <div class="ad-charts-grid">
+      <div class="ad-card ad-chart-card"><h3>Score médio por agente</h3><div class="ad-chart-wrap"><canvas id="ad-chart-agent"></canvas></div></div>
+      <div class="ad-card ad-chart-card"><h3>Evolução semanal do score médio</h3><div class="ad-chart-wrap"><canvas id="ad-chart-week"></canvas></div></div>
+      <div class="ad-card ad-chart-card"><h3>Distribuição por tipo de ocorrência</h3><div class="ad-chart-wrap"><canvas id="ad-chart-occurrence"></canvas></div></div>
+      <div class="ad-card ad-chart-card"><h3>Ranking de falhas graves por agente</h3><div class="ad-chart-wrap"><canvas id="ad-chart-critical"></canvas></div></div>
+    </div>
+  </section>
+
+</div>
+
+</div>
+</div>
+
+<script>
+  window.USUARIO_SESSAO = <%- JSON.stringify(usuario) %>;
+</script>
+<script src="/js/auditoria.js"></script>
+</body>
+</html>

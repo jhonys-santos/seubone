@@ -56,4 +56,6 @@ module.exports = {
   // planilha do RANKING_SAC_CSV_AGENDA, mas por Apps Script em vez de CSV
   // publicado (só assim dá pra gestor editar; CSV publicado é só leitura).
   agendaSemanaAppsScriptUrl: required('AGENDA_SEMANA_APPS_SCRIPT_URL', ''),
+
+  auditoriaAppsScriptUrl: required('AUDITORIA_APPS_SCRIPT_URL', ''),
 };

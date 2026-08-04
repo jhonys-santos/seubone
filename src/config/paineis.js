@@ -80,4 +80,8 @@ module.exports = [
     chave: 'corridas-avulsas', titulo: 'Corridas Avulsas', descricao: 'Registro de corridas avulsas (Uber parceiro) pra solicitar pagamento ao financeiro',
     url: '/corridas-avulsas', icone: 'ti-truck-delivery',
   },
+  {
+    chave: 'auditoria', titulo: 'Auditoria de Qualidade', descricao: 'Avaliação de atendimentos por critério, com dashboard e ranking por agente',
+    url: '/auditoria', icone: 'ti-clipboard-check', somenteRole: 'gestor',
+  },
 ];
