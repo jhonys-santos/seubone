@@ -92,10 +92,18 @@ function parseCSV(text) {
     renderFoco(json.dados && json.dados.foco);
   }
 
-  async function carregarEquipe() {
+  // O Apps Script por trás disso às vezes devolve uma página de erro do
+  // próprio Google (não do nosso backend) sob rajada de chamadas — some
+  // sozinho numa segunda tentativa. Tenta mais 2x com espera curta antes
+  // de desistir e mostrar o estado de erro pro usuário.
+  async function carregarEquipe(tentativa = 1) {
     try {
       await carregarFocoAgenda();
     } catch (e) {
+      if (tentativa < 3) {
+        await new Promise((r) => setTimeout(r, tentativa * 1500));
+        return carregarEquipe(tentativa + 1);
+      }
       console.error('Erro ao carregar foco/agenda', e);
       document.getElementById('hh-agenda-grid').innerHTML = '<div class="hh-agenda-vazio">Não foi possível carregar a agenda.</div>';
     }
