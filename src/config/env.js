@@ -51,4 +51,9 @@ module.exports = {
     kpi: required('RANKING_SAC_CSV_KPI', ''),
     agenda: required('RANKING_SAC_CSV_AGENDA', ''),
   },
+
+  // Foco da Semana + Agenda da Semana (Home, visão de gestor) — mesma
+  // planilha do RANKING_SAC_CSV_AGENDA, mas por Apps Script em vez de CSV
+  // publicado (só assim dá pra gestor editar; CSV publicado é só leitura).
+  agendaSemanaAppsScriptUrl: required('AGENDA_SEMANA_APPS_SCRIPT_URL', ''),
 };

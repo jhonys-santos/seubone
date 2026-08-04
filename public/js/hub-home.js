@@ -36,10 +36,16 @@ function parseCSV(text) {
   });
 }
 
-// ── KPIs DA EQUIPE + AGENDA + FOCO (dados do Ranking SAC) ─────
+// ── KPIs DA EQUIPE (CSV do Ranking SAC) + AGENDA/FOCO (Apps Script,
+// editável por gestor) ──────────────────────────────────────────
 (function () {
   const kpisGrid = document.getElementById('hh-kpis-grid');
   if (!kpisGrid) return; // sem acesso a ranking-sac, nada a fazer aqui
+
+  const usuarioLogado = window.USUARIO_SESSAO;
+  const AGENDA_API = '/agenda-semana/api';
+  let agendaCache = []; // últimos eventos carregados (com "linha") — usado pra editar/excluir
+  let eventoEditandoLinha = null; // null = modal em modo "novo evento"
 
   async function fetchSheet(chave) {
     const resp = await fetch(`/ranking-sac/api/csv/${chave}`, { cache: 'no-store' });
@@ -59,21 +65,6 @@ function parseCSV(text) {
       if (label.includes('ppf') && label.includes('tmr') && !label.includes('refabri')) k.ppf = parseTime(val) || val;
     });
     return k;
-  }
-
-  function parseAgendaCSV(rows) {
-    const dados = { agenda: [], foco: '' };
-    const fi = rows.findIndex((r) => cleanStr(r[0]).toUpperCase().includes('FOCO DA SEMANA'));
-    if (fi !== -1 && rows[fi + 1]) dados.foco = cleanStr(rows[fi + 1][0]);
-    const di = rows.findIndex((r) => cleanStr(r[0]).toLowerCase() === 'dia');
-    if (di !== -1) {
-      for (let i = di + 1; i < rows.length; i++) {
-        const r = rows[i];
-        if (!r || !cleanStr(r[0]) || !cleanStr(r[2])) continue;
-        dados.agenda.push({ dia: cleanStr(r[0]), hora: cleanStr(r[1]), desc: cleanStr(r[2]), tipo: cleanStr(r[3]) || 'Outro' });
-      }
-    }
-    return dados;
   }
 
   function renderKPIs(k) {
@@ -107,35 +98,154 @@ function parseCSV(text) {
     eventos.forEach((ev) => { if (porDia[ev.dia]) porDia[ev.dia].push(ev); });
     diasOrdem.forEach((d) => { porDia[d].sort((a, b) => a.hora.localeCompare(b.hora)); });
     const tipoClass = { '1:1': 'tipo-11', 'Reunião': 'tipo-reuniao', 'Evento': 'tipo-evento', 'Escala': 'tipo-escala', 'Outro': 'tipo-outro' };
+    const gestor = usuarioLogado.role === 'gestor';
     document.getElementById('hh-agenda-grid').innerHTML = diasOrdem.map((dia) => {
       const isHoje = dia === diaHojeNome;
       let h = `<div class="hh-agenda-col"><div class="hh-agenda-col-head${isHoje ? ' hoje' : ''}">${dia}${isHoje ? ' <span style="color:var(--gold);font-size:8px">HOJE</span>' : ''}</div>`;
       const evs = porDia[dia];
       if (!evs.length) { h += `<div class="hh-agenda-vazio">livre</div>`; }
-      else { evs.forEach((ev) => { const tc = tipoClass[ev.tipo] || 'tipo-outro'; h += `<div class="hh-evento ${tc}"><div class="hh-evento-hora">${ev.hora}</div><div class="hh-evento-desc">${ev.desc}</div></div>`; }); }
+      else {
+        evs.forEach((ev) => {
+          const tc = tipoClass[ev.tipo] || 'tipo-outro';
+          const acoes = gestor ? `<div class="hh-evento-acoes">
+            <button class="hh-evento-acao" onclick="abrirEditorEvento(${ev.linha})" title="Editar"><i class="ti ti-pencil" aria-hidden="true"></i></button>
+            <button class="hh-evento-acao" onclick="excluirEvento(${ev.linha})" title="Excluir"><i class="ti ti-trash" aria-hidden="true"></i></button>
+          </div>` : '';
+          h += `<div class="hh-evento ${tc}">${acoes}<div class="hh-evento-hora">${ev.hora}</div><div class="hh-evento-desc">${ev.descricao}</div></div>`;
+        });
+      }
       h += '</div>';
       return h;
     }).join('');
   }
 
+  let focoAtual = '';
   function renderFoco(texto) {
+    focoAtual = texto || '';
     const el = document.getElementById('hh-foco-texto');
     if (texto && texto.trim()) { el.textContent = texto.trim(); el.classList.remove('placeholder'); }
     else { el.textContent = 'Sem foco definido para esta semana.'; el.classList.add('placeholder'); }
   }
 
+  async function carregarFocoAgenda() {
+    const resp = await fetch(`${AGENDA_API}/dados`, { cache: 'no-store' });
+    const json = await resp.json();
+    if (!json.ok) throw new Error(json.erro || 'Erro ao buscar agenda');
+    agendaCache = (json.dados && json.dados.eventos) || [];
+    renderAgenda(agendaCache);
+    renderFoco(json.dados && json.dados.foco);
+  }
+
   async function carregarEquipe() {
     try {
-      const [rowsKPI, rowsAgenda] = await Promise.all([fetchSheet('kpi'), fetchSheet('agenda')]);
+      const rowsKPI = await fetchSheet('kpi');
       renderKPIs(parseKPIs(rowsKPI));
-      const ag = parseAgendaCSV(rowsAgenda);
-      renderAgenda(ag.agenda);
-      renderFoco(ag.foco);
-    } catch (e) { console.error('Erro ao carregar dados da equipe', e); }
+    } catch (e) { console.error('Erro ao carregar KPIs da equipe', e); }
+    try {
+      await carregarFocoAgenda();
+    } catch (e) {
+      console.error('Erro ao carregar foco/agenda', e);
+      document.getElementById('hh-agenda-grid').innerHTML = '<div class="hh-agenda-vazio">Não foi possível carregar a agenda.</div>';
+    }
   }
 
   carregarEquipe();
   setInterval(carregarEquipe, 300000);
+
+  // ── EDITAR FOCO DA SEMANA (gestor) ────────────────────────────
+  function abrirEditorFoco() {
+    document.getElementById('edit-foco-texto').value = focoAtual;
+    document.getElementById('edit-foco-erro').style.display = 'none';
+    document.getElementById('modal-editar-foco').classList.add('show');
+  }
+  window.abrirEditorFoco = abrirEditorFoco;
+
+  function fecharEditorFoco() {
+    document.getElementById('modal-editar-foco').classList.remove('show');
+  }
+  window.fecharEditorFoco = fecharEditorFoco;
+
+  async function salvarFoco() {
+    const texto = document.getElementById('edit-foco-texto').value.trim();
+    const erroEl = document.getElementById('edit-foco-erro');
+    erroEl.style.display = 'none';
+    try {
+      const res = await fetch(`${AGENDA_API}/foco`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ texto }),
+      });
+      const json = await res.json();
+      if (!json.ok) { erroEl.textContent = json.erro || 'Erro ao salvar.'; erroEl.style.display = 'block'; return; }
+      renderFoco(texto);
+      fecharEditorFoco();
+    } catch (e) {
+      erroEl.textContent = 'Erro ao salvar: ' + e.message;
+      erroEl.style.display = 'block';
+    }
+  }
+  window.salvarFoco = salvarFoco;
+
+  // ── ADICIONAR/EDITAR/EXCLUIR EVENTO DA AGENDA (gestor) ────────
+  function abrirEditorEvento(linha) {
+    eventoEditandoLinha = linha || null;
+    const ev = linha ? agendaCache.find((e) => e.linha === linha) : null;
+    document.getElementById('edit-evento-titulo').innerHTML = ev
+      ? '<i class="ti ti-pencil" style="color:var(--gold);margin-right:6px"></i>Editar evento'
+      : '<i class="ti ti-calendar-plus" style="color:var(--gold);margin-right:6px"></i>Novo evento';
+    document.getElementById('edit-evento-dia').value = ev ? ev.dia : 'Segunda';
+    document.getElementById('edit-evento-hora').value = ev ? ev.hora : '';
+    document.getElementById('edit-evento-tipo').value = ev ? ev.tipo : 'Outro';
+    document.getElementById('edit-evento-descricao').value = ev ? ev.descricao : '';
+    document.getElementById('edit-evento-erro').style.display = 'none';
+    document.getElementById('modal-editar-evento').classList.add('show');
+  }
+  window.abrirEditorEvento = abrirEditorEvento;
+
+  function fecharEditorEvento() {
+    document.getElementById('modal-editar-evento').classList.remove('show');
+    eventoEditandoLinha = null;
+  }
+  window.fecharEditorEvento = fecharEditorEvento;
+
+  async function salvarEvento() {
+    const dia = document.getElementById('edit-evento-dia').value;
+    const hora = document.getElementById('edit-evento-hora').value;
+    const tipo = document.getElementById('edit-evento-tipo').value;
+    const descricao = document.getElementById('edit-evento-descricao').value.trim();
+    const erroEl = document.getElementById('edit-evento-erro');
+    erroEl.style.display = 'none';
+    if (!descricao) { erroEl.textContent = 'Descreva o evento.'; erroEl.style.display = 'block'; return; }
+    try {
+      const url = eventoEditandoLinha ? `${AGENDA_API}/evento-editar` : `${AGENDA_API}/evento`;
+      const body = eventoEditandoLinha
+        ? { linha: eventoEditandoLinha, dia, hora, descricao, tipo }
+        : { dia, hora, descricao, tipo };
+      const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      const json = await res.json();
+      if (!json.ok) { erroEl.textContent = json.erro || 'Erro ao salvar.'; erroEl.style.display = 'block'; return; }
+      fecharEditorEvento();
+      await carregarFocoAgenda();
+    } catch (e) {
+      erroEl.textContent = 'Erro ao salvar: ' + e.message;
+      erroEl.style.display = 'block';
+    }
+  }
+  window.salvarEvento = salvarEvento;
+
+  async function excluirEvento(linha) {
+    const ok = await hubConfirm('Excluir esse evento da agenda?', { textoConfirmar: 'Excluir' });
+    if (!ok) return;
+    try {
+      const res = await fetch(`${AGENDA_API}/evento-excluir`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ linha }),
+      });
+      const json = await res.json();
+      if (!json.ok) { await hubAlert(json.erro || 'Erro ao excluir.', 'erro'); return; }
+      await carregarFocoAgenda();
+    } catch (e) {
+      await hubAlert('Erro ao excluir: ' + e.message, 'erro');
+    }
+  }
+  window.excluirEvento = excluirEvento;
 })();
 
 // ── ESCALA + TROCAS + SUGESTÃO (dados do Painel SAC) ──────────

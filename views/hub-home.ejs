@@ -70,15 +70,90 @@
       <div class="hh-foco-label">Foco da semana</div>
       <div class="hh-foco-texto placeholder" id="hh-foco-texto">Carregando...</div>
     </div>
+    <% if (usuario.role === 'gestor') { %>
+    <button class="hh-icon-btn" onclick="abrirEditorFoco()" title="Editar foco da semana">
+      <i class="ti ti-pencil" aria-hidden="true"></i>
+    </button>
+    <% } %>
   </div>
 
   <div class="hh-agenda-card">
     <div class="hh-agenda-head">
       <h2>Agenda da Semana</h2>
-      <span>Segunda → Sexta</span>
+      <div class="hh-agenda-head-right">
+        <span>Segunda → Sexta</span>
+        <% if (usuario.role === 'gestor') { %>
+        <button class="hh-btn-trocas" onclick="abrirEditorEvento()">
+          <i class="ti ti-plus" aria-hidden="true"></i> Evento
+        </button>
+        <% } %>
+      </div>
     </div>
     <div class="hh-agenda-grid" id="hh-agenda-grid"></div>
   </div>
+
+  <% if (usuario.role === 'gestor') { %>
+  <!-- MODAL EDITAR FOCO DA SEMANA -->
+  <div class="modal-overlay" id="modal-editar-foco" onclick="if(event.target===this)fecharEditorFoco()">
+    <div class="modal-box" style="max-width:420px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem">
+        <div style="font-size:15px;font-weight:700"><i class="ti ti-target-arrow" style="color:var(--gold);margin-right:6px"></i>Foco da semana</div>
+        <button onclick="fecharEditorFoco()" style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:20px;padding:4px"><i class="ti ti-x"></i></button>
+      </div>
+      <textarea id="edit-foco-texto" rows="3" placeholder="Ex: Entregar um TMA menor que 28min e CSAT maior que 95%" style="width:100%;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px;font-size:13px;color:var(--text);font-family:inherit;resize:vertical;margin-bottom:14px"></textarea>
+      <div id="edit-foco-erro" style="display:none;font-size:11px;color:var(--bad-text);margin-bottom:10px"></div>
+      <div style="display:flex;gap:8px">
+        <button onclick="salvarFoco()" style="flex:1;background:var(--gold);color:var(--on-gold,#1A1A18);border:none;border-radius:var(--radius-sm);padding:10px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer">Salvar</button>
+        <button onclick="fecharEditorFoco()" style="background:none;border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 18px;font-size:13px;color:var(--text-muted);font-family:inherit;cursor:pointer">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL ADICIONAR/EDITAR EVENTO DA AGENDA -->
+  <div class="modal-overlay" id="modal-editar-evento" onclick="if(event.target===this)fecharEditorEvento()">
+    <div class="modal-box" style="max-width:380px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem">
+        <div style="font-size:15px;font-weight:700" id="edit-evento-titulo"><i class="ti ti-calendar-plus" style="color:var(--gold);margin-right:6px"></i>Novo evento</div>
+        <button onclick="fecharEditorEvento()" style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:20px;padding:4px"><i class="ti ti-x"></i></button>
+      </div>
+      <div style="margin-bottom:12px">
+        <label style="font-size:11px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:6px">Dia</label>
+        <select id="edit-evento-dia" style="width:100%;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:9px 12px;font-size:13px;color:var(--text);font-family:inherit">
+          <option value="Segunda">Segunda</option>
+          <option value="Terça">Terça</option>
+          <option value="Quarta">Quarta</option>
+          <option value="Quinta">Quinta</option>
+          <option value="Sexta">Sexta</option>
+        </select>
+      </div>
+      <div style="display:flex;gap:10px;margin-bottom:12px">
+        <div style="flex:1">
+          <label style="font-size:11px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:6px">Horário</label>
+          <input type="time" id="edit-evento-hora" style="width:100%;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:9px 10px;font-size:13px;color:var(--text);font-family:inherit">
+        </div>
+        <div style="flex:1">
+          <label style="font-size:11px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:6px">Tipo</label>
+          <select id="edit-evento-tipo" style="width:100%;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:9px 12px;font-size:13px;color:var(--text);font-family:inherit">
+            <option value="1:1">1:1</option>
+            <option value="Reunião">Reunião</option>
+            <option value="Evento">Evento</option>
+            <option value="Escala">Escala</option>
+            <option value="Outro">Outro</option>
+          </select>
+        </div>
+      </div>
+      <div style="margin-bottom:14px">
+        <label style="font-size:11px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:6px">Descrição</label>
+        <input type="text" id="edit-evento-descricao" placeholder="Ex: Manifesto - Nathalia" style="width:100%;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:9px 12px;font-size:13px;color:var(--text);font-family:inherit">
+      </div>
+      <div id="edit-evento-erro" style="display:none;font-size:11px;color:var(--bad-text);margin-bottom:10px"></div>
+      <div style="display:flex;gap:8px">
+        <button onclick="salvarEvento()" style="flex:1;background:var(--gold);color:var(--on-gold,#1A1A18);border:none;border-radius:var(--radius-sm);padding:10px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer">Salvar</button>
+        <button onclick="fecharEditorEvento()" style="background:none;border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 18px;font-size:13px;color:var(--text-muted);font-family:inherit;cursor:pointer">Cancelar</button>
+      </div>
+    </div>
+  </div>
+  <% } %>
   <% } %>
 
   <% if (temPainelSac && usuario.role === 'gestor') { %>

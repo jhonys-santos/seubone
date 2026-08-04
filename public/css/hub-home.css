@@ -58,16 +58,26 @@
   background: rgba(41,121,255,0.16); border: 1px solid rgba(41,121,255,0.4);
   display: flex; align-items: center; justify-content: center; color: #4C8DFF; font-size: 17px;
 }
-.hh-foco-text-wrap { min-width: 0; }
+.hh-foco-text-wrap { min-width: 0; flex: 1; }
 .hh-foco-label { font-size: 9.5px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #6FA0FF; margin-bottom: 3px; }
 .hh-foco-texto { font-size: 14px; font-weight: 600; color: var(--text); line-height: 1.4; }
 .hh-foco-texto.placeholder { color: var(--text-hint); font-style: italic; font-weight: 400; }
 
+/* Botão de editar (Foco/eventos) — ícone discreto, mesmo tom fantasma usado
+   em outros botões secundários do hub. */
+.hh-icon-btn {
+  background: none; border: 1px solid var(--border); border-radius: var(--radius-sm);
+  color: var(--text-muted); font-size: 14px; padding: 7px 9px; cursor: pointer; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center; transition: all .15s;
+}
+.hh-icon-btn:hover { border-color: var(--gold-dark); color: var(--gold); }
+
 /* ── AGENDA DA SEMANA ── */
 .hh-agenda-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.1rem 1.25rem; margin-bottom: 2rem; }
-.hh-agenda-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 14px; }
+.hh-agenda-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
 .hh-agenda-head h2 { font-size: 14px; font-weight: 700; margin: 0; }
 .hh-agenda-head span { font-size: 11px; color: var(--text-hint); }
+.hh-agenda-head-right { display: flex; align-items: center; gap: 10px; }
 .hh-agenda-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
 .hh-agenda-col { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .hh-agenda-col-head {
@@ -75,14 +85,25 @@
   color: var(--text-hint); text-align: center; padding: 4px 0; border-bottom: 1px solid var(--border);
 }
 .hh-agenda-col-head.hoje { color: var(--gold); border-bottom-color: var(--gold-dark); }
-.hh-evento { border-radius: 6px; padding: 6px 8px; border-left: 3px solid var(--border-strong); background: var(--surface-2); }
+.hh-evento { position: relative; border-radius: 6px; padding: 6px 8px; border-left: 3px solid var(--border-strong); background: var(--surface-2); }
 .hh-evento.tipo-11 { background: var(--ok-bg); border-left-color: var(--ok); }
 .hh-evento.tipo-reuniao { background: rgba(41,121,255,0.08); border-left-color: #2979ff; }
 .hh-evento.tipo-evento { background: var(--gold-dim); border-left-color: var(--gold); }
 .hh-evento.tipo-escala { background: rgba(160,100,220,0.1); border-left-color: #9c6cd4; }
+.hh-evento.tipo-outro { background: var(--surface-3); border-left-color: var(--text-hint); }
 .hh-evento-hora { font-size: 9.5px; font-weight: 700; color: var(--text-hint); }
-.hh-evento-desc { font-size: 11px; font-weight: 600; color: var(--text); margin-top: 1px; line-height: 1.3; }
+.hh-evento-desc { font-size: 11px; font-weight: 600; color: var(--text); margin-top: 1px; line-height: 1.3; padding-right: 30px; }
 .hh-agenda-vazio { font-size: 10.5px; color: var(--text-hint); text-align: center; padding: 10px 0; font-style: italic; }
+
+/* Ícones de editar/excluir por evento — só existem quando a Home é
+   renderizada pra gestor; ficam discretos no canto, sem precisar de hover
+   (mobile não tem hover) pra não esconder a ação. */
+.hh-evento-acoes { position: absolute; top: 5px; right: 5px; display: flex; gap: 2px; }
+.hh-evento-acao {
+  background: none; border: none; color: var(--text-hint); cursor: pointer; padding: 2px;
+  font-size: 10px; line-height: 1; border-radius: 4px; transition: all .15s;
+}
+.hh-evento-acao:hover { color: var(--text); background: rgba(0,0,0,0.15); }
 
 @media (max-width: 900px) {
   .hh-agenda-grid { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
