@@ -14,11 +14,17 @@ router.use(requireAuth, requirePainel('painel-sac'));
 // (Auditoria_Nathalia/Francis/Iasmin, com layout de colunas fixas por
 // semana/mês). Passou a vir da planilha "Sistema_Registro" da Auditoria de
 // Qualidade — mesmas regras de exibição (nota % do período, lista de
-// atendimentos com nota individual 0-100), só trocou a fonte. Gabrielle e
-// Daniel (time PPF) ficam de fora: o "auditorias" deles é uma contagem
-// simples vs meta, processo diferente, não passou pela Auditoria de
-// Qualidade — mantido como estava, lendo da planilha antiga.
+// atendimentos com nota individual 0-100), só trocou a fonte.
 const SAC_AGENTE_POR_SLUG = { nathalia: 'Nathalia', francis: 'Francis', iasmin: 'Iasmin' };
+
+// Gabrielle não é avaliada num rubric (ela é quem AUDITA, não quem é
+// auditada) — o "auditorias" dela é quantas ELA registrou no período
+// (coluna AuditadoPor), contra a meta que já vem do Apps Script original
+// (30/semana, 120/mês — isso não mudou). Antes vinha de um resumo
+// pré-calculado na aba Auditoria_Gabrielle; agora conta direto na
+// Sistema_Registro. Daniel não entra aqui — o audit dele já é um score
+// (calcAudit), não uma contagem, e continua na planilha antiga por ora.
+const AUDITOR_POR_SLUG = { gabrielle: 'Gabrielle' };
 
 // Compara datas como inteiro AAAAMMDD (sem Date/fuso horário no meio) —
 // evita virada de dia por conversão de timezone entre o que a planilha
@@ -67,6 +73,24 @@ async function buscarAuditoriaSac(slugAlvo, periodo, mes, ano, semIni, semFim) {
     audit: { pct: nota !== null ? nota : 0, ok, total },
     historico: { nota, itens },
   };
+}
+
+// Conta quantas auditorias o slug (auditor) registrou no período — usado
+// só por Gabrielle hoje. Retorna null se a checagem falhar (rede, Apps
+// Script fora do ar), pra quem chama decidir não sobrescrever o valor
+// original nesse caso.
+async function contarAuditoriasFeitas(slugAlvo, periodo, mes, ano, semIni, semFim) {
+  const nome = AUDITOR_POR_SLUG[slugAlvo];
+  if (!nome) return null;
+
+  const json = await chamarAppsScript(env.auditoriaAppsScriptUrl);
+  if (!json || !json.ok) return null;
+
+  const alvo = nome.toLowerCase();
+  return (json.data || [])
+    .filter((r) => String(r.AuditadoPor || '').toLowerCase().includes(alvo))
+    .filter((r) => registroNoPeriodo(r.Data, periodo, mes, ano, semIni, semFim))
+    .length;
 }
 
 router.get('/', (req, res) => {
@@ -129,6 +153,13 @@ router.get('/api/dados', resolveSlug, async (req, res) => {
         // Não deixa uma falha na Auditoria de Qualidade quebrar o resto dos
         // indicadores — pior caso, essa seção específica fica sem dado.
         console.error('[painel-sac] falha ao buscar auditoria da Auditoria de Qualidade:', err.message);
+      }
+    } else if (AUDITOR_POR_SLUG[req.slugAlvo] && json.indicadores) {
+      try {
+        const count = await contarAuditoriasFeitas(req.slugAlvo, periodo, mes, ano, sem_ini, sem_fim);
+        if (count !== null) json.indicadores.auditorias = count;
+      } catch (err) {
+        console.error('[painel-sac] falha ao contar auditorias feitas:', err.message);
       }
     }
 
