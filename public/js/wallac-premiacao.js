@@ -10,13 +10,6 @@ function formatarDataBR(valor) {
   return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
 }
 
-function nomeMes(mesRef) {
-  if (!mesRef) return '-';
-  const [ano, mes] = mesRef.split('-');
-  const nomes = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
-  return `${nomes[Number(mes) - 1]} de ${ano}`;
-}
-
 function classeFaixa(faixa) {
   return (faixa || 'nenhuma').toLowerCase();
 }
@@ -36,16 +29,8 @@ async function carregarHistorico() {
 
     if (historico.length === 0) {
       corpo.innerHTML = '<tr><td colspan="4" class="premiacao-vazio">Nenhum fechamento registrado ainda</td></tr>';
-      document.getElementById('mes-atual').textContent = 'Sem dados';
-      document.getElementById('coins-mes').innerHTML = '0 <span>coins no mês</span>';
       return;
     }
-
-    // Resumo do mês mais recente.
-    const mesMaisRecente = historico[0].mes_referencia;
-    const coinsDoMes = historico[0].coins_acumulados_no_mes || 0;
-    document.getElementById('mes-atual').textContent = nomeMes(mesMaisRecente);
-    document.getElementById('coins-mes').innerHTML = coinsDoMes + ' <span>coins no mês</span>';
 
     corpo.innerHTML = historico.map((item) => `
       <tr>

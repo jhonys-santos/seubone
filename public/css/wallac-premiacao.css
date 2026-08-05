@@ -31,12 +31,6 @@
 .premiacao-progresso-legendas span:last-child { transform: translateX(-100%); }
 .premiacao-semana-atual-nota { font-size: 12px; color: var(--text-muted); margin-top: 12px; }
 
-.premiacao-resumo { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px 20px; margin-bottom: 22px; }
-.premiacao-resumo-topo { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
-.premiacao-resumo-titulo { font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .06em; font-weight: 700; }
-.premiacao-resumo-coins { font-size: 26px; font-weight: 800; color: var(--gold); font-variant-numeric: tabular-nums; }
-.premiacao-resumo-coins span { font-size: 13px; color: var(--text-muted); font-weight: 400; }
-
 .premiacao-table-wrap { overflow-x: auto; scrollbar-width: thin; scrollbar-color: transparent transparent; }
 .premiacao-table-wrap:hover { scrollbar-color: var(--border-strong) transparent; }
 .premiacao-table-wrap::-webkit-scrollbar { height: 5px; }
