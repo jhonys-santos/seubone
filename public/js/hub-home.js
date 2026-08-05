@@ -900,14 +900,11 @@ function parseCSV(text) {
     }
   }
 
-  // ── AUDITORIA DE QUALIDADE — totais do período todo + ranking por agente ──
+  // ── AUDITORIA DE QUALIDADE — totais do período todo ───────────────────
   // Mesmos números da aba Dashboard de /auditoria (sem filtro de período —
-  // lá também é o total acumulado), só resumido pra Home: 4 KPIs + um
-  // ranking de score médio por agente, pra dar o pulso do time sem precisar
-  // abrir o painel completo.
+  // lá também é o total acumulado), só resumido pra Home.
   async function excCarregarAuditoria() {
     const cont = document.getElementById('exec-auditoria');
-    const rankCont = document.getElementById('exec-auditoria-ranking');
     if (!cont) return;
     try {
       const resp = await fetch('/auditoria/api/list');
@@ -922,40 +919,13 @@ function parseCSV(text) {
       const scoreMedio = total ? Math.round(somaScores / total) : 0;
       const falhasGraves = registros.filter((r) => r.FalhaGrave === 'Sim').length;
 
-      const porAgente = new Map();
-      registros.forEach((r) => {
-        const nome = r.Agente || '—';
-        const cur = porAgente.get(nome) || { soma: 0, count: 0 };
-        cur.soma += Number(r.Total || 0);
-        cur.count += 1;
-        porAgente.set(nome, cur);
-      });
-
       cont.innerHTML = `
         <div class="hh-kpi-card"><div class="hh-kpi-label">Total de auditorias</div><div class="hh-kpi-value">${total}</div></div>
         <div class="hh-kpi-card"><div class="hh-kpi-label">Score médio</div><div class="hh-kpi-value">${scoreMedio}</div></div>
-        <div class="hh-kpi-card"><div class="hh-kpi-label">Agentes avaliados</div><div class="hh-kpi-value">${porAgente.size}</div></div>
         <div class="hh-kpi-card ${falhasGraves > 0 ? 'status-danger' : ''}"><div class="hh-kpi-label">Falhas graves</div><div class="hh-kpi-value ${falhasGraves > 0 ? 'danger' : ''}">${falhasGraves}</div></div>
       `;
-
-      if (rankCont) {
-        const ranking = Array.from(porAgente.entries())
-          .map(([agente, v]) => ({ agente, media: Math.round((v.soma / v.count) * 10) / 10 }))
-          .sort((a, b) => b.media - a.media);
-        rankCont.innerHTML = ranking.length
-          ? ranking.map((r) => {
-              const cor = r.media >= 90 ? 'var(--ok)' : r.media >= 75 ? '#4C8DFF' : r.media >= 60 ? 'var(--warn)' : 'var(--bad)';
-              return `<div class="hh-audit-rank-row">
-                <span class="hh-audit-rank-nome">${r.agente}</span>
-                <div class="hh-audit-rank-track"><div class="hh-audit-rank-fill" style="width:${Math.min(100, r.media)}%;background:${cor}"></div></div>
-                <span class="hh-audit-rank-valor">${r.media}</span>
-              </div>`;
-            }).join('')
-          : `<div class="hh-audit-rank-empty">Nenhuma auditoria registrada ainda.</div>`;
-      }
     } catch (err) {
       cont.innerHTML = `<div class="exec-sem-acesso"><i class="ti ti-alert-triangle" aria-hidden="true"></i> Não foi possível carregar a Auditoria de Qualidade.</div>`;
-      if (rankCont) rankCont.innerHTML = '';
     }
   }
 

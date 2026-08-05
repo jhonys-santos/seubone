@@ -56,16 +56,6 @@
 .hh-kpi-meta { font-size: 10.5px; color: var(--text-hint); margin-top: 5px; }
 .hh-kpi-meta span { color: var(--gold); font-weight: 600; }
 
-/* ── AUDITORIA DE QUALIDADE (ranking por agente, resumo na Home) ── */
-.hh-audit-ranking { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 0.9rem 1.1rem; margin-bottom: 2rem; }
-.hh-audit-rank-row { display: flex; align-items: center; gap: 12px; padding: 7px 0; }
-.hh-audit-rank-row:not(:last-child) { border-bottom: 1px solid var(--border); }
-.hh-audit-rank-nome { font-size: 12px; font-weight: 600; color: var(--text); width: 78px; flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.hh-audit-rank-track { flex: 1; height: 7px; background: var(--surface-2); border-radius: 999px; overflow: hidden; }
-.hh-audit-rank-fill { height: 100%; border-radius: 999px; }
-.hh-audit-rank-valor { font-size: 12px; font-weight: 700; color: var(--text); width: 30px; text-align: right; flex-shrink: 0; font-variant-numeric: tabular-nums; }
-.hh-audit-rank-empty { font-size: 11px; color: var(--text-hint); text-align: center; padding: 6px 0; }
-
 /* ── FOCO DA SEMANA (banner) ── */
 .hh-foco-banner {
   display: flex; align-items: center; gap: 14px; margin-bottom: 14px;
