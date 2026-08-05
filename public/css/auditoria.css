@@ -64,8 +64,14 @@
 .ad-fg-card h2 { color: var(--bad-text, var(--bad)); }
 
 .ad-bottom-bar {
-  position: fixed; left: 0; right: 0; bottom: 0; background: var(--surface); border-top: 1px solid var(--border);
+  /* left:250px pra não passar por cima da sidebar (250px fixos no desktop,
+     ver .app-sidebar em base.css) — abaixo de 900px ela vira menu retrátil
+     fora da tela, então a barra volta a ocupar a largura inteira. */
+  position: fixed; left: 250px; right: 0; bottom: 0; background: var(--surface); border-top: 1px solid var(--border);
   padding: 12px 16px; z-index: 10;
+}
+@media (max-width: 900px) {
+  .ad-bottom-bar { left: 0; }
 }
 .ad-bottom-bar-inner { max-width: 1080px; margin: 0 auto; width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 
