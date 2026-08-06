@@ -187,6 +187,45 @@ function salvarFotos_(fotos, idVenda) {
 }
 
 /**
+ * Diagnóstico: lista os arquivos da pasta de fotos (mais recentes primeiro) e
+ * marca quais têm a URL gravada em algum "Foto" da planilha — arquivo com
+ * naPlanilha:false chegou no Drive mas não foi vinculado a nenhuma linha
+ * (upload que "sumiu" do painel). Usado só via ?action=fotos (diagnóstico
+ * interno, chamado pelo hub — não tem tela própria).
+ */
+function listarFotosDiagnostico_() {
+  var folder = getFotosFolder_();
+  var it = folder.getFiles();
+  var arquivos = [];
+  while (it.hasNext()) {
+    var f = it.next();
+    arquivos.push({ nome: f.getName(), url: f.getUrl(), criadoTs: f.getDateCreated().getTime() });
+  }
+  arquivos.sort(function (a, b) { return b.criadoTs - a.criadoTs; });
+
+  var sh = getSheet_();
+  var values = sh.getDataRange().getValues();
+  var col = buildColMap_(values[0]);
+  var urlsNaPlanilha = {};
+  if (col.foto != null) {
+    for (var r = 1; r < values.length; r++) {
+      String(values[r][col.foto] || '').split(',').forEach(function (u) {
+        u = u.trim();
+        if (u) urlsNaPlanilha[u] = true;
+      });
+    }
+  }
+  return arquivos.map(function (a) {
+    return {
+      nome: a.nome,
+      url: a.url,
+      criado: Utilities.formatDate(new Date(a.criadoTs), Session.getScriptTimeZone(), 'dd/MM/yyyy HH:mm'),
+      naPlanilha: !!urlsNaPlanilha[a.url],
+    };
+  });
+}
+
+/**
  * Rode ESTA função no editor (botão ▶) para ATIVAR e TESTAR o pipeline de fotos:
  *   1) na 1ª vez o Apps Script vai pedir autorização do escopo do Google Drive — ACEITE;
  *   2) confirma que a coluna "Foto" existe na planilha;
@@ -353,6 +392,9 @@ function doGet(e) {
     if (p.action === 'historico') {
       return jsonOut_({ ok: true, eventos: histFor_(p.rowIndex) });
     }
+    if (p.action === 'fotos') {
+      return jsonOut_({ ok: true, arquivos: listarFotosDiagnostico_() });
+    }
     var sh = getSheet_();
     var values = sh.getDataRange().getValues();
     if (values.length < 2) return jsonOut_({ ok: true, rows: [] });
@@ -475,58 +517,72 @@ function entrarNaFilaRefab_(sh, rowIndex, col, tipoResolucao) {
   return true;
 }
 
+/**
+ * Lock por toda a função: sem ele, duas criações quase simultâneas podiam
+ * calcular a MESMA "próxima linha livre" (ultimaLinhaDeDados_) e escrever
+ * uma por cima da outra célula a célula — foi assim que uma foto chegou a
+ * subir no Drive mas o link nunca ficou gravado em lugar nenhum da planilha
+ * (a linha certa acabou recebendo os dados da OUTRA submissão). O timeout é
+ * generoso (20s) porque salvarFotos_ pode demorar com várias fotos.
+ */
 function criarCaso_(f, usuario, usuarioSlug) {
-  var sh = getSheet_();
-  var header = sh.getDataRange().getValues()[0];
-  var col = buildColMap_(header);
+  var lock = LockService.getScriptLock();
+  try { lock.waitLock(20000); } catch (e) { return jsonOut_({ ok: false, error: 'Sistema ocupado, tente novamente em alguns segundos.' }); }
+  try {
+    var sh = getSheet_();
+    var header = sh.getDataRange().getValues()[0];
+    var col = buildColMap_(header);
 
-  var novaLinha = ultimaLinhaDeDados_(sh, col) + 1;
+    var novaLinha = ultimaLinhaDeDados_(sh, col) + 1;
 
-  var hoje = new Date();
-  setCell_(sh, novaLinha, col, 'data', fmtDate_(hoje));
+    var hoje = new Date();
+    setCell_(sh, novaLinha, col, 'data', fmtDate_(hoje));
 
-  setCell_(sh, novaLinha, col, 'auditoria',     f.auditoria ? 'TRUE' : 'FALSE');
-  setCell_(sh, novaLinha, col, 'status',        f.status || (f.auditoria ? 'resolvido' : 'novo'));
-  setCell_(sh, novaLinha, col, 'idVenda',       f.idVenda);
-  setCell_(sh, novaLinha, col, 'nomeCard',      f.nomeCard);
-  setCell_(sh, novaLinha, col, 'descricao',     montarDescricao_(f));
-  setCell_(sh, novaLinha, col, 'quemCadastrou', f.quemCadastrou);
-  setCell_(sh, novaLinha, col, 'culpaDe',       f.culpaDe);
-  setCell_(sh, novaLinha, col, 'setor',         f.setor);
-  setCell_(sh, novaLinha, col, 'responsavel',   f.responsavel);
-  setCell_(sh, novaLinha, col, 'empresa',       f.empresa);
-  setCell_(sh, novaLinha, col, 'tipoProblema',  f.tipoProblema);
-  setCell_(sh, novaLinha, col, 'subproblema',   f.subproblema);
-  setCell_(sh, novaLinha, col, 'qtd',           f.qtd);
-  setCell_(sh, novaLinha, col, 'custo',         f.custo);
-  setCell_(sh, novaLinha, col, 'tipoProduto',   f.tipoProduto);
-  setCell_(sh, novaLinha, col, 'queFim',        f.queFim);
-  setCell_(sh, novaLinha, col, 'tipoResolucao', f.tipoResolucao);
+    setCell_(sh, novaLinha, col, 'auditoria',     f.auditoria ? 'TRUE' : 'FALSE');
+    setCell_(sh, novaLinha, col, 'status',        f.status || (f.auditoria ? 'resolvido' : 'novo'));
+    setCell_(sh, novaLinha, col, 'idVenda',       f.idVenda);
+    setCell_(sh, novaLinha, col, 'nomeCard',      f.nomeCard);
+    setCell_(sh, novaLinha, col, 'descricao',     montarDescricao_(f));
+    setCell_(sh, novaLinha, col, 'quemCadastrou', f.quemCadastrou);
+    setCell_(sh, novaLinha, col, 'culpaDe',       f.culpaDe);
+    setCell_(sh, novaLinha, col, 'setor',         f.setor);
+    setCell_(sh, novaLinha, col, 'responsavel',   f.responsavel);
+    setCell_(sh, novaLinha, col, 'empresa',       f.empresa);
+    setCell_(sh, novaLinha, col, 'tipoProblema',  f.tipoProblema);
+    setCell_(sh, novaLinha, col, 'subproblema',   f.subproblema);
+    setCell_(sh, novaLinha, col, 'qtd',           f.qtd);
+    setCell_(sh, novaLinha, col, 'custo',         f.custo);
+    setCell_(sh, novaLinha, col, 'tipoProduto',   f.tipoProduto);
+    setCell_(sh, novaLinha, col, 'queFim',        f.queFim);
+    setCell_(sh, novaLinha, col, 'tipoResolucao', f.tipoResolucao);
 
-  if (f.fotos && f.fotos.length) {
-    if (col.foto == null) {
-      logHist_(novaLinha, f.idVenda, usuario || f.quemCadastrou, 'Fotos não salvas',
-        'A planilha não tem a coluna "Foto". Adicione um cabeçalho "Foto".', usuarioSlug);
-    } else {
-      try {
-        var links = salvarFotos_(f.fotos, f.idVenda);
-        if (links) setCell_(sh, novaLinha, col, 'foto', links);
-        else logHist_(novaLinha, f.idVenda, usuario || f.quemCadastrou, 'Fotos não salvas', 'Nenhum link gerado (formato inesperado).', usuarioSlug);
-      } catch (e) {
-        logHist_(novaLinha, f.idVenda, usuario || f.quemCadastrou, 'Falha ao salvar fotos', String(e && e.message || e), usuarioSlug);
+    if (f.fotos && f.fotos.length) {
+      if (col.foto == null) {
+        logHist_(novaLinha, f.idVenda, usuario || f.quemCadastrou, 'Fotos não salvas',
+          'A planilha não tem a coluna "Foto". Adicione um cabeçalho "Foto".', usuarioSlug);
+      } else {
+        try {
+          var links = salvarFotos_(f.fotos, f.idVenda);
+          if (links) setCell_(sh, novaLinha, col, 'foto', links);
+          else logHist_(novaLinha, f.idVenda, usuario || f.quemCadastrou, 'Fotos não salvas', 'Nenhum link gerado (formato inesperado).', usuarioSlug);
+        } catch (e) {
+          logHist_(novaLinha, f.idVenda, usuario || f.quemCadastrou, 'Falha ao salvar fotos', String(e && e.message || e), usuarioSlug);
+        }
       }
     }
+
+    logHist_(novaLinha, f.idVenda, usuario || f.quemCadastrou, 'Caso registrado',
+      f.auditoria ? 'já auditado (' + (f.status || 'resolvido') + ')' : 'pendente de auditoria', usuarioSlug);
+
+    var entrouRefab = entrarNaFilaRefab_(sh, novaLinha, col, f.tipoResolucao);
+    if (entrouRefab) {
+      logHist_(novaLinha, f.idVenda, usuario || f.quemCadastrou, 'Entrou na fila de aprovação de Refabricação', '', usuarioSlug);
+    }
+
+    return jsonOut_({ ok: true, rowIndex: novaLinha, entrouAprovacaoRefab: entrouRefab });
+  } finally {
+    lock.releaseLock();
   }
-
-  logHist_(novaLinha, f.idVenda, usuario || f.quemCadastrou, 'Caso registrado',
-    f.auditoria ? 'já auditado (' + (f.status || 'resolvido') + ')' : 'pendente de auditoria', usuarioSlug);
-
-  var entrouRefab = entrarNaFilaRefab_(sh, novaLinha, col, f.tipoResolucao);
-  if (entrouRefab) {
-    logHist_(novaLinha, f.idVenda, usuario || f.quemCadastrou, 'Entrou na fila de aprovação de Refabricação', '', usuarioSlug);
-  }
-
-  return jsonOut_({ ok: true, rowIndex: novaLinha, entrouAprovacaoRefab: entrouRefab });
 }
 
 function montarDescricao_(f) {
