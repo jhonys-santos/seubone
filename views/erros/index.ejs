@@ -23,6 +23,11 @@
       <button data-view="causas">Ranking de Causas</button>
       <button data-view="resp">Ranking por Consultor</button>
       <button data-view="casos">Casos / Auditoria</button>
+      <% if (usuario && usuario.role === 'gestor') { %>
+      <button data-view="incompletos">Dados incompletos</button>
+      <button data-view="reuniao">Reunião de Vendas</button>
+      <button data-view="reuniaoFab">Reunião de Fábrica</button>
+      <% } %>
     </nav>
   </div>
 
@@ -42,6 +47,7 @@
     <select id="erSemana" style="display:none"></select>
     <select id="erSetor"><option value="">Todos os setores</option></select>
     <select id="erEmpresa"><option value="">Todas as linhas</option></select>
+    <button class="er-btn er-btn-ghost" id="erBtnBuscar" title="Busca rápida (Ctrl/Cmd + K)">🔍 Buscar <span class="er-kbd">Ctrl K</span></button>
     <button class="er-iconbtn" id="erBtnRefresh" title="Atualizar dados">⟳</button>
   </div>
 
@@ -55,6 +61,7 @@
 
 <div id="erModalRoot"></div>
 <div id="erLbRoot"></div>
+<div id="erPrintRoot"></div>
 
 <script>
   window.USUARIO_SESSAO = <%- JSON.stringify(usuario) %>;

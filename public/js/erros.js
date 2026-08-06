@@ -31,7 +31,7 @@
   /* ================= PAPÉIS (substitui a matriz PAPEIS original) ================= */
   const SESSAO = window.USUARIO_SESSAO || null;
   const papel = (SESSAO && SESSAO.role === 'gestor') ? 'gestor' : 'colaborador';
-  const TELAS_POR_PAPEL = { gestor: ['exec', 'causas', 'resp', 'casos'], colaborador: ['causas', 'casos'] };
+  const TELAS_POR_PAPEL = { gestor: ['exec', 'causas', 'resp', 'casos', 'incompletos', 'reuniao', 'reuniaoFab'], colaborador: ['causas', 'casos'] };
   function podeVerTela(scr) { return TELAS_POR_PAPEL[papel].includes(scr); }
   function podeAuditar() { return papel === 'gestor'; }
   function podeRegistrar() { return true; } // igual nos dois papéis, como no original
@@ -48,10 +48,32 @@
   }
 
   const SETORES_PADRAO = ['Vendas', 'Fábrica', 'Dupla (Vendedor e Designer)', 'Escritório'];
+  // Setores que interessam para a Reunião de Vendas (vendedor envolvido).
+  const SETORES_VENDAS = ['Vendas', 'Dupla (Vendedor e Designer)'];
   // Opções do campo único "Setor do problema" (absorve o antigo "Culpa de", por isso inclui "Cliente").
   const SETOR_OPCOES = ['Vendas', 'Fábrica', 'Dupla (Vendedor e Designer)', 'Escritório', 'Cliente'];
   const TIPOS_PRODUTO_PADRAO = ['Boné', 'Trucker', 'Americano', '5Port', 'New York', 'Dad Hat', 'Viseira', 'Bucket', 'Camisa', 'Neoprene'];
   const QUE_FIM_PADRAO = ['Entregue', 'Em estoque', 'Refabricado e entregue', 'Cancelado'];
+
+  // Configuração das reuniões semanais com apresentação (PDF). Cada uma filtra por setor e
+  // tem sua própria semana selecionada. A tela e o relatório são os mesmos, só os rótulos mudam.
+  // Copiado fielmente do original — é regra de negócio, não estética.
+  const REUNIOES = {
+    vendas: {
+      screen: 'reuniao', stateKey: 'semanaReuniao', setores: SETORES_VENDAS,
+      nome: 'Reunião de Vendas', short: 'Vendas',
+      respLabel: 'Por vendedor / responsável',
+      respSub: 'Quem concentra o custo da semana. Use como mapa, não como julgamento isolado.',
+      foco: 'Cada caso é uma chance de ajustar o processo. Obrigado, time! 🧢',
+    },
+    fabrica: {
+      screen: 'reuniaoFab', stateKey: 'semanaReuniaoFab', setores: ['Fábrica'],
+      nome: 'Reunião de Fábrica', short: 'Fábrica',
+      respLabel: 'Por responsável na fábrica',
+      respSub: 'Quem concentra o custo da semana na produção. Use como mapa pra melhorar o processo.',
+      foco: 'Cada erro aqui é uma melhoria possível no processo de fabricação. Obrigado, produção! 🧢',
+    },
+  };
 
   const RESOLUCAO_TABLE = [
     { tipo: 'Sem custo', logica: 'Só comunicação/alinhamento', caixa: 'sem_impacto', cor: '#B9BEC6' },
@@ -148,6 +170,7 @@
     periodoTipo: 'relativo', periodo: 'Últimos 12 meses', mes: '', semana: '',
     setor: '', empresa: '', granularidade: 'Mensal',
     buscaCaso: '', casosSort: { key: '', dir: 'desc' }, casosView: 'todos', causaFiltro: '', casosLayout: 'lista',
+    semanaReuniao: null, semanaReuniaoFab: null,
   };
 
   function parseBRDate(s) {
@@ -286,6 +309,23 @@
   }
   setInterval(updateLastSync, 30000);
 
+  /* ---------- Visões salvas (client-side, localStorage — sem chamada ao servidor) ---------- */
+  const LS_VIEWS = 'seubone_erros_views_v1';
+  function getViews() { try { return JSON.parse(localStorage.getItem(LS_VIEWS) || '[]'); } catch (e) { return []; } }
+  function setViews(v) { try { localStorage.setItem(LS_VIEWS, JSON.stringify(v)); } catch (e) {} }
+  function salvarVisaoAtual() {
+    const nome = prompt('Nome da visão (ex: Fábrica pendentes):'); if (!nome || !nome.trim()) return;
+    const views = getViews(); views.push({ nome: nome.trim(), setor: erState.setor || '', empresa: erState.empresa || '', casosView: erState.casosView || 'todos' });
+    setViews(views); toast('Visão salva', true); erRender();
+  }
+  function aplicarVisao(v) {
+    erState.setor = v.setor || ''; erState.empresa = v.empresa || ''; erState.casosView = v.casosView || 'todos';
+    const fs = document.getElementById('erSetor'), fe = document.getElementById('erEmpresa');
+    if (fs) fs.value = erState.setor; if (fe) fe.value = erState.empresa;
+    erRender();
+  }
+  function removerVisao(i) { const views = getViews(); views.splice(i, 1); setViews(views); erRender(); }
+
   /* ---------- Toast (feedback de ações) ---------- */
   function toast(msg, ok) {
     let wrap = document.getElementById('erToastWrap');
@@ -299,6 +339,50 @@
   /* ---------- Erros inline em formulários ---------- */
   function clearFieldErrs(form) { if (!form) return; form.querySelectorAll('.er-field.err').forEach((f) => { f.classList.remove('err'); const m = f.querySelector('.er-field-msg'); if (m) m.remove(); }); }
   function markFieldErr(inputEl, msg) { if (!inputEl) return; const field = inputEl.closest('.er-field'); if (!field) return; field.classList.add('err'); if (!field.querySelector('.er-field-msg')) { const d = document.createElement('div'); d.className = 'er-field-msg'; d.textContent = msg; field.appendChild(d); } }
+
+  /* ---------- Seleção em massa (tela de casos) — disponível pros dois papéis: ---------- */
+  /* exportar/copiar é leitura, não auditoria, então não passa por podeAuditar(). */
+  let SEL = new Set(); // ids selecionados
+  function limparSelecao() {
+    SEL.clear();
+    document.querySelectorAll('#erMain .er-rowchk').forEach((c) => { c.checked = false; });
+    document.querySelectorAll('#erMain tr.er-sel-row').forEach((t) => t.classList.remove('er-sel-row'));
+    const h = document.getElementById('erChkAll'); if (h) { h.checked = false; h.indeterminate = false; }
+    selBar();
+  }
+  function selBar() {
+    let bar = document.getElementById('erSelBar');
+    if (SEL.size === 0) { if (bar) bar.remove(); return; }
+    if (!bar) { bar = document.createElement('div'); bar.id = 'erSelBar'; bar.className = 'er-sel-bar'; document.body.appendChild(bar); }
+    bar.innerHTML = `<span class="sel-n">${SEL.size} selecionado(s)</span>
+      <button class="er-btn" id="erSelExport">Exportar CSV</button>
+      <button class="er-btn" id="erSelCopy">Copiar IDs</button>
+      <button class="er-btn" id="erSelClear">Limpar</button>`;
+    document.getElementById('erSelExport').onclick = exportarSelecionados;
+    document.getElementById('erSelCopy').onclick = copiarIdsSelecionados;
+    document.getElementById('erSelClear').onclick = limparSelecao;
+  }
+  function exportarSelecionados() {
+    const rows = RECORDS.filter((r) => SEL.has(r.id));
+    if (!rows.length) return;
+    const cols = [['ID', (r) => r.idVenda], ['Cliente/Card', (r) => r.nomeCard], ['Data', (r) => fmtDate(r.date)], ['Idade (dias)', (r) => diasDesde(r.date)],
+      ['Setor', (r) => r.setor], ['Culpa de', (r) => r.culpaDe], ['Responsável', (r) => r.responsavel], ['Empresa', (r) => r.empresa],
+      ['Tipo de problema', (r) => r.subproblema], ['Detalhe', (r) => r.detalhe], ['Qtd', (r) => r.qtd], ['Custo', (r) => (r.custo == null ? '' : r.custo)],
+      ['Tipo de resolução', (r) => r.tipoResolucao], ['Que fim', (r) => r.queFim], ['Status', (r) => (r.auditado ? 'Auditado' : 'Pendente')], ['Descrição', (r) => r.descricao]];
+    // Escapa p/ CSV E neutraliza injeção de fórmula: célula começando com = + - @ (ou tab/CR)
+    // recebe um apóstrofo na frente, senão Excel/Sheets executa como fórmula ao abrir.
+    const escCsv = (v) => { let s = String(v == null ? '' : v); if (/^[=+\-@\t\r]/.test(s)) s = "'" + s; return '"' + s.replace(/"/g, '""') + '"'; };
+    const csv = '﻿' + cols.map((c) => escCsv(c[0])).join(';') + '\r\n' +
+      rows.map((r) => cols.map((c) => escCsv(c[1](r))).join(';')).join('\r\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob); const a = document.createElement('a');
+    a.href = url; a.download = 'casos_seubone_' + rows.length + '.csv'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+    toast(rows.length + ' caso(s) exportado(s)', true);
+  }
+  function copiarIdsSelecionados() {
+    const ids = RECORDS.filter((r) => SEL.has(r.id)).map((r) => r.idVenda);
+    navigator.clipboard?.writeText(ids.join('\n')); toast(ids.length + ' ID(s) copiado(s)', true);
+  }
 
   /* ================= FILTROS DE PERÍODO ================= */
   function mondayOf(d) { const dt = new Date(d); const day = (dt.getDay() + 6) % 7; dt.setDate(dt.getDate() - day); dt.setHours(0, 0, 0, 0); return dt; }
@@ -333,6 +417,17 @@
       return `<option value="${ts}">${fmtDM(seg)} a ${fmtDM(dom)}</option>`;
     }).join('');
     if (!erState.semana && semanasKeys.length) erState.semana = String(semanasKeys[0]);
+
+    // semana padrão pra Reunião de Vendas: a mais recente com erro de Vendas/Dupla auditado
+    if (erState.semanaReuniao === null) {
+      const semanasVendas = RECORDS.filter((r) => r.auditado && SETORES_VENDAS.includes(r.setor)).map((r) => mondayOf(r.date).getTime());
+      erState.semanaReuniao = semanasVendas.length ? Math.max(...semanasVendas) : (semanasKeys[0] || mondayOf(new Date()).getTime());
+    }
+    // semana padrão pra Reunião de Fábrica: a mais recente com erro de Fábrica auditado
+    if (erState.semanaReuniaoFab === null) {
+      const semanasFab = RECORDS.filter((r) => r.auditado && r.setor === 'Fábrica').map((r) => mondayOf(r.date).getTime());
+      erState.semanaReuniaoFab = semanasFab.length ? Math.max(...semanasFab) : (semanasKeys[0] || mondayOf(new Date()).getTime());
+    }
   }
 
   function atualizarVisibilidadeFiltros() {
@@ -448,12 +543,23 @@
       causas: ['Ranking de Causas', 'Pareto por custo, produto e volume · ' + rotuloPeriodo()],
       resp: ['Ranking por Consultor', 'Quem mais gera custo e como cada um resolve · ' + rotuloPeriodo()],
       casos: ['Casos / Auditoria', 'Fila de casos pendentes e já auditados · ' + rotuloPeriodo()],
+      incompletos: ['Dados incompletos', 'Casos sem setor preenchido — atribua para destravar as análises'],
+      reuniao: ['Reunião de Vendas', 'Erros da semana para apresentar ao time — Vendas e Dupla · navegação de semana própria'],
+      reuniaoFab: ['Reunião de Fábrica', 'Erros da semana para apresentar à produção — setor Fábrica · navegação de semana própria'],
     };
     document.getElementById('erPageTitle').textContent = TITLES[erState.screen][0];
     document.getElementById('erPageSub').textContent = TITLES[erState.screen][1];
+    // Essas 3 telas têm navegação própria (semana / ação de setor) — a barra de
+    // filtros de período/setor/empresa não se aplica a elas, igual ao original.
+    const filtEl = document.getElementById('erFilters');
+    if (filtEl) filtEl.style.display = (erState.screen === 'reuniao' || erState.screen === 'reuniaoFab' || erState.screen === 'incompletos') ? 'none' : '';
 
     const main = document.getElementById('erMain');
     main.innerHTML = '';
+
+    if (erState.screen === 'reuniao') { renderReuniao(main, REUNIOES.vendas); return; }
+    if (erState.screen === 'reuniaoFab') { renderReuniao(main, REUNIOES.fabrica); return; }
+    if (erState.screen === 'incompletos') { renderIncompletos(main); return; }
 
     const all = erFiltered();
     const data = auditadosOnly(all);
@@ -856,15 +962,21 @@
     const arrow = (k) => s.key === k ? (s.dir === 'asc' ? '▲' : '▼') : '↕';
     const th = (k, label, num) => `<th class="${s.key === k ? 'er-sortable er-sorted' : 'er-sortable'}${num ? ' er-num' : ''}" data-sort="${k}">${label} <span class="er-sarrow">${arrow(k)}</span></th>`;
 
+    // Seleção em massa (checkboxes/CSV/copiar IDs) e Kanban são só p/ quem audita,
+    // igual ao original ("seleção em massa e kanban só p/ quem audita") — colaborador
+    // fica em modo somente-leitura na lista, sem opção de trocar de layout.
     const podeSel = podeAuditar();
-    const layout = erState.casosLayout === 'kanban' ? 'kanban' : 'lista';
+    const layout = (podeSel && erState.casosLayout === 'kanban') ? 'kanban' : 'lista';
+    const views = getViews();
+    const vChip = (k, label) => `<button class="er-chip ${erState.casosView === k ? 'on' : ''}" data-view="${k}">${label}</button>`;
 
     const listCard = `
       <div class="er-card">
         <div class="er-card-head"><div><h3>Casos registrados</h3><div class="er-card-sub">Clique em uma linha pra abrir o caso; clique no cabeçalho pra ordenar.${podeSel ? '' : ' <b>Somente leitura</b> — você pode ver os casos, mas não auditar.'}</div></div></div>
         <div class="er-tbl-wrap"><table>
-          <thead><tr>${th('id', 'ID')}${th('nome', 'Cliente / Card')}${th('data', 'Data')}${th('idade', 'Idade')}${th('setor', 'Setor')}${th('resp', 'Responsável')}${th('custo', 'Custo', true)}${th('status', 'Status')}</tr></thead>
-          <tbody>${rows.map((r) => `<tr class="er-clickable" data-id="${r.id}">
+          <thead><tr>${podeSel ? '<th class="er-chkcell"><input type="checkbox" id="erChkAll"></th>' : ''}${th('id', 'ID')}${th('nome', 'Cliente / Card')}${th('data', 'Data')}${th('idade', 'Idade')}${th('setor', 'Setor')}${th('resp', 'Responsável')}${th('custo', 'Custo', true)}${th('status', 'Status')}</tr></thead>
+          <tbody>${rows.map((r) => `<tr class="er-clickable${SEL.has(r.id) ? ' er-sel-row' : ''}" data-id="${r.id}">
+              ${podeSel ? `<td class="er-chkcell"><input type="checkbox" class="er-rowchk" data-id="${r.id}" ${SEL.has(r.id) ? 'checked' : ''}></td>` : ''}
               <td><span class="er-idchip" data-copy="${erEsc(r.idVenda)}">#${erEsc(r.idVenda)}</span></td>
               <td style="font-weight:600">${erEsc(r.nomeCard)}</td>
               <td>${fmtDate(r.date)}</td>
@@ -886,15 +998,15 @@
       </div>
       <div class="er-chips-bar">
         ${erState.causaFiltro ? `<button class="er-chip on" id="erChipCausa" title="Filtrando por causa vinda do Pareto">Causa: ${erEsc(erState.causaFiltro)} <span class="x">✕</span></button><span class="er-chip-sep"></span>` : ''}
-        <button class="er-chip ${erState.casosView === 'todos' ? 'on' : ''}" data-view="todos">Todos</button>
-        <button class="er-chip ${erState.casosView === 'pendentes' ? 'on' : ''}" data-view="pendentes">Pendentes</button>
-        <button class="er-chip ${erState.casosView === 'parados7' ? 'on' : ''}" data-view="parados7">Parados +7d</button>
-        <button class="er-chip ${erState.casosView === 'altoCusto' ? 'on' : ''}" data-view="altoCusto">Alto custo</button>
+        ${vChip('todos', 'Todos')}${vChip('pendentes', 'Pendentes')}${vChip('parados7', 'Parados +7d')}${vChip('altoCusto', 'Alto custo')}
+        ${views.length ? '<span class="er-chip-sep"></span>' : ''}
+        ${views.map((v, i) => `<button class="er-chip" data-savedidx="${i}" title="setor: ${erEsc(v.setor) || 'todos'} · linha: ${erEsc(v.empresa) || 'todas'} · ${erEsc(v.casosView) || 'todos'}">${erEsc(v.nome)} <span class="x" data-delidx="${i}">✕</span></button>`).join('')}
+        <button class="er-chip er-chip-add" id="erChipSalvar">+ Salvar visão atual</button>
         <span style="flex:1"></span>
         <input class="er-searchbar" id="erBuscaCaso" placeholder="Buscar ID, cliente ou consultor…" value="${erEsc(erState.buscaCaso)}">
         <div class="er-seg-toggle">
           <button class="seg ${layout === 'lista' ? 'on' : ''}" data-layout="lista">☰ Lista</button>
-          <button class="seg ${layout === 'kanban' ? 'on' : ''}" data-layout="kanban">▦ Kanban</button>
+          ${podeSel ? `<button class="seg ${layout === 'kanban' ? 'on' : ''}" data-layout="kanban">▦ Kanban</button>` : ''}
         </div>
       </div>
       ${layout === 'kanban' ? kanbanHTML(rows) : listCard}
@@ -906,6 +1018,11 @@
     });
     document.querySelectorAll('.er-chip[data-view]').forEach((c) => c.addEventListener('click', () => { erState.casosView = c.dataset.view; erRender(); }));
     const chipC = document.getElementById('erChipCausa'); if (chipC) chipC.addEventListener('click', () => { erState.causaFiltro = ''; erRender(); });
+    document.querySelectorAll('.er-chip[data-savedidx]').forEach((c) => c.addEventListener('click', (e) => {
+      if (e.target.dataset.delidx !== undefined) { e.stopPropagation(); removerVisao(Number(e.target.dataset.delidx)); return; }
+      aplicarVisao(getViews()[Number(c.dataset.savedidx)]);
+    }));
+    const cs = document.getElementById('erChipSalvar'); if (cs) cs.addEventListener('click', salvarVisaoAtual);
     document.querySelectorAll('.er-seg-toggle .seg').forEach((b) => b.addEventListener('click', () => { erState.casosLayout = b.dataset.layout; erRender(); }));
 
     if (layout === 'kanban') { wireKanban(); return; }
@@ -914,9 +1031,316 @@
     document.querySelectorAll('.er-idchip').forEach((el) => {
       el.addEventListener('click', (e) => { e.stopPropagation(); navigator.clipboard?.writeText(el.dataset.copy); el.textContent = 'Copiado!'; setTimeout(() => { el.textContent = '#' + el.dataset.copy; }, 900); });
     });
-    document.querySelectorAll('tr.er-clickable').forEach((tr) => { tr.addEventListener('click', () => { openCaso(Number(tr.dataset.id)); }); });
+    document.querySelectorAll('tr.er-clickable').forEach((tr) => { tr.addEventListener('click', (e) => { if (e.target.closest('.er-chkcell')) return; openCaso(Number(tr.dataset.id)); }); });
+
+    // ---------- seleção em massa ----------
+    const syncChkAll = () => {
+      const chks = document.querySelectorAll('#erMain .er-rowchk'); const marc = document.querySelectorAll('#erMain .er-rowchk:checked').length;
+      const h = document.getElementById('erChkAll'); if (h) { h.checked = chks.length > 0 && marc === chks.length; h.indeterminate = marc > 0 && marc < chks.length; }
+    };
+    document.querySelectorAll('#erMain .er-rowchk').forEach((chk) => {
+      chk.addEventListener('click', (e) => e.stopPropagation());
+      chk.addEventListener('change', () => {
+        const id = Number(chk.dataset.id); const tr = chk.closest('tr');
+        if (chk.checked) { SEL.add(id); tr.classList.add('er-sel-row'); } else { SEL.delete(id); tr.classList.remove('er-sel-row'); }
+        syncChkAll(); selBar();
+      });
+    });
+    const chkAll = document.getElementById('erChkAll');
+    if (chkAll) {
+      chkAll.addEventListener('click', (e) => e.stopPropagation());
+      chkAll.addEventListener('change', () => {
+        document.querySelectorAll('#erMain .er-rowchk').forEach((chk) => {
+          chk.checked = chkAll.checked; const id = Number(chk.dataset.id); const tr = chk.closest('tr');
+          if (chkAll.checked) { SEL.add(id); tr.classList.add('er-sel-row'); } else { SEL.delete(id); tr.classList.remove('er-sel-row'); }
+        });
+        chkAll.indeterminate = false; selBar();
+      });
+      syncChkAll();
+    }
+    selBar();
     if (CASO_ATUAL !== null) highlightRow(CASO_ATUAL);
   }
+
+  /* ================= REUNIÃO SEMANAL · VENDAS/FÁBRICA ================= */
+  /** Agrega os dados da reunião de uma semana (setores da cfg).
+   *  Usado tanto pela tela quanto pelo relatório de impressão. */
+  function reuniaoData(monday, setores) {
+    setores = setores || SETORES_VENDAS;
+    const daSemana = (mon) => RECORDS.filter((r) => setores.includes(r.setor) && mondayOf(r.date).getTime() === mon);
+    const semanaAtual = daSemana(monday).filter((r) => r.auditado);
+    const pendentesSemana = RECORDS.filter((r) => !r.auditado && setores.includes(r.setor) && mondayOf(r.date).getTime() === monday).length;
+    const semanaAnterior = daSemana(monday - 7 * 86400000).filter((r) => r.auditado);
+
+    const n = semanaAtual.length;
+    const custoTotal = semanaAtual.reduce((a, r) => a + (r.custo || 0), 0);
+    const nAnt = semanaAnterior.length;
+    const custoAnt = semanaAnterior.reduce((a, r) => a + (r.custo || 0), 0);
+    const deltaN = nAnt ? Math.round((n - nAnt) / nAnt * 100) : null;
+    const deltaCusto = custoAnt ? Math.round((custoTotal - custoAnt) / custoAnt * 100) : null;
+
+    const causaMap = {};
+    semanaAtual.forEach((r) => { const k = r.subproblema || 'Não classificado'; if (!causaMap[k]) causaMap[k] = { nome: k, n: 0, custo: 0 }; causaMap[k].n++; causaMap[k].custo += (r.custo || 0); });
+    const causasTop = Object.values(causaMap).sort((a, b) => b.custo - a.custo);
+
+    const respMap = {};
+    semanaAtual.forEach((r) => { const k = r.responsavel || 'Não informado'; if (!respMap[k]) respMap[k] = { nome: k, n: 0, custo: 0 }; respMap[k].n++; respMap[k].custo += (r.custo || 0); });
+    const respTop = Object.values(respMap).sort((a, b) => b.custo - a.custo);
+
+    const casosOrdenados = semanaAtual.slice().sort((a, b) => b.custo - a.custo);
+
+    return { monday, sunday: sundayOf(monday), semanaAtual, pendentesSemana, n, custoTotal, deltaN, deltaCusto, causasTop, respTop, casosOrdenados };
+  }
+
+  /* ================= DADOS INCOMPLETOS (backfill de setor) ================= */
+  function sugerirSetor(r) {
+    const t = ((r.nomeCard || '') + ' ' + (r.descricao || '') + ' ' + (r.subproblema || '')).toLowerCase();
+    if (/bordad|estamp|silk|costur|corte|refab|f[áa]bric|produ[çc]/.test(t)) return 'Fábrica';
+    if (/layout|arte|design|vetor|mockup/.test(t)) return 'Dupla (Vendedor e Designer)';
+    if (/vend|or[çc]ament|pedi|cliente pediu/.test(t)) return 'Vendas';
+    return '';
+  }
+  async function salvarSetorBackfill(id, setor, rowEl, btn) {
+    const r = RECORDS.find((x) => x.id === id); if (!r) return;
+    try {
+      const res = await fetch('/erros/api/set-setor', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rowIndex: id, setor }) });
+      const json = await res.json();
+      if (!json.ok) throw new Error(json.error || 'Erro desconhecido');
+      r.setor = setor;
+      derivarListasDinamicas(); erInitFilterOptions();
+      toast('Setor de #' + r.idVenda + ' salvo: ' + setor, true);
+      if (rowEl) {
+        rowEl.style.transition = 'opacity .2s'; rowEl.style.opacity = '0';
+        setTimeout(() => {
+          rowEl.remove();
+          const c = document.getElementById('erIncCount'); if (c) c.textContent = String(RECORDS.filter((x) => !x.setor).length);
+          if (!RECORDS.filter((x) => !x.setor).length) { const m = document.getElementById('erMain'); if (m && erState.screen === 'incompletos') renderIncompletos(m); }
+        }, 200);
+      }
+    } catch (e) {
+      if (btn) { btn.disabled = false; btn.textContent = 'Salvar'; }
+      toast('Não consegui salvar o setor: ' + e.message, false);
+    }
+  }
+  function renderIncompletos(main) {
+    if (!podeAuditar()) { main.innerHTML = '<div class="er-card er-empty"><div class="e-title">Sem permissão para editar setor</div></div>'; return; }
+    const faltando = RECORDS.filter((r) => !r.setor).sort((a, b) => (b.date ? b.date.getTime() : 0) - (a.date ? a.date.getTime() : 0));
+    if (!faltando.length) { main.innerHTML = '<div class="er-card er-empty" style="padding:48px 20px"><div class="e-title">🎉 Tudo com setor preenchido!</div><div class="e-sub">Nenhum caso pendente de classificação de setor.</div></div>'; return; }
+    main.innerHTML = `
+      <div class="er-banner"><span class="b-ic">◑</span><div>
+        <div class="b-title"><span id="erIncCount">${faltando.length}</span> caso(s) sem setor preenchido</div>
+        <div class="b-text">O setor alimenta a Executiva, o Ranking e a Reunião de Vendas. Preencha aqui e o caso some da fila. A sugestão é só um palpite pelo texto — confira antes de salvar.</div>
+      </div></div>
+      <div class="er-card" style="padding:0">
+        <div class="er-tbl-wrap"><table>
+          <thead><tr><th>ID</th><th>Cliente / Card</th><th>Descrição</th><th style="width:230px">Setor</th><th style="width:98px"></th></tr></thead>
+          <tbody>${faltando.map((r) => { const sug = sugerirSetor(r); return `<tr data-id="${r.id}">
+            <td><span class="er-idchip">#${erEsc(r.idVenda)}</span></td>
+            <td style="font-weight:600">${erEsc(r.nomeCard)}</td>
+            <td style="max-width:340px;color:var(--text-muted);font-size:12.5px">${erEsc((r.descricao || '').slice(0, 120))}${(r.descricao || '').length > 120 ? '…' : ''}</td>
+            <td><select class="inc-setor">${['<option value="">— selecione —</option>'].concat(SETOR_OPCOES.map((o) => `<option value="${erEsc(o)}" ${o === sug ? 'selected' : ''}>${erEsc(o)}</option>`)).join('')}</select>${sug ? `<div style="font-size:11px;color:var(--warn-text,var(--warn));margin-top:3px">💡 sugestão: <b>${erEsc(sug)}</b></div>` : ''}</td>
+            <td><button class="er-btn er-btn-primary inc-save" style="padding:7px 12px">Salvar</button></td>
+          </tr>`; }).join('')}</tbody>
+        </table></div>
+      </div>`;
+    main.querySelectorAll('tr[data-id]').forEach((tr) => {
+      const id = Number(tr.dataset.id), sel = tr.querySelector('.inc-setor'), btn = tr.querySelector('.inc-save');
+      btn.addEventListener('click', () => { const v = sel.value; if (!v) { sel.focus(); sel.style.borderColor = 'var(--bad)'; return; } btn.disabled = true; btn.textContent = '…'; salvarSetorBackfill(id, v, tr, btn); });
+    });
+  }
+
+  function renderReuniao(main, cfg) {
+    cfg = cfg || REUNIOES.vendas;
+    const d = reuniaoData(erState[cfg.stateKey], cfg.setores);
+    const { monday, sunday, n, custoTotal, deltaN, deltaCusto, causasTop, respTop, casosOrdenados, pendentesSemana } = d;
+
+    const nav = `
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:22px;flex-wrap:wrap">
+        <div style="display:flex;align-items:center;gap:14px">
+          <button class="er-iconbtn" id="erSemanaPrev" title="Semana anterior">←</button>
+          <div style="text-align:center">
+            <div style="font-size:12px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.05em">Semana</div>
+            <div style="font-size:18px;font-weight:800;color:var(--text)">${fmtDM(new Date(monday))} a ${fmtDM(sunday)}</div>
+          </div>
+          <button class="er-iconbtn" id="erSemanaNext" title="Próxima semana">→</button>
+        </div>
+        <button class="er-btn er-btn-primary" id="erBtnPdf" ${n === 0 ? 'disabled style="opacity:.5"' : ''}>⤓ Exportar PDF</button>
+      </div>
+    `;
+
+    const bindNav = () => {
+      document.getElementById('erSemanaPrev').addEventListener('click', () => { erState[cfg.stateKey] -= 7 * 86400000; erRender(); });
+      document.getElementById('erSemanaNext').addEventListener('click', () => { erState[cfg.stateKey] += 7 * 86400000; erRender(); });
+      const bap = document.getElementById('erBtnPdf'); if (bap && n > 0) bap.addEventListener('click', () => exportarPDF(erState[cfg.stateKey], cfg));
+    };
+
+    if (n === 0) {
+      main.innerHTML = nav + `<div class="er-card er-empty"><div class="e-title">Nenhum erro de ${erEsc(cfg.short)} auditado nesta semana</div><div class="e-sub">${pendentesSemana > 0 ? pendentesSemana + ' caso(s) ainda pendente(s) de auditoria nesta semana.' : 'Use as setas pra navegar até uma semana com dado, ou é uma boa notícia mesmo.'}</div></div>`;
+      bindNav();
+      return;
+    }
+
+    const causaDestaque = causasTop[0];
+    const comFoto = casosOrdenados.filter((r) => parseFotos(r.foto).length).length;
+    const arrow = (delta) => delta === null ? '' : delta > 0 ? `<span style="color:var(--bad-text,var(--bad))">▲ ${delta}% vs semana anterior</span>` : delta < 0 ? `<span style="color:var(--ok-text,var(--ok))">▼ ${Math.abs(delta)}% vs semana anterior</span>` : `<span style="color:var(--text-muted)">igual à semana anterior</span>`;
+    const maxCustoResp = respTop.length ? respTop[0].custo : 0;
+
+    main.innerHTML = nav + `
+      ${pendentesSemana > 0 ? `<div class="er-banner red"><span class="b-ic">!</span><div><div class="b-title">${pendentesSemana} caso(s) de ${erEsc(cfg.short)} ainda pendente(s) de auditoria nesta semana</div><div class="b-text">Não entram nos números abaixo. Vale fechar antes da reunião.</div></div></div>` : ''}
+
+      <div class="er-metrics">
+        <div class="er-metric hero"><div class="m-top"><span class="m-ic">▦</span><span class="m-label">Erros de ${erEsc(cfg.short)} na semana</span></div><div class="m-value">${n}</div><div class="m-foot">${arrow(deltaN)}</div></div>
+        <div class="er-metric"><div class="m-top"><span class="m-ic ic-amber">◈</span><span class="m-label">Custo total da semana</span></div><div class="m-value">${brl(custoTotal)}</div><div class="m-foot">${arrow(deltaCusto)}</div></div>
+        <div class="er-metric"><div class="m-top"><span class="m-ic ic-green">◆</span><span class="m-label">Causa em destaque</span></div><div class="m-value sm">${erEsc(causaDestaque.nome)}</div><div class="m-foot">${causaDestaque.n} caso(s) · ${brl(causaDestaque.custo)}</div></div>
+        <div class="er-metric"><div class="m-top"><span class="m-ic ic-blue">◉</span><span class="m-label">Casos com foto</span></div><div class="m-value">${comFoto}<span style="font-size:16px;color:var(--text-muted);font-weight:600"> / ${n}</span></div><div class="m-foot">aparecem com imagem no PDF</div></div>
+      </div>
+
+      <div class="er-grid er-grid-2col">
+        <div class="er-card">
+          <h3>Top causas da semana</h3>
+          <div class="er-card-sub">Ordenado por custo — onde uma ação de processo rende mais.</div>
+          <div style="margin-top:10px">
+            ${causasTop.slice(0, 5).map((c, i) => `<div class="er-legend-row"><span class="er-rank ${i === 0 ? 'top' : ''}">${i + 1}</span><span style="margin-left:10px">${erEsc(c.nome)}</span><b style="margin-left:auto">${brl(c.custo)}</b><span style="color:var(--text-muted);margin-left:12px;min-width:70px;text-align:right">${c.n} caso(s)</span></div>`).join('')}
+          </div>
+        </div>
+        <div class="er-card">
+          <h3>${erEsc(cfg.respLabel)}</h3>
+          <div class="er-card-sub">${erEsc(cfg.respSub)}</div>
+          <div style="margin-top:10px">
+            ${respTop.slice(0, 6).map((c, i) => `<div class="er-legend-row"><span class="er-rank ${i === 0 ? 'top' : ''}">${i + 1}</span><span style="margin-left:10px;flex:1">${erEsc(c.nome)}</span><div class="er-mbar" style="max-width:150px;margin:0 10px"><div class="track"><div class="fill" style="width:${maxCustoResp ? Math.max(3, c.custo / maxCustoResp * 100) : 0}%;background:#2A6FDB"></div></div></div><b style="min-width:78px;text-align:right">${brl(c.custo)}</b></div>`).join('')}
+          </div>
+        </div>
+      </div>
+
+      <div class="er-card">
+        <h3>Casos da semana — ${erEsc(cfg.short)}</h3>
+        <div class="er-card-sub">Ordenado por custo. Clique numa linha pra ver o caso completo. A miniatura mostra se o caso tem foto.</div>
+        <div class="er-tbl-wrap"><table>
+          <thead><tr><th>Foto</th><th>ID</th><th>Responsável</th><th>Cliente / Card</th><th>Causa</th><th class="er-num">Custo</th><th>Tipo de resolução</th></tr></thead>
+          <tbody>${casosOrdenados.map((r) => { const fs = parseFotos(r.foto); return `<tr class="er-clickable" data-id="${r.id}">
+              <td>${fs.length ? `<img class="er-thumb-sm" src="${erEsc(fotoSrc(fs[0]))}" alt="" loading="lazy">` : `<span style="color:var(--text-hint);font-size:11px">sem foto</span>`}</td>
+              <td><span class="er-idchip" data-copy="${erEsc(r.idVenda)}">#${erEsc(r.idVenda)}</span></td>
+              <td style="font-weight:600">${erEsc(r.responsavel) || '—'}</td>
+              <td>${erEsc(r.nomeCard)}</td>
+              <td>${erEsc(r.subproblema) || '—'}</td>
+              <td class="er-num">${brl(r.custo)}</td>
+              <td>${erEsc(r.tipoResolucao) || '—'}</td>
+            </tr>`; }).join('')}</tbody>
+        </table></div>
+      </div>
+    `;
+
+    bindNav();
+    document.querySelectorAll('#erMain .er-idchip').forEach((el) => {
+      el.addEventListener('click', (e) => { e.stopPropagation(); navigator.clipboard?.writeText(el.dataset.copy); el.textContent = 'Copiado!'; setTimeout(() => { el.textContent = '#' + el.dataset.copy; }, 900); });
+    });
+    document.querySelectorAll('#erMain tr.er-clickable').forEach((tr) => { tr.addEventListener('click', () => openCaso(Number(tr.dataset.id))); });
+    if (CASO_ATUAL !== null) highlightRow(CASO_ATUAL);
+  }
+
+  /* ================= RELATÓRIO PDF (Reunião) =================
+     Monta um relatório imprimível em #erPrintRoot e dispara o print-to-PDF
+     nativo do navegador (o usuário escolhe "Salvar como PDF" no diálogo de
+     impressão). Fica sempre em paleta clara — ver @media print no erros.css. */
+  function prArrow(delta) {
+    if (delta === null) return '<span style="color:#8A9099">sem base da semana anterior</span>';
+    if (delta > 0) return `<span style="color:#A62A23">▲ ${delta}% vs semana anterior</span>`;
+    if (delta < 0) return `<span style="color:#15703D">▼ ${Math.abs(delta)}% vs semana anterior</span>`;
+    return '<span style="color:#8A9099">igual à semana anterior</span>';
+  }
+
+  function buildPrintReport(d, cfg) {
+    cfg = cfg || REUNIOES.vendas;
+    const periodo = `${fmtDM(new Date(d.monday))} a ${fmtDM(d.sunday)}`;
+    const comFoto = d.casosOrdenados.filter((r) => parseFotos(r.foto).length).length;
+    const causa = d.causasTop[0] || { nome: '—', n: 0, custo: 0 };
+    const maxResp = d.respTop.length ? (d.respTop[0].custo || 1) : 1;
+
+    const kpis = `
+      <div class="er-pr-kpis">
+        <div class="er-pr-kpi accent"><div class="kl">Erros auditados</div><div class="kv">${d.n}</div><div class="kf">${prArrow(d.deltaN)}</div></div>
+        <div class="er-pr-kpi accent"><div class="kl">Custo total</div><div class="kv">${brl(d.custoTotal)}</div><div class="kf">${prArrow(d.deltaCusto)}</div></div>
+        <div class="er-pr-kpi"><div class="kl">Causa em destaque</div><div class="kv sm">${erEsc(causa.nome)}</div><div class="kf">${causa.n} caso(s) · ${brl(causa.custo)}</div></div>
+        <div class="er-pr-kpi"><div class="kl">Casos com foto</div><div class="kv">${comFoto} / ${d.n}</div><div class="kf">imagens incluídas neste PDF</div></div>
+      </div>`;
+
+    const causas = `
+      <div>
+        <div class="er-pr-sec">Top causas da semana</div>
+        <div class="er-pr-secsub">Ordenado por custo — onde uma ação de processo rende mais.</div>
+        ${d.causasTop.slice(0, 6).map((c, i) => `<div class="er-pr-row"><span class="er-pr-rk ${i === 0 ? 'top' : ''}">${i + 1}</span><span class="er-pr-name">${erEsc(c.nome)}</span><span class="er-pr-cnt">${c.n} caso(s)</span><span class="er-pr-val">${brl(c.custo)}</span></div>`).join('')}
+      </div>`;
+
+    const ranking = `
+      <div>
+        <div class="er-pr-sec">${erEsc(cfg.respLabel)}</div>
+        <div class="er-pr-secsub">Quem concentra o custo da semana. Mapa, não julgamento isolado.</div>
+        ${d.respTop.slice(0, 7).map((c, i) => `<div class="er-pr-row"><span class="er-pr-rk ${i === 0 ? 'top' : ''}">${i + 1}</span><span class="er-pr-name">${erEsc(c.nome)}</span><span class="er-pr-bar"><i style="width:${Math.max(4, c.custo / maxResp * 100)}%;background:${i === 0 ? '#E0A400' : '#2A6FDB'}"></i></span><span class="er-pr-val">${brl(c.custo)}</span></div>`).join('')}
+      </div>`;
+
+    const cases = d.casosOrdenados.map((r, idx) => {
+      const fs = parseFotos(r.foto);
+      const photo = fs.length
+        ? `<div class="er-pr-photo"><img src="${erEsc(fotoSrc(fs[0]))}" alt=""></div>`
+        : `<div class="er-pr-photo"><span class="noimg">Sem foto</span></div>`;
+      const desc = r.descricao ? `<div class="er-pr-cdesc">${erEsc(String(r.descricao).slice(0, 420))}</div>` : '';
+      return `<div class="er-pr-case">
+        ${photo}
+        <div>
+          <div class="er-pr-ckicker">Caso ${idx + 1} · ${erEsc(r.tipoResolucao) || 'Sem classificação'}</div>
+          <div class="er-pr-ccause">${erEsc(r.subproblema) || 'Não classificado'}</div>
+          <div class="er-pr-cclient">${erEsc(r.nomeCard)} · #${erEsc(r.idVenda)}</div>
+          <div class="er-pr-ctags">
+            <span class="er-pr-tag">Responsável <b>${erEsc(r.responsavel) || '—'}</b></span>
+            <span class="er-pr-tag">Setor <b>${erEsc(r.setor) || '—'}</b></span>
+            ${r.tipoProduto ? `<span class="er-pr-tag">Produto <b>${erEsc(r.tipoProduto)}</b></span>` : ''}
+            ${r.empresa ? `<span class="er-pr-tag">Linha <b>${erEsc(r.empresa)}</b></span>` : ''}
+          </div>
+          <div class="er-pr-ccost">${brl(r.custo)} <small>de custo</small></div>
+          ${desc}
+        </div>
+      </div>`;
+    }).join('');
+
+    return `
+      <div class="er-pr-page">
+        <div class="er-pr-brand">
+          <span class="er-pr-badge">E</span>
+          <span class="er-pr-bname">SeuBoné <span>· ${erEsc(cfg.nome)}</span></span>
+          <span class="er-pr-period">${periodo}</span>
+        </div>
+        <h1 class="er-pr-title">Erros da Semana</h1>
+        <div class="er-pr-sub">${d.n} caso(s) auditado(s) · ${brl(d.custoTotal)} em custo · foco em aprendizado, não em culpa.${d.pendentesSemana > 0 ? ` <b style="color:#A62A23">${d.pendentesSemana} caso(s) ainda pendente(s) — fora destes números.</b>` : ''}</div>
+        ${kpis}
+        <div class="er-pr-two">${causas}${ranking}</div>
+        <div class="er-pr-cases-h">Casos da semana — ${erEsc(cfg.short)} (${d.casosOrdenados.length})</div>
+        ${cases}
+        <div class="er-pr-foot"><b>${d.n} erro(s) · ${brl(d.custoTotal)}</b> na semana ${periodo}.<br>${erEsc(cfg.foco)}</div>
+      </div>`;
+  }
+
+  function exportarPDF(monday, cfg) {
+    cfg = cfg || REUNIOES.vendas;
+    const d = reuniaoData(monday, cfg.setores);
+    if (d.n === 0) { toast('Sem casos de ' + cfg.short + ' auditados nesta semana para exportar.', false); return; }
+    const root = document.getElementById('erPrintRoot');
+    root.innerHTML = buildPrintReport(d, cfg);
+    const btn = document.getElementById('erBtnPdf');
+    const imgs = Array.from(root.querySelectorAll('img'));
+    let pending = imgs.filter((im) => !im.complete).length;
+    const go = () => { if (btn) { btn.textContent = '⤓ Exportar PDF'; btn.disabled = false; } setTimeout(() => window.print(), 50); };
+    if (btn) { btn.textContent = 'Preparando…'; btn.disabled = true; }
+    if (pending === 0) { go(); return; }
+    let done = false; const finish = () => { if (done) return; done = true; go(); };
+    imgs.forEach((im) => { if (im.complete) return;
+      im.addEventListener('load', () => { if (--pending <= 0) finish(); });
+      im.addEventListener('error', () => { if (--pending <= 0) finish(); });
+    });
+    setTimeout(finish, 3000); // não travar se o Drive demorar a responder
+  }
+
+  // limpa o relatório depois de imprimir/cancelar
+  window.addEventListener('afterprint', () => { const r = document.getElementById('erPrintRoot'); if (r) r.innerHTML = ''; });
 
   /* ---------- Roteamento por hash (#/casos/:id) + drawer lateral ---------- */
   function parseCasoHash() { const m = (location.hash || '').match(/^#\/casos\/(-?\d+)/); return m ? Number(m[1]) : null; }
@@ -952,6 +1376,17 @@
   }
   window.addEventListener('hashchange', syncFromHash);
   document.addEventListener('keydown', (e) => { if (CASO_ATUAL !== null && e.key === 'Escape') closeDrawer(false); });
+
+  /* Navegação por teclado enquanto o drawer está aberto: ↑/↓ (ou K/J) troca de caso pra anterior/próximo da lista atual. */
+  document.addEventListener('keydown', (e) => {
+    if (CASO_ATUAL === null) return;
+    if (document.getElementById('erPalScrim')) return; // palette aberta tem prioridade
+    const tag = (e.target.tagName || '').toLowerCase();
+    if (tag === 'input' || tag === 'textarea' || tag === 'select' || e.target.isContentEditable) return;
+    if (e.ctrlKey || e.metaKey || e.altKey) return; // não conflitar com atalhos (ex: Ctrl+K)
+    if (e.key === 'ArrowDown' || e.key === 'j' || e.key === 'J') { const n = document.getElementById('erDrwNext'); if (n && n.dataset.target) { e.preventDefault(); openCaso(Number(n.dataset.target)); } }
+    else if (e.key === 'ArrowUp' || e.key === 'k' || e.key === 'K') { const p = document.getElementById('erDrwPrev'); if (p && p.dataset.target) { e.preventDefault(); openCaso(Number(p.dataset.target)); } }
+  });
 
   /* ===== Lightbox de fotos (Esc fecha, ← → navegam) ===== */
   let LB = { urls: [], idx: 0, prevFocus: null };
@@ -1369,10 +1804,79 @@
     });
   }
 
+  /* ================= BUSCA GLOBAL (COMMAND PALETTE · Ctrl/Cmd+K) =================
+     Disponível pros dois papéis — utilitário geral da tela Casos, não passa por podeAuditar(). */
+  let PAL_SEL = 0, PAL_RESULTS = [];
+
+  function palSearch(q) {
+    q = q.trim().toLowerCase();
+    let list = RECORDS.slice();
+    if (q) {
+      const terms = q.split(/\s+/);
+      list = list.filter((r) => {
+        const hay = (String(r.idVenda) + ' ' + (r.nomeCard || '') + ' ' + (r.empresa || '') + ' ' + (r.responsavel || '') + ' ' + (r.setor || '')).toLowerCase();
+        return terms.every((t) => hay.includes(t));
+      });
+    } else {
+      list = list.filter((r) => !r.auditado); // sem busca: mostra os pendentes primeiro
+    }
+    list.sort((a, b) => (a.auditado === b.auditado ? b.date - a.date : (a.auditado ? 1 : -1)));
+    return list.slice(0, 30);
+  }
+
+  function renderPalette(q) {
+    PAL_RESULTS = palSearch(q); PAL_SEL = 0;
+    const listEl = document.getElementById('erPalList'); if (!listEl) return;
+    if (!PAL_RESULTS.length) { listEl.innerHTML = `<div class="er-pal-empty">Nada encontrado${q ? ` para “${erEsc(q)}”` : ''}.</div>`; return; }
+    listEl.innerHTML = PAL_RESULTS.map((r, i) => `<div class="er-pal-item ${i === 0 ? 'sel' : ''}" data-idx="${i}">
+      <span class="pid">#${erEsc(r.idVenda)}</span>
+      <span class="pname">${erEsc(r.nomeCard) || '(sem nome)'}</span>
+      <span class="pmeta">${erEsc(r.empresa) || '—'} · ${erEsc(r.setor) || 's/ setor'}</span>
+      ${statusBadge(r)}
+    </div>`).join('');
+    listEl.querySelectorAll('.er-pal-item').forEach((it) => {
+      it.addEventListener('click', () => palOpen(Number(it.dataset.idx)));
+      it.addEventListener('mousemove', () => palSelect(Number(it.dataset.idx)));
+    });
+  }
+
+  function palSelect(i) { PAL_SEL = i; document.querySelectorAll('.er-pal-item').forEach((el, idx) => el.classList.toggle('sel', idx === i)); }
+  function palOpen(i) { const r = PAL_RESULTS[i]; if (!r) return; closePalette(); erState.screen = 'casos'; erRender(); openCaso(r.id); }
+  function ensurePalVisible() { const el = document.querySelectorAll('.er-pal-item')[PAL_SEL]; if (el) el.scrollIntoView({ block: 'nearest' }); }
+
+  function openPalette() {
+    if (document.getElementById('erPalScrim')) return;
+    const el = document.createElement('div');
+    el.className = 'er-pal-scrim'; el.id = 'erPalScrim';
+    el.innerHTML = `<div class="er-palette" role="dialog" aria-label="Busca de casos">
+        <input class="er-pal-input" id="erPalInput" placeholder="Buscar por ID, cliente, empresa ou responsável…" autocomplete="off" spellcheck="false">
+        <div class="er-pal-list" id="erPalList"></div>
+        <div class="er-pal-foot"><span>↑ ↓ navegar</span><span>↵ abrir</span><span>Esc fechar</span></div>
+      </div>`;
+    document.body.appendChild(el);
+    el.addEventListener('click', (e) => { if (e.target.id === 'erPalScrim') closePalette(); });
+    const input = document.getElementById('erPalInput');
+    input.addEventListener('input', () => renderPalette(input.value));
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowDown') { e.preventDefault(); if (PAL_SEL < PAL_RESULTS.length - 1) { palSelect(PAL_SEL + 1); ensurePalVisible(); } }
+      else if (e.key === 'ArrowUp') { e.preventDefault(); if (PAL_SEL > 0) { palSelect(PAL_SEL - 1); ensurePalVisible(); } }
+      else if (e.key === 'Enter') { e.preventDefault(); palOpen(PAL_SEL); }
+      else if (e.key === 'Escape') { e.preventDefault(); closePalette(); }
+    });
+    renderPalette('');
+    input.focus();
+  }
+  function closePalette() { const el = document.getElementById('erPalScrim'); if (el) el.remove(); PAL_SEL = 0; }
+
+  // Atalho global Ctrl/Cmd+K e botão "🔍 Buscar" da barra de filtros
+  document.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K')) { e.preventDefault(); document.getElementById('erPalScrim') ? closePalette() : openPalette(); }
+  });
+
   /* ================= NAVEGAÇÃO / FILTROS (wiring, uma vez só) ================= */
   document.querySelectorAll('#er-nav button').forEach((btn) => {
     if (!podeVerTela(btn.dataset.view)) { btn.style.display = 'none'; return; }
-    btn.addEventListener('click', () => { closeDrawer(false); erState.screen = btn.dataset.view; erRender(); });
+    btn.addEventListener('click', () => { closeDrawer(false); SEL.clear(); selBar(); erState.screen = btn.dataset.view; erRender(); });
   });
 
   atualizarVisibilidadeFiltros();
@@ -1384,6 +1888,7 @@
   document.getElementById('erEmpresa').addEventListener('change', (e) => { erState.empresa = e.target.value; erRender(); });
   document.getElementById('erBtnRefresh').addEventListener('click', () => erRefreshData(false));
   document.getElementById('erBtnNovoCaso').addEventListener('click', openNovoCaso);
+  document.getElementById('erBtnBuscar').addEventListener('click', openPalette);
 
   // Re-renderiza os gráficos (cores lidas dos tokens) quando o tema global do hub muda.
   new MutationObserver(() => { if (document.getElementById('erMain').style.display !== 'none') erRender(); })

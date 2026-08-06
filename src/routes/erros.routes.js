@@ -75,4 +75,18 @@ router.post('/api/set-status', requireRole('gestor'), async (req, res) => {
   }
 });
 
+// Backfill de setor (tela "Dados incompletos", Fase 2) — mesma trava de
+// gestor das outras ações de auditoria.
+router.post('/api/set-setor', requireRole('gestor'), async (req, res) => {
+  try {
+    const json = await chamarAppsScript(env.errosAppsScriptUrl, {
+      method: 'POST',
+      body: { action: 'setSetor', rowIndex: req.body.rowIndex, setor: req.body.setor, usuario: req.session.user.nome },
+    });
+    res.json(json);
+  } catch (err) {
+    res.status(502).json({ ok: false, error: 'Falha ao preencher setor: ' + err.message });
+  }
+});
+
 module.exports = router;
