@@ -290,6 +290,9 @@ th.er-sorted .er-sarrow { color: var(--text); }
 .er-btn-accent { background: var(--gold); color: var(--on-gold, #1c1c1c); }
 .er-btn-accent:hover { filter: brightness(0.95); }
 .er-btn-accent:disabled { opacity: .5; cursor: default; }
+.er-btn-bad { background: var(--bad-bg); color: var(--bad-text, var(--bad)); border: 1px solid var(--bad); }
+.er-btn-bad:hover { filter: brightness(0.95); }
+.er-btn-bad:disabled { opacity: .5; cursor: default; }
 
 /* ===== Histórico (timeline no drawer) ===== */
 .er-hist-box { display: flex; flex-direction: column; }

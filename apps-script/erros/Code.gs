@@ -61,7 +61,18 @@ var COLUNAS = {
   tipoResolucao: ['solucao', 'tipo de resolucao'],
   status:        ['status'],
   foto:          ['foto', 'fotos', 'imagem', 'imagens', 'anexo'],
+  // Fila de aprovação de Refabricação (Fase 3) — colunas novas na aba.
+  aprovacaoRefab:      ['aprovacaorefab'],
+  comentarioAprovacao: ['comentarioaprovacao'],
 };
+
+// Valores possíveis de AprovacaoRefab — cai em "Pendente" sozinho quando o
+// Tipo de Resolução vira "Refabricação" (na criação OU numa auditoria
+// posterior), sem nunca sobrescrever uma decisão que já foi tomada.
+var REFAB_PENDENTE = 'Pendente';
+var REFAB_APROVADO = 'Aprovado';
+var REFAB_REPROVADO = 'Reprovado';
+var REFAB_FINALIZADO = 'Finalizado';
 
 /* ============================ HELPERS ============================ */
 
@@ -253,15 +264,36 @@ function getHistSheet_() {
   var sh = ss.getSheetByName(HIST_SHEET_NAME);
   if (!sh) {
     sh = ss.insertSheet(HIST_SHEET_NAME);
-    sh.appendRow(['Data/Hora', 'ID do caso', 'ID venda', 'Usuário', 'Ação', 'Detalhe']);
+    sh.appendRow(['Data/Hora', 'ID do caso', 'ID venda', 'Usuário', 'Ação', 'Detalhe', 'Slug']);
+  } else if (!sh.getRange(1, 7).getValue()) {
+    // Sheet já existia de antes da coluna Slug (fila de aprovação de
+    // Refabricação) — completa o cabeçalho sem precisar recriar a aba.
+    sh.getRange(1, 7).setValue('Slug');
   }
   return sh;
 }
 
-function logHist_(caseRow, idVenda, usuario, acao, detalhe) {
+function logHist_(caseRow, idVenda, usuario, acao, detalhe, slug) {
   try {
-    getHistSheet_().appendRow([new Date(), caseRow, idVenda || '', usuario || '—', acao || '', detalhe || '']);
+    getHistSheet_().appendRow([new Date(), caseRow, idVenda || '', usuario || '—', acao || '', detalhe || '', slug || '']);
   } catch (e) {}
+}
+
+/** Devolve o slug de quem registrou (ação "Caso registrado" no Histórico)
+ *  cada rowIndex já visto — usado pra filtrar a fila de Refabricação por
+ *  colaborador e pra notificar quem cadastrou quando o caso é decidido. */
+function mapaRegistradoPorSlug_() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sh = ss.getSheetByName(HIST_SHEET_NAME);
+  var mapa = {};
+  if (!sh) return mapa;
+  var values = sh.getDataRange().getValues();
+  for (var r = 1; r < values.length; r++) {
+    if (String(values[r][4]) !== 'Caso registrado') continue;
+    var caseRow = String(values[r][1]);
+    if (mapa[caseRow] == null) mapa[caseRow] = String(values[r][6] || '');
+  }
+  return mapa;
 }
 
 function histFor_(rowIndex) {
@@ -332,6 +364,8 @@ function doGet(e) {
       return (i == null) ? '' : row[i];
     };
 
+    var registradoPorSlugMap = mapaRegistradoPorSlug_();
+
     var rows = [];
     for (var r = 1; r < values.length; r++) {
       var row = values[r];
@@ -340,8 +374,9 @@ function doGet(e) {
       if (String(idVenda).trim() === '' && String(nomeCard).trim() === '') continue;
 
       var descricao = String(get(row, 'descricao') || '');
+      var rowIndex = r + 1;
       rows.push({
-        rowIndex:      r + 1,
+        rowIndex:      rowIndex,
         data:          fmtDate_(get(row, 'data')),
         auditoria:     parseBool_(get(row, 'auditoria')),
         idVenda:       String(idVenda || '').trim(),
@@ -362,6 +397,9 @@ function doGet(e) {
         status:        String(get(row, 'status') || '').trim(),
         foto:          String(get(row, 'foto') || '').trim(),
         linkPedido:    extractUrl_(descricao),
+        aprovacaoRefab:      String(get(row, 'aprovacaoRefab') || '').trim(),
+        comentarioAprovacao: String(get(row, 'comentarioAprovacao') || '').trim(),
+        registradoPorSlug:   registradoPorSlugMap[String(rowIndex)] || '',
       });
     }
     return jsonOut_({ ok: true, version: 'fotos-fix-2026-08', aba: sh.getName(), rows: rows });
@@ -379,10 +417,12 @@ function doPost(e) {
 
     var action = body.action;
 
-    if (action === 'criar') return criarCaso_(body.fields || {}, body.usuario);
-    if (action === 'audit') return auditarCaso_(body.rowIndex, body.fields || {}, body.usuario);
+    if (action === 'criar') return criarCaso_(body.fields || {}, body.usuario, body.usuarioSlug);
+    if (action === 'audit') return auditarCaso_(body.rowIndex, body.fields || {}, body.usuario, body.usuarioSlug);
     if (action === 'setStatus') return setStatus_(body.rowIndex, body.status, body.usuario);
     if (action === 'setSetor')  return setSetor_(body.rowIndex, body.setor, body.usuario);
+    if (action === 'decidirRefab')  return decidirRefab_(body.rowIndex, body.decisao, body.comentario, body.usuario, body.usuarioSlug);
+    if (action === 'finalizarRefab') return finalizarRefab_(body.rowIndex, body.usuario, body.usuarioSlug);
 
     return jsonOut_({ ok: false, error: 'Ação desconhecida: ' + action });
   } catch (err) {
@@ -420,7 +460,22 @@ function ultimaLinhaDeDados_(sh, col) {
   return 1;
 }
 
-function criarCaso_(f, usuario) {
+/**
+ * Se o Tipo de Resolução for "Refabricação" e a linha ainda não tiver
+ * entrado na fila (célula AprovacaoRefab vazia), marca como "Pendente" —
+ * nunca sobrescreve uma decisão que já foi tomada (Aprovado/Reprovado/
+ * Finalizado), mesmo que uma auditoria posterior reafirme "Refabricação".
+ * Devolve true se acabou de entrar agora (pra avisar os gestores).
+ */
+function entrarNaFilaRefab_(sh, rowIndex, col, tipoResolucao) {
+  if (tipoResolucao !== 'Refabricação' || col.aprovacaoRefab == null) return false;
+  var atual = String(sh.getRange(rowIndex, col.aprovacaoRefab + 1).getValue() || '').trim();
+  if (atual !== '') return false;
+  sh.getRange(rowIndex, col.aprovacaoRefab + 1).setValue(REFAB_PENDENTE);
+  return true;
+}
+
+function criarCaso_(f, usuario, usuarioSlug) {
   var sh = getSheet_();
   var header = sh.getDataRange().getValues()[0];
   var col = buildColMap_(header);
@@ -451,22 +506,27 @@ function criarCaso_(f, usuario) {
   if (f.fotos && f.fotos.length) {
     if (col.foto == null) {
       logHist_(novaLinha, f.idVenda, usuario || f.quemCadastrou, 'Fotos não salvas',
-        'A planilha não tem a coluna "Foto". Adicione um cabeçalho "Foto".');
+        'A planilha não tem a coluna "Foto". Adicione um cabeçalho "Foto".', usuarioSlug);
     } else {
       try {
         var links = salvarFotos_(f.fotos, f.idVenda);
         if (links) setCell_(sh, novaLinha, col, 'foto', links);
-        else logHist_(novaLinha, f.idVenda, usuario || f.quemCadastrou, 'Fotos não salvas', 'Nenhum link gerado (formato inesperado).');
+        else logHist_(novaLinha, f.idVenda, usuario || f.quemCadastrou, 'Fotos não salvas', 'Nenhum link gerado (formato inesperado).', usuarioSlug);
       } catch (e) {
-        logHist_(novaLinha, f.idVenda, usuario || f.quemCadastrou, 'Falha ao salvar fotos', String(e && e.message || e));
+        logHist_(novaLinha, f.idVenda, usuario || f.quemCadastrou, 'Falha ao salvar fotos', String(e && e.message || e), usuarioSlug);
       }
     }
   }
 
   logHist_(novaLinha, f.idVenda, usuario || f.quemCadastrou, 'Caso registrado',
-    f.auditoria ? 'já auditado (' + (f.status || 'resolvido') + ')' : 'pendente de auditoria');
+    f.auditoria ? 'já auditado (' + (f.status || 'resolvido') + ')' : 'pendente de auditoria', usuarioSlug);
 
-  return jsonOut_({ ok: true, rowIndex: novaLinha });
+  var entrouRefab = entrarNaFilaRefab_(sh, novaLinha, col, f.tipoResolucao);
+  if (entrouRefab) {
+    logHist_(novaLinha, f.idVenda, usuario || f.quemCadastrou, 'Entrou na fila de aprovação de Refabricação', '', usuarioSlug);
+  }
+
+  return jsonOut_({ ok: true, rowIndex: novaLinha, entrouAprovacaoRefab: entrouRefab });
 }
 
 function montarDescricao_(f) {
@@ -476,7 +536,7 @@ function montarDescricao_(f) {
   return desc;
 }
 
-function auditarCaso_(rowIndex, f, usuario) {
+function auditarCaso_(rowIndex, f, usuario, usuarioSlug) {
   if (!rowIndex) return jsonOut_({ ok: false, error: 'rowIndex ausente' });
   var sh = getSheet_();
   var header = sh.getDataRange().getValues()[0];
@@ -496,8 +556,67 @@ function auditarCaso_(rowIndex, f, usuario) {
   setCell_(sh, rowIndex, col, 'queFim',        f.queFim);
   setCell_(sh, rowIndex, col, 'tipoResolucao', f.tipoResolucao);
 
-  logHist_(rowIndex, f.idVenda, usuario, 'Auditoria salva',
-    [f.setor, f.tipoResolucao, (f.custo ? 'R$ ' + f.custo : '')].filter(String).join(' · '));
+  // idVenda/nomeCard não vêm no payload de auditoria (o form só reenvia os
+  // campos editáveis) — lê da própria planilha, igual decidirRefab_, pra dar
+  // pro hub notificar o gestor com o card certo quando o gatilho de
+  // Refabricação disparar aqui em vez de na criação.
+  var idVenda = (col.idVenda != null) ? sh.getRange(rowIndex, col.idVenda + 1).getValue() : '';
+  var nomeCard = (col.nomeCard != null) ? sh.getRange(rowIndex, col.nomeCard + 1).getValue() : '';
+
+  logHist_(rowIndex, idVenda, usuario, 'Auditoria salva',
+    [f.setor, f.tipoResolucao, (f.custo ? 'R$ ' + f.custo : '')].filter(String).join(' · '), usuarioSlug);
+
+  var entrouRefab = entrarNaFilaRefab_(sh, rowIndex, col, f.tipoResolucao);
+  if (entrouRefab) {
+    logHist_(rowIndex, idVenda, usuario, 'Entrou na fila de aprovação de Refabricação', '', usuarioSlug);
+  }
+
+  return jsonOut_({ ok: true, rowIndex: rowIndex, entrouAprovacaoRefab: entrouRefab, idVenda: String(idVenda || ''), nomeCard: String(nomeCard || '') });
+}
+
+/**
+ * Aprova ou reprova um caso na fila de Refabricação (só gestor, decidido no
+ * hub) — grava a decisão + comentário e devolve quem cadastrou (slug) pra o
+ * hub notificar essa pessoa de volta.
+ */
+function decidirRefab_(rowIndex, decisao, comentario, usuario, usuarioSlug) {
+  if (!rowIndex || (decisao !== REFAB_APROVADO && decisao !== REFAB_REPROVADO)) {
+    return jsonOut_({ ok: false, error: 'rowIndex/decisao inválidos' });
+  }
+  var sh = getSheet_();
+  var header = sh.getDataRange().getValues()[0];
+  var col = buildColMap_(header);
+  if (col.aprovacaoRefab == null) return jsonOut_({ ok: false, error: 'Coluna "AprovacaoRefab" não existe na planilha.' });
+
+  var idVenda = (col.idVenda != null) ? sh.getRange(rowIndex, col.idVenda + 1).getValue() : '';
+  var nomeCard = (col.nomeCard != null) ? sh.getRange(rowIndex, col.nomeCard + 1).getValue() : '';
+
+  sh.getRange(rowIndex, col.aprovacaoRefab + 1).setValue(decisao);
+  if (col.comentarioAprovacao != null) sh.getRange(rowIndex, col.comentarioAprovacao + 1).setValue(comentario || '');
+
+  logHist_(rowIndex, idVenda, usuario, 'Refabricação ' + (decisao === REFAB_APROVADO ? 'aprovada' : 'reprovada'), comentario || '', usuarioSlug);
+
+  var registradoPorSlug = mapaRegistradoPorSlug_()[String(rowIndex)] || '';
+  return jsonOut_({ ok: true, rowIndex: rowIndex, decisao: decisao, idVenda: String(idVenda || ''), nomeCard: String(nomeCard || ''), registradoPorSlug: registradoPorSlug });
+}
+
+/**
+ * Quem cadastrou marca que já enviou pra produção (sistema externo) — só
+ * pode finalizar um caso que já foi Aprovado.
+ */
+function finalizarRefab_(rowIndex, usuario, usuarioSlug) {
+  if (!rowIndex) return jsonOut_({ ok: false, error: 'rowIndex ausente' });
+  var sh = getSheet_();
+  var header = sh.getDataRange().getValues()[0];
+  var col = buildColMap_(header);
+  if (col.aprovacaoRefab == null) return jsonOut_({ ok: false, error: 'Coluna "AprovacaoRefab" não existe na planilha.' });
+
+  var atual = String(sh.getRange(rowIndex, col.aprovacaoRefab + 1).getValue() || '').trim();
+  if (atual !== REFAB_APROVADO) return jsonOut_({ ok: false, error: 'Só é possível finalizar um caso já aprovado.' });
+
+  var idVenda = (col.idVenda != null) ? sh.getRange(rowIndex, col.idVenda + 1).getValue() : '';
+  sh.getRange(rowIndex, col.aprovacaoRefab + 1).setValue(REFAB_FINALIZADO);
+  logHist_(rowIndex, idVenda, usuario, 'Enviado para produção', '', usuarioSlug);
 
   return jsonOut_({ ok: true, rowIndex: rowIndex });
 }

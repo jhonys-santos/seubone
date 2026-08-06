@@ -31,7 +31,7 @@
   /* ================= PAPÉIS (substitui a matriz PAPEIS original) ================= */
   const SESSAO = window.USUARIO_SESSAO || null;
   const papel = (SESSAO && SESSAO.role === 'gestor') ? 'gestor' : 'colaborador';
-  const TELAS_POR_PAPEL = { gestor: ['exec', 'causas', 'resp', 'casos', 'incompletos', 'reuniao', 'reuniaoFab'], colaborador: ['causas', 'casos'] };
+  const TELAS_POR_PAPEL = { gestor: ['exec', 'causas', 'resp', 'casos', 'refab', 'incompletos', 'reuniao', 'reuniaoFab'], colaborador: ['causas', 'casos', 'refab'] };
   function podeVerTela(scr) { return TELAS_POR_PAPEL[papel].includes(scr); }
   function podeAuditar() { return papel === 'gestor'; }
   function podeRegistrar() { return true; } // igual nos dois papéis, como no original
@@ -220,6 +220,9 @@
       queFim: row.queFim || null,
       status: row.status || null,
       foto: row.foto || '',
+      aprovacaoRefab: row.aprovacaoRefab || '',
+      comentarioAprovacao: row.comentarioAprovacao || '',
+      registradoPorSlug: row.registradoPorSlug || '',
     }));
   }
 
@@ -543,6 +546,7 @@
       causas: ['Ranking de Causas', 'Pareto por custo, produto e volume · ' + rotuloPeriodo()],
       resp: ['Ranking por Consultor', 'Quem mais gera custo e como cada um resolve · ' + rotuloPeriodo()],
       casos: ['Casos / Auditoria', 'Fila de casos pendentes e já auditados · ' + rotuloPeriodo()],
+      refab: ['Aprovação de Refabricação', papel === 'gestor' ? 'Todos os casos aguardando decisão, de todos os colaboradores' : 'Casos de Refabricação que você registrou'],
       incompletos: ['Dados incompletos', 'Casos sem setor preenchido — atribua para destravar as análises'],
       reuniao: ['Reunião de Vendas', 'Erros da semana para apresentar ao time — Vendas e Dupla · navegação de semana própria'],
       reuniaoFab: ['Reunião de Fábrica', 'Erros da semana para apresentar à produção — setor Fábrica · navegação de semana própria'],
@@ -552,7 +556,7 @@
     // Essas 3 telas têm navegação própria (semana / ação de setor) — a barra de
     // filtros de período/setor/empresa não se aplica a elas, igual ao original.
     const filtEl = document.getElementById('erFilters');
-    if (filtEl) filtEl.style.display = (erState.screen === 'reuniao' || erState.screen === 'reuniaoFab' || erState.screen === 'incompletos') ? 'none' : '';
+    if (filtEl) filtEl.style.display = (erState.screen === 'reuniao' || erState.screen === 'reuniaoFab' || erState.screen === 'incompletos' || erState.screen === 'refab') ? 'none' : '';
 
     const main = document.getElementById('erMain');
     main.innerHTML = '';
@@ -560,6 +564,7 @@
     if (erState.screen === 'reuniao') { renderReuniao(main, REUNIOES.vendas); return; }
     if (erState.screen === 'reuniaoFab') { renderReuniao(main, REUNIOES.fabrica); return; }
     if (erState.screen === 'incompletos') { renderIncompletos(main); return; }
+    if (erState.screen === 'refab') { renderRefab(main); return; }
 
     const all = erFiltered();
     const data = auditadosOnly(all);
@@ -1060,6 +1065,137 @@
     }
     selBar();
     if (CASO_ATUAL !== null) highlightRow(CASO_ATUAL);
+  }
+
+  /* ================= FILA DE APROVAÇÃO DE REFABRICAÇÃO ================= */
+  // Kanban paralelo ao de status normal — entra automaticamente (no servidor)
+  // quando Tipo de Resolução = "Refabricação", na criação ou numa auditoria
+  // posterior. Gestor vê todos os casos de todo mundo; colaborador só os que
+  // ele mesmo registrou (registradoPorSlug vem do Historico, resolvido no
+  // Apps Script — nunca confiamos em nada vindo do cliente para essa trava).
+  const REFAB_STATUS_DEF = [
+    { key: 'Pendente', label: 'Aguardando aprovação', cor: '#E0A400' },
+    { key: 'Aprovado', label: 'Aprovado', cor: '#1E8A4D' },
+    { key: 'Reprovado', label: 'Reprovado', cor: '#C63A32' },
+    { key: 'Finalizado', label: 'Finalizado', cor: '#565C64' },
+  ];
+
+  function souEuQueRegistrei(r) { return !!(SESSAO && r.registradoPorSlug && r.registradoPorSlug === SESSAO.slug); }
+
+  function refabRows() {
+    let rows = RECORDS.filter((r) => r.aprovacaoRefab);
+    if (papel !== 'gestor') rows = rows.filter(souEuQueRegistrei);
+    return rows;
+  }
+
+  function refabCard(r) {
+    return `<div class="er-kcard" data-id="${r.id}">
+      <div class="kc-top"><span class="kc-id">#${erEsc(r.idVenda)}</span>${souEuQueRegistrei(r) ? '<span class="er-pill er-pill-ok" style="font-size:10.5px">registrado por você</span>' : ''}</div>
+      <div class="kc-name">${erEsc(r.nomeCard)}</div>
+      <div class="kc-meta">
+        ${r.setor ? `<span><span class="er-dot" style="display:inline-block;background:${colorForSetor(r.setor)};margin-right:4px"></span>${erEsc(r.setor)}</span>` : ''}
+        ${r.responsavel ? `<span>${erEsc(r.responsavel)}</span>` : ''}
+      </div>
+    </div>`;
+  }
+
+  function renderRefab(main) {
+    const rows = refabRows();
+    main.innerHTML = `
+      <div class="er-kanban er-kanban-refab">${REFAB_STATUS_DEF.map((sd) => {
+        const cards = rows.filter((r) => r.aprovacaoRefab === sd.key);
+        return `<div class="er-kcol" data-status="${sd.key}" style="--kc:${sd.cor}">
+          <div class="er-kcol-head"><span class="er-dot" style="background:${sd.cor}"></span>${sd.label}<span class="kc-count">${cards.length}</span></div>
+          <div class="er-kcol-body">${cards.map(refabCard).join('') || '<div class="er-kcol-empty">Nenhum caso</div>'}</div>
+        </div>`;
+      }).join('')}</div>
+      ${rows.length === 0 ? `<div class="er-card er-empty" style="margin-top:16px"><div class="e-title">Nenhum caso na fila de Refabricação</div><div class="e-sub">${papel === 'gestor' ? 'Quando um caso for registrado ou auditado com Tipo de Resolução = Refabricação, ele aparece aqui.' : 'Os casos de Refabricação que você registrar aparecerão aqui.'}</div></div>` : ''}
+    `;
+    main.querySelectorAll('.er-kcard').forEach((card) => {
+      card.addEventListener('click', () => { const r = RECORDS.find((x) => x.id === Number(card.dataset.id)); if (r) openRefabModal(r); });
+    });
+  }
+
+  function openRefabModal(r) {
+    const modalRoot = document.getElementById('erModalRoot');
+    const status = r.aprovacaoRefab;
+    const sd = REFAB_STATUS_DEF.find((s) => s.key === status) || REFAB_STATUS_DEF[0];
+    const podeDecidir = status === 'Pendente' && podeAuditar();
+    const podeFinalizar = status === 'Aprovado' && souEuQueRegistrei(r);
+
+    modalRoot.innerHTML = `
+      <div class="er-overlay" id="erOverlayRefab">
+        <div class="er-modal" role="dialog" aria-modal="true" aria-label="Aprovação de Refabricação">
+          <div class="er-modal-head">
+            <div style="flex:1;min-width:0">
+              <div class="title">#${erEsc(r.idVenda)} — ${erEsc(r.nomeCard)}</div>
+              <div class="sub"><span class="er-dot" style="display:inline-block;background:${sd.cor};margin-right:5px"></span>${sd.label}</div>
+            </div>
+            <button class="er-close-btn" id="erCloseModalRefab">✕</button>
+          </div>
+          <div class="er-modal-body">
+            <div class="er-field-grid" style="margin-bottom:14px">
+              <div class="er-field"><label>Setor</label><div class="er-readonly-block">${erEsc(r.setor) || '—'}</div></div>
+              <div class="er-field"><label>Responsável</label><div class="er-readonly-block">${erEsc(r.responsavel) || '—'}</div></div>
+            </div>
+            <div class="er-field" style="margin-bottom:14px"><label>Descrição</label><div class="er-readonly-block" style="white-space:pre-wrap">${erEsc(r.descricao) || '—'}</div></div>
+            ${podeDecidir
+              ? `<div class="er-field" style="margin-bottom:6px"><label>Comentário *</label><textarea id="erRefabComentario" placeholder="Explique o motivo da decisão — obrigatório para aprovar ou reprovar."></textarea></div>`
+              : `<div class="er-field"><label>Comentário do gestor</label><div class="er-readonly-block" style="white-space:pre-wrap">${erEsc(r.comentarioAprovacao) || '—'}</div></div>`}
+          </div>
+          <div class="er-modal-foot">
+            <span class="er-save-msg" id="erSaveMsgRefab"></span>
+            <button class="er-btn er-btn-ghost" id="erBtnFecharRefab">${podeDecidir ? 'Cancelar' : 'Fechar'}</button>
+            ${podeDecidir ? `<button class="er-btn er-btn-bad" id="erBtnReprovar">Reprovar</button><button class="er-btn er-btn-accent" id="erBtnAprovar">Aprovar</button>` : ''}
+            ${podeFinalizar ? `<button class="er-btn er-btn-accent" id="erBtnFinalizarRefab">Marcar como Finalizado</button>` : ''}
+          </div>
+        </div>
+      </div>
+    `;
+
+    const _prevFocus = document.activeElement;
+    const _untrap = trapFocus(modalRoot.querySelector('.er-modal'));
+    const _onKey = (e) => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); close(); } };
+    const close = () => { if (_untrap) _untrap(); document.removeEventListener('keydown', _onKey, true); modalRoot.innerHTML = ''; if (_prevFocus && _prevFocus.focus) { try { _prevFocus.focus(); } catch (e) {} } };
+    document.addEventListener('keydown', _onKey, true);
+    document.getElementById('erCloseModalRefab').addEventListener('click', close);
+    document.getElementById('erBtnFecharRefab').addEventListener('click', close);
+    document.getElementById('erOverlayRefab').addEventListener('click', (e) => { if (e.target.id === 'erOverlayRefab') close(); });
+
+    const decidir = async (decisao) => {
+      const comentario = (document.getElementById('erRefabComentario').value || '').trim();
+      if (!comentario) { markFieldErr(document.getElementById('erRefabComentario'), 'Obrigatório para aprovar ou reprovar.'); return; }
+      const btns = modalRoot.querySelectorAll('.er-modal-foot button'); btns.forEach((b) => { b.disabled = true; });
+      try {
+        const res = await fetch('/erros/api/refab/decidir', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rowIndex: r.id, decisao, comentario }) });
+        const json = await res.json();
+        if (!json.ok) throw new Error(json.error || 'Erro desconhecido do servidor');
+        r.aprovacaoRefab = decisao; r.comentarioAprovacao = comentario;
+        toast('Refabricação ' + (decisao === 'Aprovado' ? 'aprovada' : 'reprovada') + '.', true);
+        close(); erRender();
+      } catch (err) {
+        toast('Falha ao salvar decisão: ' + err.message, false);
+        btns.forEach((b) => { b.disabled = false; });
+      }
+    };
+    const btnAp = document.getElementById('erBtnAprovar'); if (btnAp) btnAp.addEventListener('click', () => decidir('Aprovado'));
+    const btnRep = document.getElementById('erBtnReprovar'); if (btnRep) btnRep.addEventListener('click', () => decidir('Reprovado'));
+
+    const btnFin = document.getElementById('erBtnFinalizarRefab');
+    if (btnFin) btnFin.addEventListener('click', async () => {
+      btnFin.disabled = true;
+      try {
+        const res = await fetch('/erros/api/refab/finalizar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rowIndex: r.id }) });
+        const json = await res.json();
+        if (!json.ok) throw new Error(json.error || 'Erro desconhecido do servidor');
+        r.aprovacaoRefab = 'Finalizado';
+        toast('Caso marcado como enviado para produção.', true);
+        close(); erRender();
+      } catch (err) {
+        toast('Falha ao finalizar: ' + err.message, false);
+        btnFin.disabled = false;
+      }
+    });
   }
 
   /* ================= REUNIÃO SEMANAL · VENDAS/FÁBRICA ================= */
