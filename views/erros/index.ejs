@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<%- include('../partials/head') %>
+<title>Painel de Erros — SeuBoné</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+<link rel="stylesheet" href="/css/erros.css">
+</head>
+<body>
+<div class="app-shell">
+<%- include('../partials/sidebar') %>
+<div class="app-main">
+
+<div class="er-scope">
+
+  <div class="er-header">
+    <div>
+      <h1 id="erPageTitle">Visão Executiva</h1>
+      <div class="er-sub"><span id="erPageSub"></span><span class="er-last-sync" id="erLastSync"></span></div>
+    </div>
+    <nav class="er-nav" id="er-nav">
+      <button data-view="exec">Visão Executiva</button>
+      <button data-view="causas">Ranking de Causas</button>
+      <button data-view="resp">Ranking por Consultor</button>
+      <button data-view="casos">Casos / Auditoria</button>
+    </nav>
+  </div>
+
+  <div class="er-filters" id="erFilters">
+    <button class="er-btn er-btn-accent" id="erBtnNovoCaso" title="Registrar novo erro">+ Novo caso</button>
+    <select id="erPeriodoTipo">
+      <option value="relativo">Período relativo</option>
+      <option value="mes">Mês específico</option>
+      <option value="semana">Semana específica</option>
+    </select>
+    <select id="erPeriodo">
+      <option>Últimos 12 meses</option>
+      <option>Últimos 90 dias</option>
+      <option>Últimos 30 dias</option>
+    </select>
+    <select id="erMes" style="display:none"></select>
+    <select id="erSemana" style="display:none"></select>
+    <select id="erSetor"><option value="">Todos os setores</option></select>
+    <select id="erEmpresa"><option value="">Todas as linhas</option></select>
+    <button class="er-iconbtn" id="erBtnRefresh" title="Atualizar dados">⟳</button>
+  </div>
+
+  <div id="erBoot" class="er-boot"><div class="er-spinner"></div><div id="erBootMsg">Carregando dados…</div></div>
+  <main id="erMain" style="display:none"></main>
+
+</div>
+
+</div>
+</div>
+
+<div id="erModalRoot"></div>
+<div id="erLbRoot"></div>
+
+<script>
+  window.USUARIO_SESSAO = <%- JSON.stringify(usuario) %>;
+</script>
+<script src="/js/erros.js"></script>
+</body>
+</html>

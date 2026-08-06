@@ -84,4 +84,8 @@ module.exports = [
     chave: 'auditoria', titulo: 'Auditoria de Qualidade', descricao: 'Avaliação de atendimentos por critério, com dashboard e ranking por agente',
     url: '/auditoria', icone: 'ti-clipboard-check', somenteRole: 'gestor',
   },
+  {
+    chave: 'painel-erros', titulo: 'Painel de Erros', descricao: 'Registro e auditoria de erros de pedidos, com indicadores por setor/causa/consultor',
+    url: '/erros', icone: 'ti-bug',
+  },
 ];

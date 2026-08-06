@@ -58,4 +58,6 @@ module.exports = {
   agendaSemanaAppsScriptUrl: required('AGENDA_SEMANA_APPS_SCRIPT_URL', ''),
 
   auditoriaAppsScriptUrl: required('AUDITORIA_APPS_SCRIPT_URL', ''),
+
+  errosAppsScriptUrl: required('ERROS_APPS_SCRIPT_URL', ''),
 };
