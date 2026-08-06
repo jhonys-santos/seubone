@@ -1548,7 +1548,10 @@
   let LB = { urls: [], idx: 0, prevFocus: null };
   function openLightbox(urls, i) {
     if (!urls || !urls.length) return;
-    LB.urls = urls; LB.idx = Math.max(0, Math.min(urls.length - 1, i || 0)); LB.prevFocus = document.activeElement;
+    // Os links crus do Drive (.../view?usp=drivesdk) são página HTML, não
+    // imagem — não dá pra colocar num <img src>. fotoSrc() já faz essa
+    // conversão pra URL de thumbnail (é o que as miniaturas usam).
+    LB.urls = urls.map(fotoSrc); LB.idx = Math.max(0, Math.min(urls.length - 1, i || 0)); LB.prevFocus = document.activeElement;
     let root = document.getElementById('erLbRoot');
     if (!root) { root = document.createElement('div'); root.id = 'erLbRoot'; document.body.appendChild(root); }
     lbRender();
@@ -1559,7 +1562,7 @@
     root.innerHTML = `<div class="er-lb-scrim" id="erLbScrim" role="dialog" aria-modal="true" aria-label="Visualizador de foto">
         <button class="er-lb-x" id="erLbClose" title="Fechar (Esc)" aria-label="Fechar">✕</button>
         ${multi ? `<button class="er-lb-nav er-lb-prev" id="erLbPrev" aria-label="Foto anterior">‹</button>` : ''}
-        <img class="er-lb-img" src="${LB.urls[LB.idx]}" alt="Foto ampliada ${LB.idx + 1} de ${LB.urls.length}">
+        <img class="er-lb-img" src="${erEsc(LB.urls[LB.idx])}" alt="Foto ampliada ${LB.idx + 1} de ${LB.urls.length}">
         ${multi ? `<button class="er-lb-nav er-lb-next" id="erLbNext" aria-label="Próxima foto">›</button>` : ''}
         ${multi ? `<div class="er-lb-count">${LB.idx + 1} / ${LB.urls.length}</div>` : ''}
       </div>`;
