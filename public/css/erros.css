@@ -294,6 +294,8 @@ th.er-sorted .er-sarrow { color: var(--text); }
 .er-btn-bad:hover { filter: brightness(0.95); }
 .er-btn-bad:disabled { opacity: .5; cursor: default; }
 
+.er-photo-badge { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; font-weight: 700; color: var(--text-muted); background: var(--surface-3); border-radius: 999px; padding: 1px 7px; white-space: nowrap; }
+
 /* ===== Histórico (timeline no drawer) ===== */
 .er-hist-box { display: flex; flex-direction: column; }
 .er-hist-day { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; color: var(--text-hint); margin: 6px 0 10px; padding-top: 4px; }

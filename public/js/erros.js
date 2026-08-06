@@ -107,6 +107,11 @@
     }
     return u;
   }
+  /* Selo de "tem foto anexada" reaproveitado nos cards de Casos/Auditoria e de Refabricação. */
+  function photoBadge(r) {
+    const n = parseFotos(r.foto).length;
+    return n ? `<span class="er-photo-badge" title="${n} foto(s) anexada(s)">📷 ${n}</span>` : '';
+  }
   /** Lê um File de imagem, redimensiona (máx ~1280px) e devolve um JPEG data URL leve. */
   function comprimirImagem(file, maxDim = 1280, quality = 0.82) {
     return new Promise((resolve, reject) => {
@@ -912,7 +917,7 @@
   /* ---------- Kanban ---------- */
   function kcard(r) {
     return `<div class="er-kcard" draggable="${podeAuditar()}" data-id="${r.id}">
-      <div class="kc-top"><span class="kc-id">#${erEsc(r.idVenda)}</span>${!r.auditado ? ageBadge(r) : ''}</div>
+      <div class="kc-top"><span class="kc-id">#${erEsc(r.idVenda)}</span><span style="display:flex;align-items:center;gap:6px">${photoBadge(r)}${!r.auditado ? ageBadge(r) : ''}</span></div>
       <div class="kc-name">${erEsc(r.nomeCard)}</div>
       <div class="kc-meta">
         ${r.setor ? `<span><span class="er-dot" style="display:inline-block;background:${colorForSetor(r.setor)};margin-right:4px"></span>${erEsc(r.setor)}</span>` : ''}
@@ -983,7 +988,7 @@
           <tbody>${rows.map((r) => `<tr class="er-clickable${SEL.has(r.id) ? ' er-sel-row' : ''}" data-id="${r.id}">
               ${podeSel ? `<td class="er-chkcell"><input type="checkbox" class="er-rowchk" data-id="${r.id}" ${SEL.has(r.id) ? 'checked' : ''}></td>` : ''}
               <td><span class="er-idchip" data-copy="${erEsc(r.idVenda)}">#${erEsc(r.idVenda)}</span></td>
-              <td style="font-weight:600">${erEsc(r.nomeCard)}</td>
+              <td style="font-weight:600">${erEsc(r.nomeCard)} ${photoBadge(r)}</td>
               <td>${fmtDate(r.date)}</td>
               <td>${ageBadge(r)}</td>
               <td>${r.setor ? `<span class="er-dot" style="display:inline-block;background:${colorForSetor(r.setor)};margin-right:7px"></span>${erEsc(r.setor)}` : '<span style="color:var(--text-hint)">—</span>'}</td>
@@ -1080,7 +1085,19 @@
     { key: 'Finalizado', label: 'Finalizado', cor: '#565C64' },
   ];
 
-  function souEuQueRegistrei(r) { return !!(SESSAO && r.registradoPorSlug && r.registradoPorSlug === SESSAO.slug); }
+  // "registradoPorSlug" vem do Historico e é o sinal confiável (imune a gente
+  // digitando o nome diferente da conta). Mas casos de antes desta função
+  // existir (ou qualquer entrada "Caso registrado" que não tenha ficado
+  // gravada por algum motivo) não têm esse slug — sem esse fallback por nome,
+  // o colaborador nunca veria o próprio caso na fila.
+  function normNome_(s) {
+    return String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/^@+/, '').replace(/\s+/g, ' ').trim();
+  }
+  function souEuQueRegistrei(r) {
+    if (!SESSAO) return false;
+    if (r.registradoPorSlug) return r.registradoPorSlug === SESSAO.slug;
+    return !!r.quemCadastrou && normNome_(r.quemCadastrou) === normNome_(SESSAO.nome);
+  }
 
   function refabRows() {
     let rows = RECORDS.filter((r) => r.aprovacaoRefab);
@@ -1090,7 +1107,7 @@
 
   function refabCard(r) {
     return `<div class="er-kcard" data-id="${r.id}">
-      <div class="kc-top"><span class="kc-id">#${erEsc(r.idVenda)}</span>${souEuQueRegistrei(r) ? '<span class="er-pill er-pill-ok" style="font-size:10.5px">registrado por você</span>' : ''}</div>
+      <div class="kc-top"><span class="kc-id">#${erEsc(r.idVenda)}</span><span style="display:flex;align-items:center;gap:6px">${photoBadge(r)}${souEuQueRegistrei(r) ? '<span class="er-pill er-pill-ok" style="font-size:10.5px">registrado por você</span>' : ''}</span></div>
       <div class="kc-name">${erEsc(r.nomeCard)}</div>
       <div class="kc-meta">
         ${r.setor ? `<span><span class="er-dot" style="display:inline-block;background:${colorForSetor(r.setor)};margin-right:4px"></span>${erEsc(r.setor)}</span>` : ''}
@@ -1139,6 +1156,7 @@
               <div class="er-field"><label>Responsável</label><div class="er-readonly-block">${erEsc(r.responsavel) || '—'}</div></div>
             </div>
             <div class="er-field" style="margin-bottom:14px"><label>Descrição</label><div class="er-readonly-block" style="white-space:pre-wrap">${erEsc(r.descricao) || '—'}</div></div>
+            ${(() => { const fs = parseFotos(r.foto); return fs.length ? `<div class="er-field" style="margin-bottom:14px"><label>Fotos do erro (${fs.length})</label><div style="display:flex;flex-wrap:wrap;gap:9px">${fs.map((u, i) => `<img class="er-thumb er-lb-thumb" data-idx="${i}" src="${erEsc(fotoSrc(u))}" alt="Foto do erro #${erEsc(r.idVenda)} — ${erEsc(r.nomeCard)}" title="Ampliar" loading="lazy">`).join('')}</div></div>` : ''; })()}
             ${podeDecidir
               ? `<div class="er-field" style="margin-bottom:6px"><label>Comentário *</label><textarea id="erRefabComentario" placeholder="Explique o motivo da decisão — obrigatório para aprovar ou reprovar."></textarea></div>`
               : `<div class="er-field"><label>Comentário do gestor</label><div class="er-readonly-block" style="white-space:pre-wrap">${erEsc(r.comentarioAprovacao) || '—'}</div></div>`}
@@ -1161,6 +1179,8 @@
     document.getElementById('erCloseModalRefab').addEventListener('click', close);
     document.getElementById('erBtnFecharRefab').addEventListener('click', close);
     document.getElementById('erOverlayRefab').addEventListener('click', (e) => { if (e.target.id === 'erOverlayRefab') close(); });
+    const _fotosRefab = parseFotos(r.foto);
+    modalRoot.querySelectorAll('.er-lb-thumb').forEach((el) => el.addEventListener('click', () => openLightbox(_fotosRefab, Number(el.dataset.idx))));
 
     const decidir = async (decisao) => {
       const comentario = (document.getElementById('erRefabComentario').value || '').trim();
