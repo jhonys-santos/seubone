@@ -54,6 +54,21 @@
   const SETOR_OPCOES = ['Vendas', 'Fábrica', 'Dupla (Vendedor e Designer)', 'Escritório', 'Cliente'];
   const TIPOS_PRODUTO_PADRAO = ['Boné', 'Trucker', 'Americano', '5Port', 'New York', 'Dad Hat', 'Viseira', 'Bucket', 'Camisa', 'Neoprene'];
   const QUE_FIM_PADRAO = ['Entregue', 'Em estoque', 'Refabricado e entregue', 'Cancelado'];
+  // Sugestões do campo "Responsável" — lista curada (pedida pelo usuário) em vez das
+  // variações que o texto livre acumulou na planilha (ex: "Fabrica Caico"/"Fábrica Caicó"/
+  // "Fabrica (Caicó)" todas juntas). Continua sendo um <input list="..."> comum, então
+  // digitar qualquer outro nome que não esteja aqui também funciona.
+  const RESPONSAVEL_SUGESTOES = [
+    'Expectativa do Cliente', 'Estoque Caicó', 'Fabrica Cacinho', 'Fabrica CIA Bruto', 'Fabrica Eneas',
+    'Fabrica Neidinha', 'Fabrica 88 Brindes', 'Fabrica SLC', 'Fabrica LaserTools', 'Fabrica (Outros)',
+    'Amanda Alves', 'Ana Beatriz', 'Anderson Carlos', 'Anderson Gabriel', 'Arthur Felix', 'Caio Targino',
+    'Camilla Marinho', 'Cleyton Andrade', 'Emanuel Pereira', 'Emily Dantas', 'Gabriel Vinicius',
+    'Giovani Augusto', 'Guilherme Matias', 'Hadyja Saraiva', 'Igor Neves', 'Jailton Queiroz',
+    'Jonathan Silva', 'Lucas Matheus', 'Lucas Santos', 'Luiz Cavalcante', 'Marcelo Moreira',
+    'Pedro Maranhao', 'Paulo Sergio', 'Sabrina Silva', 'Stephanie Rayssa', 'Taynara Soares',
+    'Victor Brito', 'Victor Clemerson', 'Victor Medeiros', 'Victor Varela', 'Vinicius Barros',
+    'Walter Galdino', 'Yuri Pinheiro',
+  ];
 
   // Configuração das reuniões semanais com apresentação (PDF). Cada uma filtra por setor e
   // tem sua própria semana selecionada. A tela e o relatório são os mesmos, só os rótulos mudam.
@@ -1645,7 +1660,7 @@
         <form id="erFormAuditoria">
           <div class="er-field-grid" style="margin-bottom:14px">
             <div class="er-field"><label>Setor do problema *</label>${editable ? `<select name="setor"><option value="" ${!r.setor ? 'selected' : ''}>— selecione —</option>${fieldOrSel(SETOR_OPCOES, r.setor)}</select>` : `<div class="er-readonly-block">${erEsc(r.setor) || '—'}</div>`}</div>
-            <div class="er-field"><label>Responsável</label>${editable ? `<input name="responsavel" value="${erEsc(r.responsavel)}" placeholder="Nome do consultor ou 'Produção (Fábrica)'">` : `<div class="er-readonly-block">${erEsc(r.responsavel) || '—'}</div>`}</div>
+            <div class="er-field"><label>Responsável</label>${editable ? `<input name="responsavel" list="erRespList" value="${erEsc(r.responsavel)}" placeholder="Nome do consultor ou 'Produção (Fábrica)'">` : `<div class="er-readonly-block">${erEsc(r.responsavel) || '—'}</div>`}</div>
           </div>
           <div class="er-field-grid" style="margin-bottom:14px">
             <div class="er-field"><label>Empresa</label>${editable ? `<select name="empresa"><option value="">—</option><option value="ACM" ${r.empresa === 'ACM' ? 'selected' : ''}>ACM</option><option value="ITC" ${r.empresa === 'ITC' ? 'selected' : ''}>ITC</option></select>` : `<div class="er-readonly-block">${erEsc(r.empresa) || '—'}</div>`}</div>
@@ -1656,6 +1671,7 @@
             <div class="er-field"><label>Quantidade de produtos errados</label>${editable ? `<input type="number" name="qtd" value="${r.qtd ?? ''}" min="0">` : `<div class="er-readonly-block">${r.qtd ?? '—'}</div>`}</div>
             <datalist id="erSubList">${causasConhecidas.map((s) => `<option value="${erEsc(s)}">`).join('')}</datalist>
             <datalist id="erProdList">${TIPOS_PRODUTO.map((s) => `<option value="${erEsc(s)}">`).join('')}</datalist>
+            <datalist id="erRespList">${RESPONSAVEL_SUGESTOES.map((s) => `<option value="${erEsc(s)}">`).join('')}</datalist>
           </div>
           <div class="er-field" style="margin-bottom:14px">
             <label>Que fim teve o pedido?</label>${editable ? `<select name="queFim">${fieldOrSel(QUE_FIM_LIST, r.queFim)}</select>` : `<div class="er-readonly-block">${erEsc(r.queFim) || '—'}</div>`}
@@ -1795,7 +1811,7 @@
     if (!podeRegistrar()) return;
     const modalRoot = document.getElementById('erModalRoot');
     const cadastradores = Array.from(new Set(RECORDS.map((r) => r.quemCadastrou).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'pt-BR'));
-    const responsaveis = Array.from(new Set(RECORDS.map((r) => r.responsavel).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+    const responsaveis = RESPONSAVEL_SUGESTOES;
     const causas = Array.from(new Set(RECORDS.map((r) => r.subproblema).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'pt-BR'));
     const detalhes = Array.from(new Set(RECORDS.map((r) => r.detalhe).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'pt-BR'));
 
