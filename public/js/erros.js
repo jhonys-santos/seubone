@@ -1842,7 +1842,7 @@
               </div>
               <div class="er-field-grid" style="margin-bottom:14px">
                 <div class="er-field"><label>Quem está cadastrando *</label><input type="text" name="quemCadastrou" list="erCadastradorList" placeholder="Seu nome"></div>
-                <div class="er-field"><label>Link do pedido (opcional)</label><input type="url" name="linkPedido" placeholder="https://..."></div>
+                <div class="er-field"><label>Link do pedido *</label><input type="url" name="linkPedido" placeholder="https://..."></div>
               </div>
               <div class="er-field" style="margin-bottom:14px">
                 <label>Fotos do erro (opcional)</label>
@@ -1931,6 +1931,7 @@
       const obrigatorios = [
         ['idVenda', 'Informe o ID da venda'], ['nomeCard', 'Informe o nome do card'],
         ['descricao', 'Descreva o erro'], ['quemCadastrou', 'Informe quem está cadastrando'],
+        ['linkPedido', 'Informe o link do pedido'],
         ['setor', 'Escolha o setor do problema'], ['responsavel', 'Informe o responsável'],
         ['tipoProblema', 'Informe o tipo de problema'],
       ];
