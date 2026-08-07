@@ -54,6 +54,11 @@
   const SETOR_OPCOES = ['Vendas', 'Fábrica', 'Dupla (Vendedor e Designer)', 'Escritório', 'Cliente'];
   const TIPOS_PRODUTO_PADRAO = ['Boné', 'Trucker', 'Americano', '5Port', 'New York', 'Dad Hat', 'Viseira', 'Bucket', 'Camisa', 'Neoprene'];
   const QUE_FIM_PADRAO = ['Entregue', 'Em estoque', 'Refabricado e entregue', 'Cancelado'];
+  // Sugestões do campo "Quem está cadastrando" — time que registra erros no painel.
+  const CADASTRADOR_SUGESTOES = [
+    'Iasmin Cristina', 'Francis Medeiros', 'Nathalia Guedes', 'Gabrielle Batista',
+    'Daniel Sheldon', 'Wallac Mauricio', 'Jhonys Santos',
+  ];
   // Sugestões do campo "Responsável" — lista curada (pedida pelo usuário) em vez das
   // variações que o texto livre acumulou na planilha (ex: "Fabrica Caico"/"Fábrica Caicó"/
   // "Fabrica (Caicó)" todas juntas). Continua sendo um <input list="..."> comum, então
@@ -1810,7 +1815,7 @@
   function openNovoCaso() {
     if (!podeRegistrar()) return;
     const modalRoot = document.getElementById('erModalRoot');
-    const cadastradores = Array.from(new Set(RECORDS.map((r) => r.quemCadastrou).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+    const cadastradores = CADASTRADOR_SUGESTOES;
     const responsaveis = RESPONSAVEL_SUGESTOES;
     const causas = Array.from(new Set(RECORDS.map((r) => r.subproblema).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'pt-BR'));
     const detalhes = Array.from(new Set(RECORDS.map((r) => r.detalhe).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'pt-BR'));

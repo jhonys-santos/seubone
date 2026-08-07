@@ -47,6 +47,7 @@ var COLUNAS = {
   idVenda:       ['id da venda'],
   nomeCard:      ['nome do card'],
   descricao:     ['descricao e solucao', 'descricao do erro', 'descricao'],
+  linkPedido:    ['link do card', 'link do pedido'],
   quemCadastrou: ['quem cadastrou'],
   culpaDe:       ['culpa de', 'culpa'],
   setor:         ['setor do problema', 'setor'],
@@ -438,7 +439,10 @@ function doGet(e) {
         tipoResolucao: String(get(row, 'tipoResolucao') || '').trim(),
         status:        String(get(row, 'status') || '').trim(),
         foto:          String(get(row, 'foto') || '').trim(),
-        linkPedido:    extractUrl_(descricao),
+        // Casos antigos tinham o link embutido no texto da descrição; casos
+        // novos gravam na coluna própria ("Link do card") — cai pro texto só
+        // se a coluna estiver vazia, pra não perder o link dos casos velhos.
+        linkPedido:    String(get(row, 'linkPedido') || '').trim() || extractUrl_(descricao),
         aprovacaoRefab:      String(get(row, 'aprovacaoRefab') || '').trim(),
         comentarioAprovacao: String(get(row, 'comentarioAprovacao') || '').trim(),
         registradoPorSlug:   registradoPorSlugMap[String(rowIndex)] || '',
@@ -542,7 +546,8 @@ function criarCaso_(f, usuario, usuarioSlug) {
     setCell_(sh, novaLinha, col, 'status',        f.status || (f.auditoria ? 'resolvido' : 'novo'));
     setCell_(sh, novaLinha, col, 'idVenda',       f.idVenda);
     setCell_(sh, novaLinha, col, 'nomeCard',      f.nomeCard);
-    setCell_(sh, novaLinha, col, 'descricao',     montarDescricao_(f));
+    setCell_(sh, novaLinha, col, 'descricao',     f.descricao);
+    setCell_(sh, novaLinha, col, 'linkPedido',    f.linkPedido);
     setCell_(sh, novaLinha, col, 'quemCadastrou', f.quemCadastrou);
     setCell_(sh, novaLinha, col, 'culpaDe',       f.culpaDe);
     setCell_(sh, novaLinha, col, 'setor',         f.setor);
@@ -583,13 +588,6 @@ function criarCaso_(f, usuario, usuarioSlug) {
   } finally {
     lock.releaseLock();
   }
-}
-
-function montarDescricao_(f) {
-  var desc = String(f.descricao || '').trim();
-  var link = String(f.linkPedido || '').trim();
-  if (link && desc.indexOf(link) === -1) desc = link + '\n' + desc;
-  return desc;
 }
 
 function auditarCaso_(rowIndex, f, usuario, usuarioSlug) {
