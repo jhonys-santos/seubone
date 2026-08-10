@@ -1668,7 +1668,7 @@
             <div class="er-field"><label>Responsável</label>${editable ? `<input name="responsavel" list="erRespList" value="${erEsc(r.responsavel)}" placeholder="Nome do consultor ou 'Produção (Fábrica)'">` : `<div class="er-readonly-block">${erEsc(r.responsavel) || '—'}</div>`}</div>
           </div>
           <div class="er-field-grid" style="margin-bottom:14px">
-            <div class="er-field"><label>Empresa</label>${editable ? `<select name="empresa"><option value="">—</option><option value="ACM" ${r.empresa === 'ACM' ? 'selected' : ''}>ACM</option><option value="ITC" ${r.empresa === 'ITC' ? 'selected' : ''}>ITC</option></select>` : `<div class="er-readonly-block">${erEsc(r.empresa) || '—'}</div>`}</div>
+            <div class="er-field"><label>Empresa</label>${editable ? `<select name="empresa"><option value="">—</option><option value="SeuBoné Matriz" ${r.empresa === 'SeuBoné Matriz' ? 'selected' : ''}>SeuBoné Matriz</option><option value="SeuBoné Filial" ${r.empresa === 'SeuBoné Filial' ? 'selected' : ''}>SeuBoné Filial</option></select>` : `<div class="er-readonly-block">${erEsc(r.empresa) || '—'}</div>`}</div>
             <div class="er-field"><label>Tipo de produto</label>${editable ? `<input name="tipoProduto" list="erProdList" value="${erEsc(r.tipoProduto)}">` : `<div class="er-readonly-block">${erEsc(r.tipoProduto) || '—'}</div>`}</div>
           </div>
           <div class="er-field-grid" style="margin-bottom:14px">
