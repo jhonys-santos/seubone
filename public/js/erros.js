@@ -51,7 +51,7 @@
   // Setores que interessam para a Reunião de Vendas (vendedor envolvido).
   const SETORES_VENDAS = ['Vendas', 'Dupla (Vendedor e Designer)'];
   // Opções do campo único "Setor do problema" (absorve o antigo "Culpa de", por isso inclui "Cliente").
-  const SETOR_OPCOES = ['Vendas', 'Fábrica', 'Dupla (Vendedor e Designer)', 'Escritório', 'Cliente'];
+  const SETOR_OPCOES = ['Vendas', 'Fábrica', 'Dupla (Vendedor e Designer)', 'Escritório', 'Cliente', 'Estoque'];
   const TIPOS_PRODUTO_PADRAO = ['Boné', 'Trucker', 'Americano', '5Port', 'New York', 'Dad Hat', 'Viseira', 'Bucket', 'Camisa', 'Neoprene'];
   const QUE_FIM_PADRAO = ['Entregue', 'Em estoque', 'Refabricado e entregue', 'Cancelado'];
   const LINHA_PRODUTO_OPCOES = ['Premium', 'Essencial', 'Econômico', 'SBP'];
