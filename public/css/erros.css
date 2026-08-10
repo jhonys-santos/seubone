@@ -235,6 +235,7 @@ th.er-sorted .er-sarrow { color: var(--text); }
 .er-kcard .kc-id { font-weight: 700; font-size: 11.5px; color: var(--text-muted); font-family: ui-monospace, monospace; }
 .er-kcard .kc-name { font-weight: 600; font-size: 13px; margin: 3px 0 7px; line-height: 1.32; color: var(--text); }
 .er-kcard .kc-meta { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: 11px; color: var(--text-muted); align-items: center; }
+.er-refab-fin-btn { display: block; width: 100%; margin-top: 9px; padding: 6px 10px; font-size: 11.5px; }
 
 /* ===== Toast ===== */
 .er-toast-wrap { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%); z-index: 300; display: flex; flex-direction: column; gap: 8px; align-items: center; }

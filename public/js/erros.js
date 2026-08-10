@@ -1150,15 +1150,39 @@
     return rows;
   }
 
+  // Quem registrou (ou o gestor, que vê e pode mexer em qualquer caso da
+  // fila) pode mover Aprovado → Finalizado — envio pra produção é manual,
+  // em sistema externo, o hub só registra que já foi feito.
+  function podeFinalizarRefab(r) { return r.aprovacaoRefab === 'Aprovado' && (papel === 'gestor' || souEuQueRegistrei(r)); }
+
   function refabCard(r) {
-    return `<div class="er-kcard" data-id="${r.id}">
+    const podeFin = podeFinalizarRefab(r);
+    return `<div class="er-kcard" draggable="${podeFin}" data-id="${r.id}">
       <div class="kc-top"><span class="kc-id">#${erEsc(r.idVenda)}</span><span style="display:flex;align-items:center;gap:6px">${photoBadge(r)}${souEuQueRegistrei(r) ? '<span class="er-pill er-pill-ok" style="font-size:10.5px">registrado por você</span>' : ''}</span></div>
       <div class="kc-name">${erEsc(r.nomeCard)}</div>
       <div class="kc-meta">
         ${r.setor ? `<span><span class="er-dot" style="display:inline-block;background:${colorForSetor(r.setor)};margin-right:4px"></span>${erEsc(r.setor)}</span>` : ''}
         ${r.responsavel ? `<span>${erEsc(r.responsavel)}</span>` : ''}
       </div>
+      ${podeFin ? `<button class="er-btn er-btn-accent er-refab-fin-btn" data-id="${r.id}">Marcar como Finalizado</button>` : ''}
     </div>`;
+  }
+
+  /** Chama a API e atualiza o card em tela — usado pelo botão do card, pelo
+   *  drag-and-drop pra coluna Finalizado e pelo botão dentro do modal. */
+  async function finalizarCasoRefab(r) {
+    try {
+      const res = await fetch('/erros/api/refab/finalizar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rowIndex: r.id }) });
+      const json = await res.json();
+      if (!json.ok) throw new Error(json.error || 'Erro desconhecido do servidor');
+      r.aprovacaoRefab = 'Finalizado';
+      toast('Caso marcado como enviado para produção.', true);
+      erRender();
+      return true;
+    } catch (err) {
+      toast('Falha ao finalizar: ' + err.message, false);
+      return false;
+    }
   }
 
   function renderRefab(main) {
@@ -1174,8 +1198,26 @@
       ${rows.length === 0 ? `<div class="er-card er-empty" style="margin-top:16px"><div class="e-title">Nenhum caso na fila de Refabricação</div><div class="e-sub">${papel === 'gestor' ? 'Quando um caso for registrado ou auditado com Tipo de Resolução = Refabricação, ele aparece aqui.' : 'Os casos de Refabricação que você registrar aparecerão aqui.'}</div></div>` : ''}
     `;
     main.querySelectorAll('.er-kcard').forEach((card) => {
-      card.addEventListener('click', () => { const r = RECORDS.find((x) => x.id === Number(card.dataset.id)); if (r) openRefabModal(r); });
+      card.addEventListener('click', (e) => { if (e.target.closest('.er-refab-fin-btn')) return; const r = RECORDS.find((x) => x.id === Number(card.dataset.id)); if (r) openRefabModal(r); });
+      if (card.draggable) {
+        card.addEventListener('dragstart', (e) => { card.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', card.dataset.id); });
+        card.addEventListener('dragend', () => { card.classList.remove('dragging'); main.querySelectorAll('.er-kcol.drag-over').forEach((c) => c.classList.remove('drag-over')); });
+      }
     });
+    main.querySelectorAll('.er-refab-fin-btn').forEach((btn) => {
+      btn.addEventListener('click', (e) => { e.stopPropagation(); const r = RECORDS.find((x) => x.id === Number(btn.dataset.id)); if (r) { btn.disabled = true; finalizarCasoRefab(r).then((ok) => { if (!ok) btn.disabled = false; }); } });
+    });
+    const colFinalizado = main.querySelector('.er-kcol[data-status="Finalizado"]');
+    if (colFinalizado) {
+      colFinalizado.addEventListener('dragover', (e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; colFinalizado.classList.add('drag-over'); });
+      colFinalizado.addEventListener('dragleave', (e) => { if (!colFinalizado.contains(e.relatedTarget)) colFinalizado.classList.remove('drag-over'); });
+      colFinalizado.addEventListener('drop', (e) => {
+        e.preventDefault(); colFinalizado.classList.remove('drag-over');
+        const id = Number(e.dataTransfer.getData('text/plain'));
+        const r = RECORDS.find((x) => x.id === id);
+        if (r && podeFinalizarRefab(r)) finalizarCasoRefab(r);
+      });
+    }
   }
 
   function openRefabModal(r) {
@@ -1183,7 +1225,7 @@
     const status = r.aprovacaoRefab;
     const sd = REFAB_STATUS_DEF.find((s) => s.key === status) || REFAB_STATUS_DEF[0];
     const podeDecidir = status === 'Pendente' && podeAuditar();
-    const podeFinalizar = status === 'Aprovado' && souEuQueRegistrei(r);
+    const podeFinalizar = podeFinalizarRefab(r);
 
     modalRoot.innerHTML = `
       <div class="er-overlay" id="erOverlayRefab">
@@ -1249,17 +1291,8 @@
     const btnFin = document.getElementById('erBtnFinalizarRefab');
     if (btnFin) btnFin.addEventListener('click', async () => {
       btnFin.disabled = true;
-      try {
-        const res = await fetch('/erros/api/refab/finalizar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rowIndex: r.id }) });
-        const json = await res.json();
-        if (!json.ok) throw new Error(json.error || 'Erro desconhecido do servidor');
-        r.aprovacaoRefab = 'Finalizado';
-        toast('Caso marcado como enviado para produção.', true);
-        close(); erRender();
-      } catch (err) {
-        toast('Falha ao finalizar: ' + err.message, false);
-        btnFin.disabled = false;
-      }
+      const ok = await finalizarCasoRefab(r);
+      if (ok) close(); else btnFin.disabled = false;
     });
   }
 
