@@ -1700,7 +1700,6 @@
           <div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:8px">
             <span class="er-idchip" id="erIdCopy" data-copy="${erEsc(r.idVenda)}">#${erEsc(r.idVenda)}</span>
             ${statusBadge(r)}
-            <span class="er-badge er-pill-muted">linha ${r.id} na planilha</span>
             ${r.linkPedido ? `<a href="${erEsc(r.linkPedido)}" target="_blank" rel="noopener" class="er-badge er-badge-link">Abrir pedido ↗</a>` : ''}
           </div>
         </div>

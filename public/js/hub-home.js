@@ -17,23 +17,6 @@ const diaHoje = hoje.getDate(), mesHoje = hoje.getMonth(), anoHoje = hoje.getFul
   setInterval(tick, 1000);
 })();
 
-// ── UTILS DE CSV (mesmo parsing usado no Ranking SAC) ─────────
-function cleanStr(v) { if (v == null) return ''; return String(v).replace(/^"|"$/g, '').trim(); }
-function safeNum(v) { if (v == null || v === '' || v === '-' || v === '—') return null; const n = parseFloat(String(v).replace(/"/g, '').replace(',', '.')); return isNaN(n) ? null : n; }
-function parseCSV(text) {
-  return text.split('\n').map((line) => {
-    const cols = []; let cur = '', inQ = false;
-    for (let i = 0; i < line.length; i++) {
-      const c = line[i];
-      if (c === '"') { inQ = !inQ; }
-      else if (c === ',' && !inQ) { cols.push(cur.trim()); cur = ''; }
-      else { cur += c; }
-    }
-    cols.push(cur.trim());
-    return cols;
-  });
-}
-
 // ── AGENDA/FOCO (Apps Script, editável por gestor) ────────────
 // KPIs da equipe saíram desse bloco — moraram pro Dashboard Executivo,
 // hoje fundido aqui na Home (ver IIFE "DASHBOARD EXECUTIVO" mais abaixo).
@@ -776,25 +759,6 @@ function parseCSV(text) {
     }).join('');
   }
 
-  async function excCarregarNps() {
-    const el = document.getElementById('exec-val-nps');
-    try {
-      const resp = await fetch('/ranking-sac/api/csv/kpi', { cache: 'no-store' });
-      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-      const rows = parseCSV(await resp.text());
-      let nps = '--';
-      rows.forEach((row) => {
-        if (cleanStr(row[0]).toLowerCase().includes('nps da equipe')) {
-          const v = safeNum(cleanStr(row[1]));
-          nps = v != null ? v : '--';
-        }
-      });
-      el.textContent = nps;
-    } catch (err) {
-      el.textContent = '--';
-    }
-  }
-
   // ── SOLICITAÇÕES AO FINANCEIRO (Registro/Reembolso/Pagamento pendentes) ──
   async function excCarregarFinanceiro() {
     const cont = document.getElementById('exec-financeiro');
@@ -930,7 +894,6 @@ function parseCSV(text) {
   }
 
   excCarregarKpis();
-  excCarregarNps();
   excCarregarAuditoria();
   excCarregarFinanceiro();
   excCarregarQuitacoes();
