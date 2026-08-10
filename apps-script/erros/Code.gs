@@ -58,6 +58,7 @@ var COLUNAS = {
   qtd:           ['quantidade de produtos', 'quantidade'],
   custo:         ['custo do erro', 'custo'],
   tipoProduto:   ['tipo de produto'],
+  linha:         ['linha do produto', 'linha'],
   queFim:        ['que fim'],
   tipoResolucao: ['solucao', 'tipo de resolucao'],
   status:        ['status'],
@@ -435,6 +436,7 @@ function doGet(e) {
         qtd:           parseNumber_(get(row, 'qtd')),
         custo:         parseNumber_(get(row, 'custo')),
         tipoProduto:   String(get(row, 'tipoProduto') || '').trim(),
+        linha:         String(get(row, 'linha') || '').trim(),
         queFim:        String(get(row, 'queFim') || '').trim(),
         tipoResolucao: String(get(row, 'tipoResolucao') || '').trim(),
         status:        String(get(row, 'status') || '').trim(),
@@ -603,6 +605,7 @@ function auditarCaso_(rowIndex, f, usuario, usuarioSlug) {
   setCell_(sh, rowIndex, col, 'responsavel',   f.responsavel);
   setCell_(sh, rowIndex, col, 'empresa',       f.empresa);
   setCell_(sh, rowIndex, col, 'tipoProduto',   f.tipoProduto);
+  setCell_(sh, rowIndex, col, 'linha',         f.linha);
   setCell_(sh, rowIndex, col, 'tipoProblema',  f.tipoProblema);
   setCell_(sh, rowIndex, col, 'subproblema',   f.subproblema);
   setCell_(sh, rowIndex, col, 'qtd',           f.qtd);

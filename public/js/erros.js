@@ -54,6 +54,7 @@
   const SETOR_OPCOES = ['Vendas', 'Fábrica', 'Dupla (Vendedor e Designer)', 'Escritório', 'Cliente'];
   const TIPOS_PRODUTO_PADRAO = ['Boné', 'Trucker', 'Americano', '5Port', 'New York', 'Dad Hat', 'Viseira', 'Bucket', 'Camisa', 'Neoprene'];
   const QUE_FIM_PADRAO = ['Entregue', 'Em estoque', 'Refabricado e entregue', 'Cancelado'];
+  const LINHA_PRODUTO_OPCOES = ['Premium', 'Essencial', 'Econômico', 'SBP'];
   // Sugestões do campo "Quem está cadastrando" — time que registra erros no painel.
   const CADASTRADOR_SUGESTOES = [
     'Iasmin Cristina', 'Francis Medeiros', 'Nathalia Guedes', 'Gabrielle Batista',
@@ -248,6 +249,7 @@
       aprovacaoRefab: row.aprovacaoRefab || '',
       comentarioAprovacao: row.comentarioAprovacao || '',
       registradoPorSlug: row.registradoPorSlug || '',
+      linha: row.linha || null,
     }));
   }
 
@@ -684,6 +686,12 @@
         <div class="er-chart-box" style="height:300px"><canvas id="erChResVsCusto"></canvas></div>
       </div>
 
+      <div class="er-card">
+        <h3>Diferença por linha do produto</h3>
+        <div class="er-card-sub">Vermelho = % do custo total. Amarelo = % dos casos. Casos sem linha preenchida na auditoria caem em "Não informado".</div>
+        <div class="er-chart-box" style="height:260px"><canvas id="erChLinha"></canvas></div>
+      </div>
+
       <div class="er-grid er-grid-2col">
         <div class="er-card"><h3>Composição por setor do problema</h3><div class="er-card-sub">Onde o erro se origina.</div><div class="er-chart-box" style="height:224px"><canvas id="erChSetor"></canvas></div></div>
         <div class="er-card" style="display:flex;flex-direction:column"><h3>Leitura</h3><div class="er-card-sub">% de erros por setor no período auditado.</div>
@@ -747,6 +755,23 @@
       data: { labels: resAgg.map((r) => r.tipo), datasets: [
         { label: '% do custo total', data: resAgg.map((r) => r.pctCusto), backgroundColor: c.bad, borderRadius: 5, barPercentage: .75 },
         { label: '% dos casos', data: resAgg.map((r) => r.pctCasos), backgroundColor: c.gold, borderRadius: 5, barPercentage: .75 },
+      ] },
+      options: { maintainAspectRatio: false, indexAxis: 'y',
+        plugins: { legend: { display: true, position: 'top', align: 'end', labels: { usePointStyle: true, pointStyle: 'circle', boxWidth: 8, boxHeight: 8, color: c.textMuted } } },
+        scales: { x: { grid: { color: c.border }, min: 0, max: 100, ticks: { callback: (v) => v + '%', color: c.textMuted } }, y: { grid: { display: false }, ticks: { color: c.textMuted } } },
+      },
+    });
+
+    const linhasPresentes = Array.from(new Set(data.map((r) => r.linha || 'Não informado')));
+    const linhaAgg = linhasPresentes.map((linha) => {
+      const rows = data.filter((r) => (r.linha || 'Não informado') === linha);
+      return { linha, pctCasos: rows.length / total * 100, pctCusto: custoTotal ? rows.reduce((a, r) => a + (r.custo || 0), 0) / custoTotal * 100 : 0 };
+    }).sort((a, b) => b.pctCusto - a.pctCusto);
+    erCharts.linha = safeChart('erChLinha', {
+      type: 'bar',
+      data: { labels: linhaAgg.map((r) => r.linha), datasets: [
+        { label: '% do custo total', data: linhaAgg.map((r) => r.pctCusto), backgroundColor: c.bad, borderRadius: 5, barPercentage: .75 },
+        { label: '% dos casos', data: linhaAgg.map((r) => r.pctCasos), backgroundColor: c.gold, borderRadius: 5, barPercentage: .75 },
       ] },
       options: { maintainAspectRatio: false, indexAxis: 'y',
         plugins: { legend: { display: true, position: 'top', align: 'end', labels: { usePointStyle: true, pointStyle: 'circle', boxWidth: 8, boxHeight: 8, color: c.textMuted } } },
@@ -1670,6 +1695,7 @@
           <div class="er-field-grid" style="margin-bottom:14px">
             <div class="er-field"><label>Empresa</label>${editable ? `<select name="empresa"><option value="">—</option><option value="SeuBoné Matriz" ${r.empresa === 'SeuBoné Matriz' ? 'selected' : ''}>SeuBoné Matriz</option><option value="SeuBoné Filial" ${r.empresa === 'SeuBoné Filial' ? 'selected' : ''}>SeuBoné Filial</option></select>` : `<div class="er-readonly-block">${erEsc(r.empresa) || '—'}</div>`}</div>
             <div class="er-field"><label>Tipo de produto</label>${editable ? `<input name="tipoProduto" list="erProdList" value="${erEsc(r.tipoProduto)}">` : `<div class="er-readonly-block">${erEsc(r.tipoProduto) || '—'}</div>`}</div>
+            <div class="er-field"><label>Linha do produto</label>${editable ? `<select name="linha"><option value="">—</option>${fieldOrSel(LINHA_PRODUTO_OPCOES, r.linha)}</select>` : `<div class="er-readonly-block">${erEsc(r.linha) || '—'}</div>`}</div>
           </div>
           <div class="er-field-grid" style="margin-bottom:14px">
             <div class="er-field"><label>Tipo de problema (causa)</label>${editable ? `<input name="tipoProblema" list="erSubList" value="${erEsc(r.subproblema)}" placeholder="Ex: Folha errada, Tonalidade do Silk...">` : `<div class="er-readonly-block">${erEsc(r.subproblema) || '—'}</div>`}</div>
@@ -1790,6 +1816,7 @@
         const fields = {
           setor: fd.get('setor'), responsavel: fd.get('responsavel'),
           empresa: fd.get('empresa'), tipoProduto: fd.get('tipoProduto'), tipoProblema: fd.get('tipoProblema'),
+          linha: fd.get('linha'),
           qtd: qtdNum, custo: custoNum, queFim: fd.get('queFim'), tipoResolucao,
         };
         const btn = $('erBtnSalvar');
@@ -1799,7 +1826,7 @@
           const json = await res.json();
           if (!json.ok) throw new Error(json.error || 'Erro desconhecido');
           Object.assign(r, { setor: fields.setor, responsavel: fields.responsavel, empresa: fields.empresa,
-            tipoProduto: fields.tipoProduto, subproblema: fields.tipoProblema, qtd: fields.qtd, custo: fields.custo,
+            tipoProduto: fields.tipoProduto, subproblema: fields.tipoProblema, linha: fields.linha, qtd: fields.qtd, custo: fields.custo,
             queFim: fields.queFim, tipoResolucao: fields.tipoResolucao, auditado: true, status: 'resolvido' });
           derivarListasDinamicas(); erInitFilterOptions();
           closeDrawer(false); erRender();
