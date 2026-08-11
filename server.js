@@ -51,7 +51,10 @@ app.use(
   })
 );
 
-app.use(express.json({ limit: '15mb' }));
+// 30mb: o Novo Caso do Painel de Erros agora aceita áudio/vídeo (não só foto
+// comprimida) — 20MB de arquivos crus vira ~27MB em base64, então 15mb não
+// era mais suficiente pra esse formulário.
+app.use(express.json({ limit: '30mb' }));
 app.use(express.urlencoded({ extended: true }));
 
 app.use(

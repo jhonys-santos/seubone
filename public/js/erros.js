@@ -128,10 +128,10 @@
     }
     return u;
   }
-  /* Selo de "tem foto anexada" reaproveitado nos cards de Casos/Auditoria e de Refabricação. */
+  /* Selo de "tem anexo" (foto, áudio ou vídeo) reaproveitado nos cards de Casos/Auditoria e de Refabricação. */
   function photoBadge(r) {
     const n = parseFotos(r.foto).length;
-    return n ? `<span class="er-photo-badge" title="${n} foto(s) anexada(s)">📷 ${n}</span>` : '';
+    return n ? `<span class="er-photo-badge" title="${n} anexo(s)">📎 ${n}</span>` : '';
   }
   /** Lê um File de imagem, redimensiona (máx ~1280px) e devolve um JPEG data URL leve. */
   function comprimirImagem(file, maxDim = 1280, quality = 0.82) {
@@ -154,7 +154,18 @@
       reader.readAsDataURL(file);
     });
   }
+  /** Lê qualquer arquivo (áudio, vídeo etc.) como data URL, sem comprimir —
+   *  usado pra tudo que não é imagem, que comprimirImagem() não sabe tratar. */
+  function lerArquivoDataUrl(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = () => reject(new Error('Não consegui ler o arquivo ' + file.name));
+      reader.readAsDataURL(file);
+    });
+  }
   const MAX_FOTOS = 6;
+  const MAX_ANEXOS_MB = 20; // soma de todos os arquivos do Novo Caso — imagem já comprimida, áudio/vídeo cru
 
   /* ================= STATUS (modelo de workflow) ================= */
   const STATUS_DEF = [
@@ -1243,7 +1254,7 @@
               <div class="er-field"><label>Responsável</label><div class="er-readonly-block">${erEsc(r.responsavel) || '—'}</div></div>
             </div>
             <div class="er-field" style="margin-bottom:14px"><label>Descrição</label><div class="er-readonly-block" style="white-space:pre-wrap">${erEsc(r.descricao) || '—'}</div></div>
-            ${(() => { const fs = parseFotos(r.foto); return fs.length ? `<div class="er-field" style="margin-bottom:14px"><label>Fotos do erro (${fs.length})</label><div style="display:flex;flex-wrap:wrap;gap:9px">${fs.map((u, i) => `<img class="er-thumb er-lb-thumb" data-idx="${i}" src="${erEsc(fotoSrc(u))}" alt="Foto do erro #${erEsc(r.idVenda)} — ${erEsc(r.nomeCard)}" title="Ampliar" loading="lazy">`).join('')}</div></div>` : ''; })()}
+            ${(() => { const fs = parseFotos(r.foto); return fs.length ? `<div class="er-field" style="margin-bottom:14px"><label>Anexos (${fs.length})</label><div style="display:flex;flex-wrap:wrap;gap:9px">${fs.map((u, i) => `<img class="er-thumb er-lb-thumb" data-idx="${i}" src="${erEsc(fotoSrc(u))}" alt="Anexo #${erEsc(r.idVenda)} — ${erEsc(r.nomeCard)}" title="Ampliar" loading="lazy">`).join('')}</div></div>` : ''; })()}
             ${podeDecidir
               ? `<div class="er-field" style="margin-bottom:6px"><label>Comentário *</label><textarea id="erRefabComentario" placeholder="Explique o motivo da decisão — obrigatório para aprovar ou reprovar."></textarea></div>`
               : `<div class="er-field"><label>Comentário do gestor</label><div class="er-readonly-block" style="white-space:pre-wrap">${erEsc(r.comentarioAprovacao) || '—'}</div></div>`}
@@ -1716,7 +1727,7 @@
           <div class="er-field"><label>Quem cadastrou o erro</label><div class="er-readonly-block">${erEsc(r.quemCadastrou)}</div></div>
         </div>
         <div class="er-field" style="margin-bottom:20px"><label>Descrição do erro</label><div class="er-readonly-block" style="font-style:italic">${erEsc(r.descricao) || '—'}</div></div>
-        ${(() => { const fs = parseFotos(r.foto); return fs.length ? `<div class="er-field" style="margin-bottom:20px"><label>Fotos do erro (${fs.length})</label><div style="display:flex;flex-wrap:wrap;gap:9px">${fs.map((u, i) => `<img class="er-thumb er-lb-thumb" data-idx="${i}" src="${erEsc(fotoSrc(u))}" alt="Foto do erro #${erEsc(r.idVenda)} — ${erEsc(r.nomeCard)}" title="Ampliar" loading="lazy">`).join('')}</div></div>` : ''; })()}
+        ${(() => { const fs = parseFotos(r.foto); return fs.length ? `<div class="er-field" style="margin-bottom:20px"><label>Anexos (${fs.length})</label><div style="display:flex;flex-wrap:wrap;gap:9px">${fs.map((u, i) => `<img class="er-thumb er-lb-thumb" data-idx="${i}" src="${erEsc(fotoSrc(u))}" alt="Anexo #${erEsc(r.idVenda)} — ${erEsc(r.nomeCard)}" title="Ampliar" loading="lazy">`).join('')}</div></div>` : ''; })()}
 
         <div class="er-sec-title">Auditoria ${editable ? '<span class="er-badge er-pill-warn">preencher agora</span>' : (r.auditado ? '<span class="er-badge er-pill-muted">já registrada</span>' : '<span class="er-badge er-pill-muted">somente leitura</span>')}</div>
         <form id="erFormAuditoria">
@@ -1909,9 +1920,9 @@
                 <div class="er-field"><label>Link do pedido *</label><input type="url" name="linkPedido" placeholder="https://..."></div>
               </div>
               <div class="er-field" style="margin-bottom:14px">
-                <label>Fotos do erro (opcional)</label>
-                <div class="er-foto-drop" id="erFotoDrop"><b>Clique para adicionar fotos</b> ou arraste aqui</div>
-                <input type="file" id="erFotoInput" accept="image/*" multiple style="display:none">
+                <label>Fotos, áudios ou vídeos do erro (opcional)</label>
+                <div class="er-foto-drop" id="erFotoDrop"><b>Clique para adicionar arquivos</b> ou arraste aqui</div>
+                <input type="file" id="erFotoInput" accept="image/*,video/*,audio/*" multiple style="display:none">
                 <div class="er-foto-prev" id="erFotoPrev"></div>
               </div>
 
@@ -1960,20 +1971,35 @@
     const selResNovo = document.getElementById('erSelResolucaoNovo');
     selResNovo.addEventListener('change', () => { document.getElementById('erLogicaBoxNovo').textContent = selResNovo.value ? getRes(selResNovo.value).logica : 'Selecione o tipo de resolução para ver a lógica de custo.'; });
 
-    // --- Fotos: seleção + compressão + preview ---
-    const FOTOS = []; // data URLs (JPEG comprimido) prontas pra enviar
+    // --- Fotos/áudios/vídeos: seleção + preview (foto comprime, o resto vai cru) ---
+    const FOTOS = []; // { url: data URL, tipo: mime, nome } prontos pra enviar
     const fotoDrop = document.getElementById('erFotoDrop');
     const fotoInput = document.getElementById('erFotoInput');
     const fotoPrev = document.getElementById('erFotoPrev');
+    const iconeAnexo = (tipo) => (/^video\//.test(tipo) ? '🎬' : /^audio\//.test(tipo) ? '🎵' : '📄');
     const renderPrev = () => {
-      fotoPrev.innerHTML = FOTOS.map((u, i) => `<div class="fp"><img src="${u}" alt=""><button type="button" class="rm" data-i="${i}" title="Remover">✕</button></div>`).join('');
+      fotoPrev.innerHTML = FOTOS.map((f, i) => (
+        /^image\//.test(f.tipo)
+          ? `<div class="fp"><img src="${f.url}" alt=""><button type="button" class="rm" data-i="${i}" title="Remover">✕</button></div>`
+          : `<div class="fp fp-arquivo" title="${erEsc(f.nome)}"><span class="fp-ic">${iconeAnexo(f.tipo)}</span><span class="fp-nome">${erEsc(f.nome)}</span><button type="button" class="rm" data-i="${i}" title="Remover">✕</button></div>`
+      )).join('');
       fotoPrev.querySelectorAll('.rm').forEach((b) => b.addEventListener('click', () => { FOTOS.splice(Number(b.dataset.i), 1); renderPrev(); }));
-      fotoDrop.innerHTML = FOTOS.length ? `<b>${FOTOS.length} foto(s) selecionada(s)</b> · clique para adicionar mais (até ${MAX_FOTOS})` : `<b>Clique para adicionar fotos</b> ou arraste aqui`;
+      fotoDrop.innerHTML = FOTOS.length ? `<b>${FOTOS.length} arquivo(s) selecionado(s)</b> · clique para adicionar mais (até ${MAX_FOTOS})` : `<b>Clique para adicionar arquivos</b> ou arraste aqui`;
     };
     const addFiles = async (files) => {
-      for (const f of Array.from(files)) {
-        if (FOTOS.length >= MAX_FOTOS) { toast('Máximo de ' + MAX_FOTOS + ' fotos', false); break; }
-        try { FOTOS.push(await comprimirImagem(f)); } catch (err) { toast('Foto ignorada: ' + err.message, false); }
+      const lista = Array.from(files);
+      const tamanhoNovo = lista.reduce((soma, f) => soma + f.size, 0);
+      const tamanhoAtual = FOTOS.reduce((soma, f) => soma + (f.url.length * 0.75), 0); // aproxima bytes a partir do base64 já guardado
+      if (tamanhoAtual + tamanhoNovo > MAX_ANEXOS_MB * 1024 * 1024) {
+        toast(`Os arquivos somados passariam de ${MAX_ANEXOS_MB} MB. Envie menos ou arquivos menores.`, false);
+        return;
+      }
+      for (const f of lista) {
+        if (FOTOS.length >= MAX_FOTOS) { toast('Máximo de ' + MAX_FOTOS + ' arquivos', false); break; }
+        try {
+          const url = /^image\//.test(f.type) ? await comprimirImagem(f) : await lerArquivoDataUrl(f);
+          FOTOS.push({ url, tipo: f.type || 'application/octet-stream', nome: f.name });
+        } catch (err) { toast('Arquivo ignorado: ' + err.message, false); }
       }
       renderPrev();
     };
@@ -2025,7 +2051,7 @@
         tipoProblema: g('tipoProblema'), subproblema: g('subproblema'),
         qtd: qtdNum, tipoResolucao: g('tipoResolucao'),
         auditoria: false, status: 'novo',
-        fotos: FOTOS.slice(), // data URLs comprimidas; o servidor salva e grava o(s) link(s)
+        fotos: FOTOS.map((f) => f.url), // data URLs (foto comprimida, resto cru); o servidor salva e grava o(s) link(s)
       };
 
       btnCriar.disabled = true; msg.textContent = 'Gravando…';
