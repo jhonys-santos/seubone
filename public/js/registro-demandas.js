@@ -29,6 +29,27 @@ function pareceUrl(valor) {
   }
 }
 
+// O <input type="file"> nativo não acumula seleção entre aberturas do
+// seletor — escolher um arquivo, depois abrir de novo e escolher outro,
+// SUBSTITUI o primeiro em vez de somar. Guardamos a lista de verdade aqui
+// e limpamos o input a cada mudança, senão só o último arquivo escolhido
+// (por vez) chega no envio.
+let anexosSelecionados = [];
+function renderListaAnexos(listaEl) {
+  listaEl.innerHTML = anexosSelecionados.map((f, i) => `<span class="anexo-chip"><span>${esc(f.name)}</span><button type="button" data-i="${i}" title="Remover">✕</button></span>`).join('');
+  listaEl.querySelectorAll('button').forEach((b) => {
+    b.addEventListener('click', () => { anexosSelecionados.splice(Number(b.dataset.i), 1); renderListaAnexos(listaEl); });
+  });
+}
+
+const inputAnexosEl = document.getElementById('f-anexos');
+const listaAnexosEl = document.getElementById('f-anexos-lista');
+inputAnexosEl.addEventListener('change', () => {
+  anexosSelecionados.push(...Array.from(inputAnexosEl.files));
+  inputAnexosEl.value = '';
+  renderListaAnexos(listaAnexosEl);
+});
+
 function lerArquivoBase64(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -67,8 +88,7 @@ document.getElementById('btn-registrar').addEventListener('click', async () => {
   const email = document.getElementById('f-email').value.trim();
   const idCompra = document.getElementById('f-idvenda').value.trim();
   const linkCard = document.getElementById('f-link').value.trim();
-  const inputAnexos = document.getElementById('f-anexos');
-  const arquivos = Array.from(inputAnexos.files);
+  const arquivos = anexosSelecionados;
 
   if (!solicitante || !empresa || !data || !tipoDemanda || !demandaSolicitada || !observacao ||
       !dataVencimento || !email || !idCompra || !linkCard) {
@@ -134,7 +154,8 @@ document.getElementById('btn-registrar').addEventListener('click', async () => {
     document.getElementById('f-email').value = '';
     document.getElementById('f-idvenda').value = '';
     document.getElementById('f-link').value = '';
-    inputAnexos.value = '';
+    anexosSelecionados = [];
+    renderListaAnexos(listaAnexosEl);
   } catch (err) {
     mostrarMsg('Erro: ' + err.message, 'err');
   } finally {

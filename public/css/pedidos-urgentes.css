@@ -127,6 +127,24 @@ button { cursor: pointer; font-family: inherit; font-weight: 700; border: none; 
 .anexo-btn:hover { border-color: var(--gold-dark); color: var(--gold); }
 .anexo-btn i { font-size: 12px; }
 
+/* Lista dos arquivos escolhidos no formulário — o <input type="file"> não
+   acumula seleção entre aberturas do seletor (cada clique em "Escolher
+   arquivos" substitui os anteriores), então a lista real fica guardada em
+   JS e mostrada aqui, com opção de remover um por um. */
+.anexos-lista { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.anexo-chip {
+  display: inline-flex; align-items: center; gap: 6px; max-width: 220px;
+  padding: 4px 6px 4px 10px;
+  background: var(--surface-2); border: 1px solid var(--border-strong); border-radius: 999px;
+  color: var(--text); font-size: 12px; font-weight: 600;
+}
+.anexo-chip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.anexo-chip button {
+  flex-shrink: 0; width: 18px; height: 18px; border-radius: 50%; border: none;
+  background: var(--surface-3); color: var(--text-muted); font-size: 11px; line-height: 1; cursor: pointer;
+}
+.anexo-chip button:hover { background: var(--bad-bg); color: var(--bad-text, var(--bad)); }
+
 .pedido-actions { display: flex; gap: 8px; justify-content: flex-end; }
 
 .observacao { background: var(--warn-bg); color: var(--warn); border: 1px solid rgba(255,158,44,0.3); border-radius: var(--radius-sm); padding: 10px 12px; font-size: 13px; font-weight: 600; margin: 4px 0 14px; display: flex; align-items: flex-start; gap: 8px; }
