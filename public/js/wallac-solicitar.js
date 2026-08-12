@@ -118,7 +118,10 @@ document.getElementById('form-solicitacao').addEventListener('submit', async (e)
   const botao = document.getElementById('botao-enviar');
   const mensagem = document.getElementById('mensagem');
   mensagem.className = '';
-  mensagem.style.display = 'none';
+  // Sem isso, o "display:none" fica preso no próprio elemento (estilo
+  // inline) e nenhuma classe .sucesso/.erro do CSS consegue mostrar a
+  // mensagem depois — a página parecia não reagir ao clicar em enviar.
+  mensagem.style.display = '';
 
   const solicitante = document.getElementById('solicitante').value.trim();
   const produtoSelecionado = document.getElementById('produto').value;
