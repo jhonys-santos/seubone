@@ -70,6 +70,21 @@ const STATUS = {
   FINALIZADO: 'Finalizado'
 };
 
+// Prazo de produção/entrega no formulário público não pode ser mais em cima
+// que isso — mesma regra validada no navegador, repetida aqui pra não
+// confiar só no cliente.
+const DIAS_UTEIS_MINIMOS_PRAZO = 2;
+function somarDiasUteis(data, dias) {
+  const d = new Date(data.getTime());
+  let somados = 0;
+  while (somados < dias) {
+    d.setDate(d.getDate() + 1);
+    const diaSemana = d.getDay(); // 0 = domingo, 6 = sábado
+    if (diaSemana !== 0 && diaSemana !== 6) somados++;
+  }
+  return d;
+}
+
 function doGet(e) {
   try {
     const acao = e.parameter.acao;
@@ -311,6 +326,17 @@ function solicitarPersonalizacao(dados) {
     }
     if (!dados.solicitante) {
       return { ok: false, erro: 'O nome de quem está solicitando é obrigatório.' };
+    }
+    // Zera a hora antes de somar os dias — senão "hoje 14h + 2 dias úteis"
+    // vira "dia certo às 14h", e um prazo escolhido pra meia-noite desse
+    // mesmo dia (o normal ao digitar só a data) seria rejeitado por engano.
+    const hojeSemHora = new Date(); hojeSemHora.setHours(0, 0, 0, 0);
+    const prazoMinimo = somarDiasUteis(hojeSemHora, DIAS_UTEIS_MINIMOS_PRAZO);
+    if (new Date(dados.prazo_producao + 'T00:00:00') < prazoMinimo) {
+      return { ok: false, erro: 'Prazo de produção selecionado é inferior ao permitido, caso necessário fale diretamente com Wallac.' };
+    }
+    if (new Date(dados.prazo_entrega + 'T00:00:00') < prazoMinimo) {
+      return { ok: false, erro: 'Prazo de entrega selecionado é inferior ao permitido, caso necessário fale diretamente com Wallac.' };
     }
 
     const ehOutro = !!dados.eh_outro;

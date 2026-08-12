@@ -9,14 +9,38 @@ let produtosDisponiveis = [];
 let logoBase64 = null;
 let logoNome = null;
 
-// Não deixa escolher prazo já vencido (usa data local, não UTC, pra não
-// cair um dia antes perto da meia-noite).
-(function bloquearDatasPassadas() {
-  const hoje = new Date();
-  const hojeISO = hoje.getFullYear() + '-' + String(hoje.getMonth() + 1).padStart(2, '0') + '-' + String(hoje.getDate()).padStart(2, '0');
-  document.getElementById('prazo-producao').min = hojeISO;
-  document.getElementById('prazo-entrega').min = hojeISO;
-})();
+function paraISO(d) {
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+
+// Soma dias úteis (pula sábado e domingo) a uma data — usada pro mínimo de
+// prazo de produção/entrega, que precisa ser pelo menos 2 dias úteis à frente.
+function somarDiasUteis(data, dias) {
+  const d = new Date(data);
+  let somados = 0;
+  while (somados < dias) {
+    d.setDate(d.getDate() + 1);
+    const diaSemana = d.getDay(); // 0 = domingo, 6 = sábado
+    if (diaSemana !== 0 && diaSemana !== 6) somados++;
+  }
+  return d;
+}
+
+const DIAS_UTEIS_MINIMOS = 2;
+// Nem prazo já vencido, nem prazo tão em cima que a produção/entrega não dê
+// tempo — mínimo de 2 dias úteis a partir de hoje, pra produção e entrega.
+const prazoMinimo = somarDiasUteis(new Date(), DIAS_UTEIS_MINIMOS);
+const prazoMinimoISO = paraISO(prazoMinimo);
+document.getElementById('prazo-producao').min = prazoMinimoISO;
+document.getElementById('prazo-entrega').min = prazoMinimoISO;
+const prazoMinimoBR = prazoMinimoISO.split('-').reverse().join('/');
+['prazo-producao', 'prazo-entrega'].forEach((id) => {
+  const input = document.getElementById(id);
+  const dica = document.createElement('div');
+  dica.id = 'dica-' + id;
+  dica.textContent = `Mínimo ${DIAS_UTEIS_MINIMOS} dias úteis a partir de hoje (${prazoMinimoBR}).`;
+  input.insertAdjacentElement('afterend', dica);
+});
 
 async function carregarProdutos() {
   const select = document.getElementById('produto');
@@ -121,6 +145,18 @@ document.getElementById('form-solicitacao').addEventListener('submit', async (e)
   }
   if (!logoBase64) {
     mensagem.textContent = 'O arquivo DXF do logo é obrigatório.';
+    mensagem.className = 'erro';
+    return;
+  }
+  const prazoProducaoVal = document.getElementById('prazo-producao').value;
+  const prazoEntregaVal = document.getElementById('prazo-entrega').value;
+  if (!prazoProducaoVal || prazoProducaoVal < prazoMinimoISO) {
+    mensagem.textContent = 'Prazo de produção selecionado é inferior ao permitido, caso necessário fale diretamente com Wallac.';
+    mensagem.className = 'erro';
+    return;
+  }
+  if (!prazoEntregaVal || prazoEntregaVal < prazoMinimoISO) {
+    mensagem.textContent = 'Prazo de entrega selecionado é inferior ao permitido, caso necessário fale diretamente com Wallac.';
     mensagem.className = 'erro';
     return;
   }
