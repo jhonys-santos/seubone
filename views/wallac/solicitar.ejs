@@ -16,6 +16,9 @@
   <div class="solicitar-sub">Só aparecem produtos com quantidade disponível em estoque.</div>
 
   <form id="form-solicitacao">
+    <label for="solicitante">Nome de quem está solicitando *</label>
+    <input type="text" id="solicitante" placeholder="Seu nome" required>
+
     <label for="produto">Produto</label>
     <select id="produto" required>
       <option value="">Carregando produtos...</option>
@@ -42,7 +45,7 @@
     <label for="observacoes">Observações</label>
     <textarea id="observacoes" placeholder="Detalhes da personalização, cores, posição do logo, etc."></textarea>
 
-    <label for="logo">Logo (DXF)</label>
+    <label for="logo">Logo (DXF) *</label>
     <input type="file" id="logo" accept=".dxf" required>
     <div id="preview-logo" class="preview-arquivo"><i class="ti ti-file" aria-hidden="true"></i> <span></span></div>
 

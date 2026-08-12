@@ -96,10 +96,16 @@ document.getElementById('form-solicitacao').addEventListener('submit', async (e)
   mensagem.className = '';
   mensagem.style.display = 'none';
 
+  const solicitante = document.getElementById('solicitante').value.trim();
   const produtoSelecionado = document.getElementById('produto').value;
   const ehOutro = produtoSelecionado === '__outros__';
   let nomeProdutoFinal = produtoSelecionado;
 
+  if (!solicitante) {
+    mensagem.textContent = 'Informe o nome de quem está solicitando.';
+    mensagem.className = 'erro';
+    return;
+  }
   if (!produtoSelecionado) {
     mensagem.textContent = 'Selecione um produto.';
     mensagem.className = 'erro';
@@ -123,6 +129,7 @@ document.getElementById('form-solicitacao').addEventListener('submit', async (e)
   botao.textContent = 'Enviando...';
 
   const payload = {
+    solicitante,
     produto: nomeProdutoFinal,
     eh_outro: ehOutro,
     quantidade: document.getElementById('quantidade').value,

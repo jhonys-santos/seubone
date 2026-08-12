@@ -46,7 +46,8 @@ const COL_ESTOQUE = {
 
 // Colunas da aba Solicitacoes_Estoque (1-indexed) - crie com esses cabeçalhos:
 // A: Produto | B: Quantidade | C: ID venda/Cliente | D: Prazo de produção | E: Prazo de entrega
-// F: Observações | G: Logo (URL) | H: Status atual | I: Data recebido | J: Data início produção | K: Data finalizado
+// F: Observações | G: Logo (URL) | H: Status atual | I: Data recebido | J: Data início produção
+// K: Data finalizado | L: Solicitante
 const COL_SOLICITACAO = {
   PRODUTO: 1,
   QUANTIDADE: 2,
@@ -58,7 +59,8 @@ const COL_SOLICITACAO = {
   STATUS_ATUAL: 8,
   DATA_RECEBIDO: 9,
   DATA_INICIO_PRODUCAO: 10,
-  DATA_FINALIZADO: 11
+  DATA_FINALIZADO: 11,
+  SOLICITANTE: 12
 };
 
 const STATUS = {
@@ -193,6 +195,7 @@ function buscarCardsEstoque() {
       prazo_entrega: formatarData(linha[COL_SOLICITACAO.PRAZO_ENTREGA - 1]),
       observacoes: linha[COL_SOLICITACAO.OBSERVACOES - 1] || '',
       logo_url: linha[COL_SOLICITACAO.LOGO_URL - 1] || '',
+      solicitante: linha[COL_SOLICITACAO.SOLICITANTE - 1] || '',
       status: linha[COL_SOLICITACAO.STATUS_ATUAL - 1] || STATUS.RECEBIDO
     });
   }
@@ -306,6 +309,9 @@ function solicitarPersonalizacao(dados) {
     if (!dados.logo_base64) {
       return { ok: false, erro: 'O arquivo DXF do logo é obrigatório.' };
     }
+    if (!dados.solicitante) {
+      return { ok: false, erro: 'O nome de quem está solicitando é obrigatório.' };
+    }
 
     const ehOutro = !!dados.eh_outro;
 
@@ -343,7 +349,8 @@ function solicitarPersonalizacao(dados) {
       STATUS.RECEBIDO,
       agora,
       '',
-      ''
+      '',
+      dados.solicitante || ''
     ]);
 
     return { ok: true };

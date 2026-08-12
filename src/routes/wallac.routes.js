@@ -137,14 +137,14 @@ router.get('/api/estoque-publico', async (req, res) => {
 router.post('/api/solicitar', async (req, res) => {
   try {
     const {
-      produto, eh_outro, quantidade, id_venda_cliente,
+      solicitante, produto, eh_outro, quantidade, id_venda_cliente,
       prazo_producao, prazo_entrega, observacoes, logo_base64, logo_nome,
     } = req.body;
     const json = await chamarAppsScript(env.wallacAppsScriptUrl, {
       method: 'POST',
       body: {
         acao: 'solicitar_personalizacao',
-        produto, eh_outro, quantidade, id_venda_cliente,
+        solicitante, produto, eh_outro, quantidade, id_venda_cliente,
         prazo_producao, prazo_entrega, observacoes, logo_base64, logo_nome,
       },
     });

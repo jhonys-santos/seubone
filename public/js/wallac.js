@@ -106,12 +106,14 @@ function renderizarCard(card) {
   const linhaLogo = card.logo_url
     ? `<a class="card-logo-btn" href="${linkDownloadDrive(card.logo_url)}" download rel="noopener"><i class="ti ti-download" aria-hidden="true"></i> Baixar logo</a>`
     : '';
+  const linhaSolicitante = card.solicitante ? `<div class="card-linha"><span>Solicitado por</span><span>${card.solicitante}</span></div>` : '';
 
   div.innerHTML = `
     <div class="card-id">#${card.id_venda} ${card.nome_card ? '- ' + card.nome_card : ''}${seloOrigem}</div>
     <div class="card-produto">${card.produto || ''} · Qtd: ${card.quantidade || '-'}</div>
     <div class="card-linha"><span>Produção até</span><span>${formatarDataBR(card.prazo_producao)}</span></div>
     <div class="card-linha"><span>Entrega cliente</span><span>${formatarDataBR(card.prazo_entrega)}</span></div>
+    ${linhaSolicitante}
     ${linhaObs}
     ${linhaLink}
     ${linhaLogo}
