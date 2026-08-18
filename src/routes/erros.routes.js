@@ -153,4 +153,33 @@ router.post('/api/set-setor', requireRole('gestor'), async (req, res) => {
   }
 });
 
+// Comentário de acompanhamento — sem trava de gestor de propósito: qualquer
+// colaborador com acesso ao painel pode comentar mesmo não podendo editar a
+// auditoria (ex: algo deu errado de novo depois do caso já resolvido).
+// Todo gestor é notificado pra poder ajustar o que for preciso.
+router.post('/api/comentar', async (req, res) => {
+  try {
+    const { rowIndex, comentario } = req.body;
+    if (!comentario || !String(comentario).trim()) {
+      return res.status(400).json({ ok: false, error: 'Comentário vazio.' });
+    }
+    const json = await chamarAppsScript(env.errosAppsScriptUrl, {
+      method: 'POST',
+      body: { action: 'comentarCaso', rowIndex, comentario, usuario: req.session.user.nome, usuarioSlug: req.session.user.slug },
+    });
+    if (json.ok) {
+      const mensagem = `${req.session.user.nome} comentou no caso #${json.idVenda || rowIndex}${json.nomeCard ? ' (' + json.nomeCard + ')' : ''}.`;
+      usuariosService
+        .listarUsuarios()
+        .filter((u) => u.role === 'gestor' && u.slug !== req.session.user.slug)
+        .forEach((u) => {
+          notificacoesService.adicionar(mensagem, '/erros#/casos/' + rowIndex, u.slug).catch((err) => console.error('[erros] falha ao notificar gestor sobre comentário:', err.message));
+        });
+    }
+    res.json(json);
+  } catch (err) {
+    res.status(502).json({ ok: false, error: 'Falha ao comentar: ' + err.message });
+  }
+});
+
 module.exports = router;

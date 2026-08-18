@@ -1759,6 +1759,15 @@
 
         <div class="er-sec-title" style="margin-top:24px">Histórico</div>
         <div id="erHistBox" class="er-hist-box">Carregando…</div>
+
+        <div class="er-sec-title" style="margin-top:20px">Comentar</div>
+        <div class="er-field" style="margin-bottom:0">
+          <textarea id="erComentarioInput" placeholder="Algo aconteceu com esse pedido depois do registro? Deixe um comentário — o gestor será avisado."></textarea>
+          <div style="display:flex;justify-content:flex-end;align-items:center;gap:10px;margin-top:8px">
+            <span class="er-save-msg" id="erSaveMsgComentario"></span>
+            <button class="er-btn er-btn-primary" type="button" id="erBtnComentar">Comentar</button>
+          </div>
+        </div>
       </div>
       <div class="er-drawer-foot">
         <span class="er-save-msg" id="erSaveMsg"></span>
@@ -1841,6 +1850,29 @@
     if (prev) prev.addEventListener('click', () => { if (prev.dataset.target) openCaso(Number(prev.dataset.target)); });
     if (next) next.addEventListener('click', () => { if (next.dataset.target) openCaso(Number(next.dataset.target)); });
     document.querySelectorAll('.er-drawer .er-stbtn').forEach((b) => b.addEventListener('click', () => setCaseStatus(r, b.dataset.status)));
+
+    const btnComentar = $('erBtnComentar');
+    if (btnComentar) {
+      btnComentar.addEventListener('click', async () => {
+        const ta = $('erComentarioInput');
+        const msg = $('erSaveMsgComentario');
+        const texto = (ta.value || '').trim();
+        if (!texto) { ta.focus(); return; }
+        btnComentar.disabled = true; msg.textContent = 'Enviando…';
+        try {
+          const res = await fetch('/erros/api/comentar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rowIndex: r.id, comentario: texto }) });
+          const json = await res.json();
+          if (!json.ok) throw new Error(json.error || 'Erro desconhecido');
+          ta.value = ''; msg.textContent = '';
+          await carregarHistorico(r.id);
+          toast('Comentário adicionado — gestor notificado', true);
+        } catch (err) {
+          msg.textContent = 'Erro: ' + err.message;
+        } finally {
+          btnComentar.disabled = false;
+        }
+      });
+    }
 
     if (editable) {
       const selRes = $('erSelResolucao');

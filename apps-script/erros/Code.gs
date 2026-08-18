@@ -16,6 +16,7 @@
  *    - doPost action:audit     → atualiza os campos de auditoria de uma linha
  *    - doPost action:setStatus → muda o status de um caso
  *    - doPost action:setSetor  → preenche só o setor (backfill de legado)
+ *    - doPost action:comentarCaso → comentário de acompanhamento (Histórico)
  *
  *  Mapeamento de colunas por NOME DO CABEÇALHO (tolerante a acento/maiúscula).
  *
@@ -471,6 +472,7 @@ function doPost(e) {
     if (action === 'setSetor')  return setSetor_(body.rowIndex, body.setor, body.usuario);
     if (action === 'decidirRefab')  return decidirRefab_(body.rowIndex, body.decisao, body.comentario, body.usuario, body.usuarioSlug);
     if (action === 'finalizarRefab') return finalizarRefab_(body.rowIndex, body.usuario, body.usuarioSlug);
+    if (action === 'comentarCaso') return comentarCaso_(body.rowIndex, body.comentario, body.usuario, body.usuarioSlug);
 
     return jsonOut_({ ok: false, error: 'Ação desconhecida: ' + action });
   } catch (err) {
@@ -676,6 +678,28 @@ function finalizarRefab_(rowIndex, usuario, usuarioSlug) {
   logHist_(rowIndex, idVenda, usuario, 'Enviado para produção', '', usuarioSlug);
 
   return jsonOut_({ ok: true, rowIndex: rowIndex });
+}
+
+/**
+ * Comentário de acompanhamento num caso já registrado — não edita nenhum
+ * campo, só grava um evento no Histórico (qualquer usuário com acesso ao
+ * painel pode comentar, mesmo colaborador sem permissão de auditoria). O hub
+ * usa idVenda/nomeCard devolvidos aqui pra notificar os gestores com o card
+ * certo.
+ */
+function comentarCaso_(rowIndex, comentario, usuario, usuarioSlug) {
+  if (!rowIndex) return jsonOut_({ ok: false, error: 'rowIndex ausente' });
+  var texto = String(comentario || '').trim();
+  if (!texto) return jsonOut_({ ok: false, error: 'Comentário vazio.' });
+
+  var sh = getSheet_();
+  var col = buildColMap_(sh.getDataRange().getValues()[0]);
+  var idVenda = (col.idVenda != null) ? sh.getRange(rowIndex, col.idVenda + 1).getValue() : '';
+  var nomeCard = (col.nomeCard != null) ? sh.getRange(rowIndex, col.nomeCard + 1).getValue() : '';
+
+  logHist_(rowIndex, idVenda, usuario, 'Comentário', texto, usuarioSlug);
+
+  return jsonOut_({ ok: true, rowIndex: rowIndex, idVenda: String(idVenda || ''), nomeCard: String(nomeCard || '') });
 }
 
 function setStatus_(rowIndex, status, usuario) {
