@@ -178,6 +178,21 @@ function adBuildForm() {
   adUpdateScoreSummary();
 }
 
+// Avisa (sem bloquear o envio) se o ID da conversa digitado já tiver uma
+// auditoria registrada — evita duplicar avaliação do mesmo atendimento sem
+// querer. Só compara contra o que já carregou do hub (adState.records).
+function adCheckDuplicateConversationId() {
+  const input = document.getElementById("ad-f-conversationId");
+  const warningEl = document.getElementById("ad-f-conversationId-warning");
+  const value = input.value.trim().toLowerCase();
+  if (!value) { warningEl.textContent = ""; return; }
+  const match = adState.records.find(r => String(r.ConversationId || "").trim().toLowerCase() === value);
+  warningEl.textContent = match
+    ? `⚠ Esse ID já foi auditado em ${adFmtDate(match.Data)} — agente ${match.Agente}, por ${match.AuditadoPor}.`
+    : "";
+}
+document.getElementById("ad-f-conversationId").addEventListener("input", adCheckDuplicateConversationId);
+
 function adUpdateScoreSummary() {
   const result = adComputeScore(adState.scores, adState.fgs);
   document.getElementById("ad-subtotal-1").textContent = result.section1;
@@ -242,6 +257,7 @@ function adResetForm() {
   AD_CRITERION_KEYS.forEach(k => (adState.scores[k] = 0));
   Object.keys(adState.fgs).forEach(k => (adState.fgs[k] = false));
   adBuildForm();
+  adCheckDuplicateConversationId();
 }
 
 // ============================================================
@@ -258,6 +274,7 @@ async function adLoadRecords() {
     adRenderRegistro();
     adRenderDashboard();
     adRenderAgentesTabs();
+    adCheckDuplicateConversationId();
   } catch (err) {
     console.error("Erro ao carregar auditorias:", err);
   }
