@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <%- include('../partials/head') %>
-<title>Cadastrar Pedido Urgente — SeuBoné</title>
+<title>Cadastrar Pedido Urgente - SeuBoné</title>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/css/pedidos-urgentes.css">
 </head>
@@ -78,17 +78,17 @@
       </div>
     </div>
 
-    <label>OS (Imagem) — opcional</label>
+    <label>OS (Imagem, opcional)</label>
     <input type="file" id="osImagem" accept="image/*" onchange="previewOsImagem()">
     <img id="previewOsImagem" style="display:none; margin-top:10px; max-width:160px; border-radius:8px; border:1px solid var(--border);">
 
-    <label>Minuta (PDF) — opcional</label>
+    <label>Minuta (PDF, opcional)</label>
     <input type="file" id="manifesto" accept="application/pdf">
 
-    <label>Nota fiscal (PDF) — opcional</label>
+    <label>Nota fiscal (PDF, opcional)</label>
     <input type="file" id="notaFiscal" accept="application/pdf">
 
-    <label>Observação — opcional</label>
+    <label>Observação (opcional)</label>
     <textarea id="observacao" rows="3" placeholder="Situação fora do padrão que o estoque precisa saber antes de despachar"></textarea>
 
     <div style="font-size:12px;color:var(--text-muted);margin-top:16px;display:flex;align-items:center;gap:6px;"><i class="ti ti-user-circle" aria-hidden="true"></i> Cadastrando como <strong style="color:var(--text)"><%= usuario.nome %></strong></div>

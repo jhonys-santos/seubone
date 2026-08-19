@@ -55,7 +55,7 @@ const PREMIACAO_LIMITES = [
 
 function premiacaoNota(pecas) {
   const proxima = PREMIACAO_LIMITES.find((l) => pecas < l.min);
-  if (!proxima) return 'Faixa Ouro atingida — máximo de coins da semana garantido! 🏆';
+  if (!proxima) return 'Faixa Ouro atingida! Máximo de coins da semana garantido! 🏆';
   const faltam = proxima.min - pecas;
   return `Faltam ${faltam} peça${faltam === 1 ? '' : 's'} no prazo pra faixa ${proxima.faixa}.`;
 }

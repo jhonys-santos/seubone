@@ -12,7 +12,7 @@ const AD_SECTIONS = [
     { key: "c11", code: "1.1", title: "Tom humanizado e profissional", desc: "Evitou respostas engessadas, usou nome do cliente, linguagem acessível e respeitosa?", max: 6 },
     { key: "c12", code: "1.2", title: "Clareza e objetividade", desc: "A informação foi passada de forma direta, sem ambiguidade e fácil de entender?", max: 6 },
     { key: "c13", code: "1.3", title: "Respeitou o SLA de primeira resposta", desc: "Verificar no sistema (Octadesk): tempo entre entrada do chamado e 1ª resposta está dentro do prazo definido?", max: 7 },
-    { key: "c14", code: "1.4", title: "Proatividade — antecipou próximos passos", desc: "Sim = informou prazo/próxima etapa espontaneamente | Parcial = só quando perguntado | Não = não informou", max: 6 },
+    { key: "c14", code: "1.4", title: "Proatividade, antecipou próximos passos", desc: "Sim = informou prazo/próxima etapa espontaneamente | Parcial = só quando perguntado | Não = não informou", max: 6 },
   ]},
   { id: 2, title: "Seguimento de Processo", weight: 40, criteria: [
     { key: "c21", code: "2.1", title: "Identificou corretamente o problema", desc: "Confirmou ou parafraseou o que o cliente precisava antes de agir? Não assumiu sem validar?", max: 10 },
@@ -23,7 +23,7 @@ const AD_SECTIONS = [
   { id: 3, title: "Resultado do Atendimento", weight: 35, criteria: [
     { key: "c31", code: "3.1", title: "Problema foi resolvido no contato", desc: "O cliente teve sua questão solucionada sem precisar reentrar em contato pelo mesmo motivo?", max: 10 },
     { key: "c32", code: "3.2", title: "Resolução dentro do TMR definido", desc: "O tempo entre abertura e encerramento do caso respeitou o SLA da categoria?", max: 8 },
-    { key: "c33", code: "3.3", title: "Solução foi definitiva — sem retratativa", desc: "Não houve necessidade de corrigir informação ou ação tomada após o encerramento?", max: 10 },
+    { key: "c33", code: "3.3", title: "Solução foi definitiva, sem retratativa", desc: "Não houve necessidade de corrigir informação ou ação tomada após o encerramento?", max: 10 },
     { key: "c34", code: "3.4", title: "Cliente encerrou satisfeito ou neutro positivo", desc: "Com base nas últimas mensagens, o cliente demonstrou satisfação ou não escalou a insatisfação?", max: 7 },
   ]},
 ];
@@ -31,7 +31,7 @@ const AD_SECTIONS = [
 const AD_FALHAS_GRAVES = [
   { key: "fg1", code: "FG1", title: "Passou informação errada ao cliente", desc: "Dado incorreto sobre prazo, status, produto, valor ou qualquer informação relevante" },
   { key: "fg2", code: "FG2", title: "Prometeu prazo ou solução sem validar", desc: "Deu garantia ao cliente sem confirmar com a área responsável" },
-  { key: "fg3", code: "FG3", title: "Não consultou o histórico do atendimento", desc: "Respondeu sem verificar contatos anteriores — gerou ruptura na fluidez e/ou ação errada" },
+  { key: "fg3", code: "FG3", title: "Não consultou o histórico do atendimento", desc: "Respondeu sem verificar contatos anteriores, gerou ruptura na fluidez e/ou ação errada" },
   { key: "fg4", code: "FG4", title: "Solução alinhada pelo consultor gerou custo evitável", desc: "Confirmou ou encaminhou resolução que gerou custo operacional desnecessário (refabricação, frete extra, desconto indevido, etc.)" },
 ];
 
@@ -130,7 +130,7 @@ function adBuildForm() {
   container.innerHTML = AD_SECTIONS.map(section => `
     <div class="ad-card">
       <div class="ad-section-head">
-        <h2>Seção ${section.id} — ${section.title}</h2>
+        <h2>Seção ${section.id} · ${section.title}</h2>
         <span class="weight">peso: ${section.weight} pts</span>
       </div>
       ${section.criteria.map(c => `
@@ -145,7 +145,7 @@ function adBuildForm() {
           </div>
         </div>
       `).join("")}
-      <div class="ad-subtotal-row">Subtotal — <b id="ad-subtotal-${section.id}">0</b>/${section.weight}</div>
+      <div class="ad-subtotal-row">Subtotal <b id="ad-subtotal-${section.id}">0</b>/${section.weight}</div>
     </div>
   `).join("");
 
@@ -165,7 +165,7 @@ function adBuildForm() {
   fgContainer.innerHTML = AD_FALHAS_GRAVES.map(fg => `
     <label class="ad-fg-item">
       <input type="checkbox" data-key="${fg.key}" />
-      <span><span class="ad-fg-title">${fg.code} — ${fg.title}</span><span class="ad-fg-desc">${fg.desc}</span></span>
+      <span><span class="ad-fg-title">${fg.code} · ${fg.title}</span><span class="ad-fg-desc">${fg.desc}</span></span>
     </label>
   `).join("");
   fgContainer.querySelectorAll("input[type=checkbox]").forEach(input => {
@@ -188,7 +188,7 @@ function adCheckDuplicateConversationId() {
   if (!value) { warningEl.textContent = ""; return; }
   const match = adState.records.find(r => String(r.ConversationId || "").trim().toLowerCase() === value);
   warningEl.textContent = match
-    ? `⚠ Esse ID já foi auditado em ${adFmtDate(match.Data)} — agente ${match.Agente}, por ${match.AuditadoPor}.`
+    ? `⚠ Esse ID já foi auditado em ${adFmtDate(match.Data)}, agente ${match.Agente}, por ${match.AuditadoPor}.`
     : "";
 }
 document.getElementById("ad-f-conversationId").addEventListener("input", adCheckDuplicateConversationId);
@@ -202,7 +202,7 @@ function adUpdateScoreSummary() {
   const badge = document.getElementById("ad-score-badge");
   badge.textContent = result.classification;
   badge.className = "ad-badge ad-badge-" + result.classification;
-  document.getElementById("ad-score-fg-warning").textContent = result.criticalFailure ? "Falha grave — score zerado" : "";
+  document.getElementById("ad-score-fg-warning").textContent = result.criticalFailure ? "Falha grave, score zerado" : "";
 }
 
 // ============================================================
@@ -402,7 +402,7 @@ function adRenderDashboard() {
   const alertBox = document.getElementById("ad-dash-alert");
   if (criticalCount > 0) {
     const recent = [...criticalRecords].sort((a, b) => new Date(b.Data) - new Date(a.Data)).slice(0, 5);
-    alertBox.innerHTML = `<div class="ad-alert"><p class="title">⚠ Falhas graves recentes (${criticalCount} no total)</p>${recent.map(r => `<div class="ad-alert-item"><span><b>${r.Agente}</b> — ${r.TipoOcorrencia} — ${adFmtDate(r.Data)}</span></div>`).join("")}</div>`;
+    alertBox.innerHTML = `<div class="ad-alert"><p class="title">⚠ Falhas graves recentes (${criticalCount} no total)</p>${recent.map(r => `<div class="ad-alert-item"><span><b>${r.Agente}</b> · ${r.TipoOcorrencia} · ${adFmtDate(r.Data)}</span></div>`).join("")}</div>`;
   } else {
     alertBox.innerHTML = "";
   }
@@ -523,7 +523,7 @@ function adRenderAgentDetail() {
       <div class="ad-kpi"><p class="label">Score médio</p><p class="value">${avgTotal}</p></div>
       <div class="ad-kpi danger"><p class="label">Falhas graves</p><p class="value" style="color:var(--bad-text, var(--bad))">${criticalCount}</p></div>
     </div>
-    <div class="ad-card ad-chart-card"><h3>Evolução do score — ${adState.selectedAgent}</h3><div class="ad-chart-wrap"><canvas id="ad-chart-agent-detail"></canvas></div></div>
+    <div class="ad-card ad-chart-card"><h3>Evolução do score · ${adState.selectedAgent}</h3><div class="ad-chart-wrap"><canvas id="ad-chart-agent-detail"></canvas></div></div>
     <div class="ad-card ad-table-wrap" style="padding:0;">
       <table>
         <thead><tr><th>Data</th><th>Tipo de Ocorrência</th><th>Canal</th><th>Total</th><th>Classificação</th><th>ID Conversa</th></tr></thead>

@@ -407,9 +407,9 @@ function renderAll(){
   var alertShown = {};
 
   var mensagens = [
-    "Hoje e seu dia de Manifesto — bora agir com tudo! ✅ 🚀",
-    "Chegou a sua vez de brilhar! Manifesto hoje — foco e energia! 🔥",
-    "O time conta com voce hoje. Manifesto — vamos juntos! 💥",
+    "Hoje e seu dia de Manifesto, bora agir com tudo! ✅ 🚀",
+    "Chegou a sua vez de brilhar! Manifesto hoje, foco e energia! 🔥",
+    "O time conta com voce hoje. Manifesto, vamos juntos! 💥",
     "E hora do Manifesto! Mostra o que voce vale! ⚡ 🏆",
     "Hoje voce representa o time. Vai com forca total! 💪 ✅",
   ];

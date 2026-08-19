@@ -104,9 +104,9 @@
     { tipo: 'Desconto <=20%', logica: 'Impacto direto na margem', caixa: 'margem', cor: '#E0A400' },
     { tipo: 'Desconto >20%', logica: 'Alto impacto na margem', caixa: 'margem', cor: '#B98900' },
     { tipo: 'Refabricação', logica: 'Alto custo operacional', caixa: 'operacional', cor: '#FFC400' },
-    { tipo: 'Reembolso parcial', logica: 'Perda financeira direta — saída de caixa', caixa: 'caixa', cor: '#8A3B36' },
-    { tipo: 'Reembolso total', logica: 'Perda total + custo operacional — saída de caixa', caixa: 'caixa', cor: '#C63A32' },
-    { tipo: 'Outros', logica: 'Resolução fora do padrão — vale revisar o caso', caixa: 'operacional', cor: '#8A9099' },
+    { tipo: 'Reembolso parcial', logica: 'Perda financeira direta, saída de caixa', caixa: 'caixa', cor: '#8A3B36' },
+    { tipo: 'Reembolso total', logica: 'Perda total + custo operacional, saída de caixa', caixa: 'caixa', cor: '#C63A32' },
+    { tipo: 'Outros', logica: 'Resolução fora do padrão, vale revisar o caso', caixa: 'operacional', cor: '#8A9099' },
   ];
   const RES_MAP = Object.fromEntries(RESOLUCAO_TABLE.map((r) => [r.tipo, r]));
   const RES_FALLBACK = { tipo: 'Não classificado', logica: 'Ainda sem tipo de resolução definido', caixa: 'desconhecido', cor: '#D8DBE0' };
@@ -585,9 +585,9 @@
       resp: ['Ranking por Consultor', 'Quem mais gera custo e como cada um resolve · ' + rotuloPeriodo()],
       casos: ['Casos / Auditoria', 'Fila de casos pendentes e já auditados · ' + rotuloPeriodo()],
       refab: ['Aprovação de Refabricação', papel === 'gestor' ? 'Todos os casos aguardando decisão, de todos os colaboradores' : 'Casos de Refabricação que você registrou'],
-      incompletos: ['Dados incompletos', 'Casos sem setor preenchido — atribua para destravar as análises'],
-      reuniao: ['Reunião de Vendas', 'Erros da semana para apresentar ao time — Vendas e Dupla · navegação de semana própria'],
-      reuniaoFab: ['Reunião de Fábrica', 'Erros da semana para apresentar à produção — setor Fábrica · navegação de semana própria'],
+      incompletos: ['Dados incompletos', 'Casos sem setor preenchido. Atribua para destravar as análises'],
+      reuniao: ['Reunião de Vendas', 'Erros da semana para apresentar ao time (Vendas e Dupla) · navegação de semana própria'],
+      reuniaoFab: ['Reunião de Fábrica', 'Erros da semana para apresentar à produção (setor Fábrica) · navegação de semana própria'],
     };
     document.getElementById('erPageTitle').textContent = TITLES[erState.screen][0];
     document.getElementById('erPageSub').textContent = TITLES[erState.screen][1];
@@ -644,7 +644,7 @@
     main.innerHTML = `
       <div class="er-dash-hi">
         <h2>${saud}, ${erEsc(nome)} 👋</h2>
-        <div class="sub">${subAcao.length ? subAcao.join(' e ') + '.' : 'Tudo em dia por aqui — sem pendências no recorte. 🎉'}</div>
+        <div class="sub">${subAcao.length ? subAcao.join(' e ') + '.' : 'Tudo em dia por aqui, sem pendências no recorte. 🎉'}</div>
       </div>
 
       <div class="er-metrics">
@@ -814,8 +814,8 @@
     main.innerHTML = `
       <div class="er-banner">
         <span class="b-ic">▽</span>
-        <div><div class="b-title">Pareto por custo — 80/20 de verdade</div>
-        <div class="b-text">${paretoIdx >= 0 ? (paretoIdx + 1) : list.length} causa(s) — de ${list.length} — respondem por 80% do custo total do período.</div></div>
+        <div><div class="b-title">Pareto por custo (80/20 de verdade)</div>
+        <div class="b-text">${paretoIdx >= 0 ? (paretoIdx + 1) : list.length} causa(s) (de ${list.length}) respondem por 80% do custo total do período.</div></div>
       </div>
 
       <div class="er-card">
@@ -826,7 +826,7 @@
 
       <div class="er-grid er-grid-2col">
         <div class="er-card"><h3>Custo por tipo de produto</h3><div class="er-card-sub">Onde o R$ do erro se concentra por produto.</div><div class="er-chart-box" style="height:260px"><canvas id="erChProduto"></canvas></div></div>
-        <div class="er-card"><h3>Quantidade de produtos errados por causa</h3><div class="er-card-sub">Unidades físicas erradas — não é o mesmo que nº de casos.</div><div class="er-chart-box" style="height:260px"><canvas id="erChQtd"></canvas></div></div>
+        <div class="er-card"><h3>Quantidade de produtos errados por causa</h3><div class="er-card-sub">Unidades físicas erradas. Não é o mesmo que nº de casos.</div><div class="er-chart-box" style="height:260px"><canvas id="erChQtd"></canvas></div></div>
       </div>
 
       <div class="er-card">
@@ -898,7 +898,7 @@
       <div class="er-banner">
         <span class="b-ic">i</span>
         <div><div class="b-title">Leia com cuidado</div>
-        <div class="b-text">Este ranking é por volume absoluto de custo — quem vende/produz mais tende a aparecer mais aqui. Use como mapa de onde está o R$, não como avaliação de desempenho isolada.</div></div>
+        <div class="b-text">Este ranking é por volume absoluto de custo. Quem vende/produz mais tende a aparecer mais aqui. Use como mapa de onde está o R$, não como avaliação de desempenho isolada.</div></div>
       </div>
 
       <div class="er-grid er-grid-2col">
@@ -914,7 +914,7 @@
 
       <div class="er-card">
         <h3>Ranking completo</h3>
-        <div class="er-card-sub">% reembolso acima de 20% pede conversa 1:1 — é dinheiro saindo do caixa.</div>
+        <div class="er-card-sub">% reembolso acima de 20% pede conversa 1:1. É dinheiro saindo do caixa.</div>
         <div class="er-tbl-wrap"><table>
           <thead><tr><th>#</th><th>Consultor / Área</th><th>Setor</th><th class="er-num">Ocorrências</th><th style="min-width:160px">Custo total</th><th class="er-num">Custo médio</th><th>Solução mais comum</th><th>Situação</th></tr></thead>
           <tbody>${list.map((m, i) => {
@@ -1038,7 +1038,7 @@
 
     const listCard = `
       <div class="er-card">
-        <div class="er-card-head"><div><h3>Casos registrados</h3><div class="er-card-sub">Clique em uma linha pra abrir o caso; clique no cabeçalho pra ordenar.${podeSel ? '' : ' <b>Somente leitura</b> — você pode ver os casos, mas não auditar.'}</div></div></div>
+        <div class="er-card-head"><div><h3>Casos registrados</h3><div class="er-card-sub">Clique em uma linha pra abrir o caso; clique no cabeçalho pra ordenar.${podeSel ? '' : ' <b>Somente leitura.</b> Você pode ver os casos, mas não auditar.'}</div></div></div>
         <div class="er-tbl-wrap"><table>
           <thead><tr>${podeSel ? '<th class="er-chkcell"><input type="checkbox" id="erChkAll"></th>' : ''}${th('id', 'ID')}${th('nome', 'Cliente / Card')}${th('data', 'Data')}${th('idade', 'Idade')}${th('setor', 'Setor')}${th('resp', 'Responsável')}${th('custo', 'Custo', true)}${th('status', 'Status')}</tr></thead>
           <tbody>${rows.map((r) => `<tr class="er-clickable${SEL.has(r.id) ? ' er-sel-row' : ''}" data-id="${r.id}">
@@ -1243,7 +1243,7 @@
         <div class="er-modal" role="dialog" aria-modal="true" aria-label="Aprovação de Refabricação">
           <div class="er-modal-head">
             <div style="flex:1;min-width:0">
-              <div class="title">#${erEsc(r.idVenda)} — ${erEsc(r.nomeCard)}</div>
+              <div class="title">#${erEsc(r.idVenda)} · ${erEsc(r.nomeCard)}</div>
               <div class="sub"><span class="er-dot" style="display:inline-block;background:${sd.cor};margin-right:5px"></span>${sd.label}</div>
             </div>
             <button class="er-close-btn" id="erCloseModalRefab">✕</button>
@@ -1254,9 +1254,9 @@
               <div class="er-field"><label>Responsável</label><div class="er-readonly-block">${erEsc(r.responsavel) || '—'}</div></div>
             </div>
             <div class="er-field" style="margin-bottom:14px"><label>Descrição</label><div class="er-readonly-block" style="white-space:pre-wrap">${erEsc(r.descricao) || '—'}</div></div>
-            ${(() => { const fs = parseFotos(r.foto); return fs.length ? `<div class="er-field" style="margin-bottom:14px"><label>Anexos (${fs.length})</label><div style="display:flex;flex-wrap:wrap;gap:9px">${fs.map((u, i) => `<img class="er-thumb er-lb-thumb" data-idx="${i}" src="${erEsc(fotoSrc(u))}" alt="Anexo #${erEsc(r.idVenda)} — ${erEsc(r.nomeCard)}" title="Ampliar" loading="lazy">`).join('')}</div></div>` : ''; })()}
+            ${(() => { const fs = parseFotos(r.foto); return fs.length ? `<div class="er-field" style="margin-bottom:14px"><label>Anexos (${fs.length})</label><div style="display:flex;flex-wrap:wrap;gap:9px">${fs.map((u, i) => `<img class="er-thumb er-lb-thumb" data-idx="${i}" src="${erEsc(fotoSrc(u))}" alt="Anexo #${erEsc(r.idVenda)} · ${erEsc(r.nomeCard)}" title="Ampliar" loading="lazy">`).join('')}</div></div>` : ''; })()}
             ${podeDecidir
-              ? `<div class="er-field" style="margin-bottom:6px"><label>Comentário *</label><textarea id="erRefabComentario" placeholder="Explique o motivo da decisão — obrigatório para aprovar ou reprovar."></textarea></div>`
+              ? `<div class="er-field" style="margin-bottom:6px"><label>Comentário *</label><textarea id="erRefabComentario" placeholder="Explique o motivo da decisão (obrigatório para aprovar ou reprovar)."></textarea></div>`
               : `<div class="er-field"><label>Comentário do gestor</label><div class="er-readonly-block" style="white-space:pre-wrap">${erEsc(r.comentarioAprovacao) || '—'}</div></div>`}
           </div>
           <div class="er-modal-foot">
@@ -1374,7 +1374,7 @@
     main.innerHTML = `
       <div class="er-banner"><span class="b-ic">◑</span><div>
         <div class="b-title"><span id="erIncCount">${faltando.length}</span> caso(s) sem setor preenchido</div>
-        <div class="b-text">O setor alimenta a Executiva, o Ranking e a Reunião de Vendas. Preencha aqui e o caso some da fila. A sugestão é só um palpite pelo texto — confira antes de salvar.</div>
+        <div class="b-text">O setor alimenta a Executiva, o Ranking e a Reunião de Vendas. Preencha aqui e o caso some da fila. A sugestão é só um palpite pelo texto. Confira antes de salvar.</div>
       </div></div>
       <div class="er-card" style="padding:0">
         <div class="er-tbl-wrap"><table>
@@ -1383,7 +1383,7 @@
             <td><span class="er-idchip">#${erEsc(r.idVenda)}</span></td>
             <td style="font-weight:600">${erEsc(r.nomeCard)}</td>
             <td style="max-width:340px;color:var(--text-muted);font-size:12.5px">${erEsc((r.descricao || '').slice(0, 120))}${(r.descricao || '').length > 120 ? '…' : ''}</td>
-            <td><select class="inc-setor">${['<option value="">— selecione —</option>'].concat(SETOR_OPCOES.map((o) => `<option value="${erEsc(o)}" ${o === sug ? 'selected' : ''}>${erEsc(o)}</option>`)).join('')}</select>${sug ? `<div style="font-size:11px;color:var(--warn-text,var(--warn));margin-top:3px">💡 sugestão: <b>${erEsc(sug)}</b></div>` : ''}</td>
+            <td><select class="inc-setor">${['<option value="">Selecione</option>'].concat(SETOR_OPCOES.map((o) => `<option value="${erEsc(o)}" ${o === sug ? 'selected' : ''}>${erEsc(o)}</option>`)).join('')}</select>${sug ? `<div style="font-size:11px;color:var(--warn-text,var(--warn));margin-top:3px">💡 sugestão: <b>${erEsc(sug)}</b></div>` : ''}</td>
             <td><button class="er-btn er-btn-primary inc-save" style="padding:7px 12px">Salvar</button></td>
           </tr>`; }).join('')}</tbody>
         </table></div>
@@ -1443,7 +1443,7 @@
       <div class="er-grid er-grid-2col">
         <div class="er-card">
           <h3>Top causas da semana</h3>
-          <div class="er-card-sub">Ordenado por custo — onde uma ação de processo rende mais.</div>
+          <div class="er-card-sub">Ordenado por custo, onde uma ação de processo rende mais.</div>
           <div style="margin-top:10px">
             ${causasTop.slice(0, 5).map((c, i) => `<div class="er-legend-row"><span class="er-rank ${i === 0 ? 'top' : ''}">${i + 1}</span><span style="margin-left:10px">${erEsc(c.nome)}</span><b style="margin-left:auto">${brl(c.custo)}</b><span style="color:var(--text-muted);margin-left:12px;min-width:70px;text-align:right">${c.n} caso(s)</span></div>`).join('')}
           </div>
@@ -1458,7 +1458,7 @@
       </div>
 
       <div class="er-card">
-        <h3>Casos da semana — ${erEsc(cfg.short)}</h3>
+        <h3>Casos da semana · ${erEsc(cfg.short)}</h3>
         <div class="er-card-sub">Ordenado por custo. Clique numa linha pra ver o caso completo. A miniatura mostra se o caso tem foto.</div>
         <div class="er-tbl-wrap"><table>
           <thead><tr><th>Foto</th><th>ID</th><th>Responsável</th><th>Cliente / Card</th><th>Causa</th><th class="er-num">Custo</th><th>Tipo de resolução</th></tr></thead>
@@ -1512,7 +1512,7 @@
     const causas = `
       <div>
         <div class="er-pr-sec">Top causas da semana</div>
-        <div class="er-pr-secsub">Ordenado por custo — onde uma ação de processo rende mais.</div>
+        <div class="er-pr-secsub">Ordenado por custo, onde uma ação de processo rende mais.</div>
         ${d.causasTop.slice(0, 6).map((c, i) => `<div class="er-pr-row"><span class="er-pr-rk ${i === 0 ? 'top' : ''}">${i + 1}</span><span class="er-pr-name">${erEsc(c.nome)}</span><span class="er-pr-cnt">${c.n} caso(s)</span><span class="er-pr-val">${brl(c.custo)}</span></div>`).join('')}
       </div>`;
 
@@ -1555,10 +1555,10 @@
           <span class="er-pr-period">${periodo}</span>
         </div>
         <h1 class="er-pr-title">Erros da Semana</h1>
-        <div class="er-pr-sub">${d.n} caso(s) auditado(s) · ${brl(d.custoTotal)} em custo · foco em aprendizado, não em culpa.${d.pendentesSemana > 0 ? ` <b style="color:#A62A23">${d.pendentesSemana} caso(s) ainda pendente(s) — fora destes números.</b>` : ''}</div>
+        <div class="er-pr-sub">${d.n} caso(s) auditado(s) · ${brl(d.custoTotal)} em custo · foco em aprendizado, não em culpa.${d.pendentesSemana > 0 ? ` <b style="color:#A62A23">${d.pendentesSemana} caso(s) ainda pendente(s) (fora destes números).</b>` : ''}</div>
         ${kpis}
         <div class="er-pr-two">${causas}${ranking}</div>
-        <div class="er-pr-cases-h">Casos da semana — ${erEsc(cfg.short)} (${d.casosOrdenados.length})</div>
+        <div class="er-pr-cases-h">Casos da semana · ${erEsc(cfg.short)} (${d.casosOrdenados.length})</div>
         ${cases}
         <div class="er-pr-foot"><b>${d.n} erro(s) · ${brl(d.custoTotal)}</b> na semana ${periodo}.<br>${erEsc(cfg.foco)}</div>
       </div>`;
@@ -1727,12 +1727,12 @@
           <div class="er-field"><label>Quem cadastrou o erro</label><div class="er-readonly-block">${erEsc(r.quemCadastrou)}</div></div>
         </div>
         <div class="er-field" style="margin-bottom:20px"><label>Descrição do erro</label><div class="er-readonly-block" style="font-style:italic">${erEsc(r.descricao) || '—'}</div></div>
-        ${(() => { const fs = parseFotos(r.foto); return fs.length ? `<div class="er-field" style="margin-bottom:20px"><label>Anexos (${fs.length})</label><div style="display:flex;flex-wrap:wrap;gap:9px">${fs.map((u, i) => `<img class="er-thumb er-lb-thumb" data-idx="${i}" src="${erEsc(fotoSrc(u))}" alt="Anexo #${erEsc(r.idVenda)} — ${erEsc(r.nomeCard)}" title="Ampliar" loading="lazy">`).join('')}</div></div>` : ''; })()}
+        ${(() => { const fs = parseFotos(r.foto); return fs.length ? `<div class="er-field" style="margin-bottom:20px"><label>Anexos (${fs.length})</label><div style="display:flex;flex-wrap:wrap;gap:9px">${fs.map((u, i) => `<img class="er-thumb er-lb-thumb" data-idx="${i}" src="${erEsc(fotoSrc(u))}" alt="Anexo #${erEsc(r.idVenda)} · ${erEsc(r.nomeCard)}" title="Ampliar" loading="lazy">`).join('')}</div></div>` : ''; })()}
 
         <div class="er-sec-title">Auditoria ${editable ? '<span class="er-badge er-pill-warn">preencher agora</span>' : (r.auditado ? '<span class="er-badge er-pill-muted">já registrada</span>' : '<span class="er-badge er-pill-muted">somente leitura</span>')}</div>
         <form id="erFormAuditoria">
           <div class="er-field-grid" style="margin-bottom:14px">
-            <div class="er-field"><label>Setor do problema *</label>${editable ? `<select name="setor"><option value="" ${!r.setor ? 'selected' : ''}>— selecione —</option>${fieldOrSel(SETOR_OPCOES, r.setor)}</select>` : `<div class="er-readonly-block">${erEsc(r.setor) || '—'}</div>`}</div>
+            <div class="er-field"><label>Setor do problema *</label>${editable ? `<select name="setor"><option value="" ${!r.setor ? 'selected' : ''}>Selecione</option>${fieldOrSel(SETOR_OPCOES, r.setor)}</select>` : `<div class="er-readonly-block">${erEsc(r.setor) || '—'}</div>`}</div>
             <div class="er-field"><label>Responsável</label>${editable ? `<input name="responsavel" list="erRespList" value="${erEsc(r.responsavel)}" placeholder="Nome do consultor ou 'Produção (Fábrica)'">` : `<div class="er-readonly-block">${erEsc(r.responsavel) || '—'}</div>`}</div>
           </div>
           <div class="er-field-grid" style="margin-bottom:14px">
@@ -1762,7 +1762,7 @@
 
         <div class="er-sec-title" style="margin-top:20px">Comentar</div>
         <div class="er-field" style="margin-bottom:0">
-          <textarea id="erComentarioInput" placeholder="Algo aconteceu com esse pedido depois do registro? Deixe um comentário — o gestor será avisado."></textarea>
+          <textarea id="erComentarioInput" placeholder="Algo aconteceu com esse pedido depois do registro? Deixe um comentário, o gestor será avisado."></textarea>
           <div style="display:flex;justify-content:flex-end;align-items:center;gap:10px;margin-top:8px">
             <span class="er-save-msg" id="erSaveMsgComentario"></span>
             <button class="er-btn er-btn-primary" type="button" id="erBtnComentar">Comentar</button>
@@ -1804,7 +1804,7 @@
       box.innerHTML = groups.map((g) => `<div class="er-hist-day">${erEsc(g.day)}</div>` + g.items.map((ev) => `<div class="er-hist-item">
         <div class="er-hist-dot"></div>
         <div class="er-hist-content">
-          <div class="er-hist-line"><b>${erEsc(ev.acao)}</b>${ev.detalhe ? ' — ' + erEsc(ev.detalhe) : ''}</div>
+          <div class="er-hist-line"><b>${erEsc(ev.acao)}</b>${ev.detalhe ? ' · ' + erEsc(ev.detalhe) : ''}</div>
           <div class="er-hist-meta">${erEsc(ev.usuario) || '—'}${horaDe(ev.quando) ? ' · ' + erEsc(horaDe(ev.quando)) : ''}</div>
         </div>
       </div>`).join('')).join('');
@@ -1865,7 +1865,7 @@
           if (!json.ok) throw new Error(json.error || 'Erro desconhecido');
           ta.value = ''; msg.textContent = '';
           await carregarHistorico(r.id);
-          toast('Comentário adicionado — gestor notificado', true);
+          toast('Comentário adicionado, gestor notificado', true);
         } catch (err) {
           msg.textContent = 'Erro: ' + err.message;
         } finally {
@@ -1907,7 +1907,7 @@
           closeDrawer(false); erRender();
           toast('Auditoria salva', true);
         } catch (err) {
-          msg.textContent = 'Erro: ' + err.message + ' — confira a conexão e tente de novo.'; btn.disabled = false;
+          msg.textContent = 'Erro: ' + err.message + '. Confira a conexão e tente de novo.'; btn.disabled = false;
         }
       });
     }
@@ -2095,9 +2095,9 @@
         await erRefreshData(true);
         erState.screen = 'casos'; erState.casosView = 'pendentes';
         erRender();
-        toast('Erro registrado como Novo — vai para a auditoria', true);
+        toast('Erro registrado como Novo, vai para a auditoria', true);
       } catch (err) {
-        msg.textContent = 'Erro: ' + err.message + ' — confira a conexão e tente de novo.'; btnCriar.disabled = false;
+        msg.textContent = 'Erro: ' + err.message + '. Confira a conexão e tente de novo.'; btnCriar.disabled = false;
       }
     });
   }

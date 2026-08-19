@@ -92,10 +92,10 @@ function abrirDetalhe(id) {
 
     <div class="pedido-meta">
       <div><div class="k">Modalidade</div>${it.modalidade}</div>
-      ${it.tipoEnvioAereo ? `<div><div class="k">Envio aéreo</div>${it.tipoEnvioAereo}${it.aeroporto ? ' — ' + it.aeroporto : ''}</div>` : ''}
+      ${it.tipoEnvioAereo ? `<div><div class="k">Envio aéreo</div>${it.tipoEnvioAereo}${it.aeroporto ? ' · ' + it.aeroporto : ''}</div>` : ''}
       ${it.freteDedicado ? `<div><div class="k">Transportadora</div>${it.transportadora}</div><div><div class="k">Entregador</div>${it.entregador}</div>` : ''}
       ${parseDataPrevista(it.dataPrevista) ? `<div><div class="k">Previsto p/ quitação</div>${parseDataPrevista(it.dataPrevista).toLocaleDateString('pt-BR')}</div>` : ''}
-      <div><div class="k">Cadastrado por</div>${it.cadastradoPorNome} — ${new Date(it.dataCadastro).toLocaleString('pt-BR')}</div>
+      <div><div class="k">Cadastrado por</div>${it.cadastradoPorNome} · ${new Date(it.dataCadastro).toLocaleString('pt-BR')}</div>
       ${it.dataPagamento ? `<div><div class="k">Pago em</div>${new Date(it.dataPagamento).toLocaleString('pt-BR')}</div>` : ''}
     </div>
 

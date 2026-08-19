@@ -327,7 +327,7 @@ const diaHoje = hoje.getDate(), mesHoje = hoje.getMonth(), anoHoje = hoje.getFul
       const cells = [];
       for (let dia = 1; dia <= diasNoMes; dia++) {
         const status = porDia[dia] || '';
-        cells.push(`<div class="hh-eq-cell st-${status || 'vazio'} editavel" data-slug="${pessoa.slug}" data-dia="${dia}" data-nome="${pessoa.nome}" onclick="excAbrirEditorEscala(this)" title="${pessoa.nome} · dia ${dia}${status ? ': ' + status : ' — sem dado ainda'} (clique pra editar)">${status}</div>`);
+        cells.push(`<div class="hh-eq-cell st-${status || 'vazio'} editavel" data-slug="${pessoa.slug}" data-dia="${dia}" data-nome="${pessoa.nome}" onclick="excAbrirEditorEscala(this)" title="${pessoa.nome} · dia ${dia}${status ? ': ' + status : ', sem dado ainda'} (clique pra editar)">${status}</div>`);
       }
       return `<div class="hh-eq-row"><div class="hh-eq-name">${pessoa.nome.split(' ')[0]}</div><div class="hh-eq-days">${cells.join('')}</div></div>`;
     }).join('');
@@ -435,7 +435,7 @@ const diaHoje = hoje.getDate(), mesHoje = hoje.getMonth(), anoHoje = hoje.getFul
 
     const pessoasEl = document.getElementById('lote-escala-pessoas');
     if (!pessoasEquipeCache.length) {
-      pessoasEl.innerHTML = '<div style="font-size:12px;color:var(--text-hint)">Ainda carregando a lista de consultores — abre de novo em alguns segundos.</div>';
+      pessoasEl.innerHTML = '<div style="font-size:12px;color:var(--text-hint)">Ainda carregando a lista de consultores. Abre de novo em alguns segundos.</div>';
     } else {
       pessoasEl.innerHTML = pessoasEquipeCache.map((c) => `
         <label style="font-size:12.5px;color:var(--text);display:flex;align-items:center;gap:7px;cursor:pointer">
@@ -491,7 +491,7 @@ const diaHoje = hoje.getDate(), mesHoje = hoje.getMonth(), anoHoje = hoje.getFul
       });
       const json = await res.json();
       if (!json.ok) { erroEl.textContent = json.erro || 'Erro ao cadastrar.'; erroEl.style.display = 'block'; return; }
-      sucessoEl.textContent = `${json.gravados || 0} dia(s) gravado(s)${json.falhas ? ' — ' + json.falhas + ' falharam (mês fora do que já existe na planilha?)' : ''}.`;
+      sucessoEl.textContent = `${json.gravados || 0} dia(s) gravado(s)${json.falhas ? ', ' + json.falhas + ' falharam (mês fora do que já existe na planilha?)' : ''}.`;
       sucessoEl.style.display = 'block';
       // Muda várias células de uma vez (várias pessoas × vários dias) — mais
       // simples recarregar a escala da equipe do zero do que remendar célula

@@ -16,7 +16,7 @@ function ativarSom() {
     document.getElementById('btnAtivarSom').textContent = '✓ Som ativado';
     document.getElementById('btnAtivarSom').disabled = true;
   }).catch(() => {
-    document.getElementById('btnAtivarSom').textContent = 'Não foi possível ativar — clique em qualquer lugar da página';
+    document.getElementById('btnAtivarSom').textContent = 'Não foi possível ativar. Clique em qualquer lugar da página';
   });
 }
 
@@ -140,7 +140,7 @@ async function carregar() {
             <div><div class="k">Prazo</div>${formatarHora(p.Prazo)}</div>
             <div><div class="k">Transportadora</div>${p.Transportadora}</div>
             <div><div class="k">Modalidade</div>${p.Modalidade}</div>
-            ${p.TipoEnvioAereo ? `<div><div class="k">Envio aéreo</div>${p.TipoEnvioAereo}${p.AeroportoRetirada ? ' — ' + p.AeroportoRetirada : ''}</div>` : ''}
+            ${p.TipoEnvioAereo ? `<div><div class="k">Envio aéreo</div>${p.TipoEnvioAereo}${p.AeroportoRetirada ? ' · ' + p.AeroportoRetirada : ''}</div>` : ''}
             <div><div class="k">Inserido por</div>${p.InseridoPor}</div>
           </div>
           <div class="pedido-links">

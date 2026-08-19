@@ -219,7 +219,7 @@ function limparValor(txt) {
 function caAbrirPagamento() {
   const filtro = document.getElementById('caFiltroMotorista').value;
   document.getElementById('pgRazaoSocial').value = filtro;
-  document.getElementById('pgMotivo').value = `Pagamento de corridas avulsas — ${document.getElementById('caSemanaLabel').textContent}`;
+  document.getElementById('pgMotivo').value = `Pagamento de corridas avulsas · ${document.getElementById('caSemanaLabel').textContent}`;
   document.getElementById('pgValor').value = caTotalAtual.toFixed(2).replace('.', ',');
   document.getElementById('modal-pagamento').classList.add('show');
 }

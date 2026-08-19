@@ -381,7 +381,7 @@ function renderPico(pico) {
     document.getElementById('pico-card').innerHTML=`<div class="pico-inner">
       <div class="pico-hl"><div class="pico-day">Dia ${pk.n}</div><div class="pico-sub">maior pico</div></div>
       <div class="pico-bars" id="pico-bars-mes">${pico.map(d=>{const isH=d.n===diaHoje&&mesAtual===mesHoje;const h=d.v>0?Math.round((d.v/maxV)*46):3;const cor=isH?'var(--gold)':d.n===pk.n?'rgba(245,195,0,.65)':d.v===0?'rgba(255,255,255,.05)':'rgba(245,195,0,.2)';return `<div class="pc-col"><span class="t-tooltip">${d.v} ${picoUnidade}</span><div class="pc-bar" style="height:${Math.max(h,3)}px;background:${cor};${isH?'outline:1.5px solid var(--gold-dark);outline-offset:1px':''}"></div><div class="pc-lbl" style="${isH||d.n===pk.n?'color:var(--gold)':''}">${d.n}</div></div>`;}).join('')}</div>
-      <div class="pico-info"><strong>${pk.v} ${picoUnidade}</strong> no dia ${pk.n} — maior do mês.</div></div>`;
+      <div class="pico-info"><strong>${pk.v} ${picoUnidade}</strong> no dia ${pk.n}, maior do mês.</div></div>`;
     const picoBarsMesCont = document.getElementById('pico-bars-mes');
     if (picoBarsMesCont) {
       const dadosTrendMes = pico.map(d => ({val: d.v > 0 ? d.v : null}));
@@ -392,7 +392,7 @@ function renderPico(pico) {
     const maxV=Math.max(...pico.map(d=>d.v),1), pk=pico.reduce((a,b)=>b.v>a.v?b:a,pico[0]);
     const picoCard = document.getElementById('pico-card');
     const nomesDia = {Sex:'Sexta',Seg:'Segunda',Ter:'Terça',Qua:'Quarta',Qui:'Quinta'};
-    picoCard.innerHTML='<div class="pico-inner"><div class="pico-hl"><div class="pico-day">' + pk.d + '</div><div class="pico-sub">maior pico</div></div><div class="pico-bars" id="pico-bars-sem">' + pico.map(d=>{const isH=d.d===nomeDiaHoje&&mesAtual===mesHoje;const h=maxV>0?Math.round((d.v/maxV)*46):0;const cor=isH?'var(--gold)':d.d===pk.d&&pk.v>0?'rgba(245,195,0,.65)':'rgba(245,195,0,.2)';return '<div class="pc-col"><span class="t-tooltip">'+d.v+' '+picoUnidade+'</span><div class="pc-bar" style="height:'+Math.max(h,4)+'px;background:'+cor+';'+(isH?'outline:1.5px solid var(--gold-dark);outline-offset:1px':'')+'"></div><div class="pc-lbl" style="'+(isH?'color:var(--gold);font-weight:700':'')+'">'+d.d+(isH?' ●':'')+'</div></div>';}).join('') + '</div><div class="pico-info"><strong>' + pk.v + ' ' + picoUnidade + '</strong> na ' + (nomesDia[pk.d]||pk.d) + '-feira — maior da semana.</div></div>';
+    picoCard.innerHTML='<div class="pico-inner"><div class="pico-hl"><div class="pico-day">' + pk.d + '</div><div class="pico-sub">maior pico</div></div><div class="pico-bars" id="pico-bars-sem">' + pico.map(d=>{const isH=d.d===nomeDiaHoje&&mesAtual===mesHoje;const h=maxV>0?Math.round((d.v/maxV)*46):0;const cor=isH?'var(--gold)':d.d===pk.d&&pk.v>0?'rgba(245,195,0,.65)':'rgba(245,195,0,.2)';return '<div class="pc-col"><span class="t-tooltip">'+d.v+' '+picoUnidade+'</span><div class="pc-bar" style="height:'+Math.max(h,4)+'px;background:'+cor+';'+(isH?'outline:1.5px solid var(--gold-dark);outline-offset:1px':'')+'"></div><div class="pc-lbl" style="'+(isH?'color:var(--gold);font-weight:700':'')+'">'+d.d+(isH?' ●':'')+'</div></div>';}).join('') + '</div><div class="pico-info"><strong>' + pk.v + ' ' + picoUnidade + '</strong> na ' + (nomesDia[pk.d]||pk.d) + '-feira, maior da semana.</div></div>';
     const picoBarsCont = document.getElementById('pico-bars-sem');
     if (picoBarsCont) {
       const dadosTrend = pico.map(d => ({val: d.v > 0 ? d.v : null}));
