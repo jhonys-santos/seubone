@@ -88,4 +88,8 @@ module.exports = [
     chave: 'painel-erros', titulo: 'Painel de Erros', descricao: 'Registro e auditoria de erros de pedidos, com indicadores por setor/causa/consultor',
     url: '/erros', icone: 'ti-bug',
   },
+  {
+    chave: 'tickets', titulo: 'Painel de Ticket', descricao: 'Acompanhamento de tickets (pedido atrasado, refabricação, envio) com tempo médio de resolução',
+    url: '/tickets', icone: 'ti-ticket',
+  },
 ];

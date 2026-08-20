@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<%- include('../partials/head') %>
+<title>Painel de Ticket - SeuBoné</title>
+<link rel="stylesheet" href="/css/tickets.css">
+</head>
+<body>
+<div class="app-shell">
+<%- include('../partials/sidebar') %>
+<div class="app-main">
+
+<div class="tk-scope">
+
+  <div class="tk-header">
+    <div>
+      <h1>Painel de Ticket</h1>
+      <div class="tk-sub"><span id="tkPageSub"></span><span class="tk-last-sync" id="tkLastSync"></span></div>
+    </div>
+    <nav class="tk-nav" id="tkNav">
+      <button data-view="lista" class="active">Tickets</button>
+      <button data-view="dashboard">Dashboard</button>
+    </nav>
+  </div>
+
+  <div class="tk-filters" id="tkFilters">
+    <button class="tk-btn tk-btn-accent" id="tkBtnNovo" title="Abrir novo ticket">+ Novo ticket</button>
+    <select id="tkFStatus">
+      <option value="abertos">Abertos</option>
+      <option value="fechados">Fechados</option>
+      <option value="todos">Todos</option>
+    </select>
+    <select id="tkFResponsavel"><option value="">Todos os responsáveis</option></select>
+    <select id="tkFIdentificador"><option value="">Todos os identificadores</option></select>
+    <select id="tkFSetor"><option value="">Todos os setores</option></select>
+    <button class="tk-iconbtn" id="tkBtnRefresh" title="Atualizar dados">⟳</button>
+  </div>
+
+  <div id="tkBoot" class="tk-boot"><div class="tk-spinner"></div><div id="tkBootMsg">Carregando dados…</div></div>
+  <main id="tkMain" style="display:none"></main>
+
+</div>
+
+</div>
+</div>
+
+<div id="tkModalRoot"></div>
+
+<script>
+  window.USUARIO_SESSAO = <%- JSON.stringify(usuario) %>;
+  window.USUARIOS_HUB = <%- JSON.stringify(usuariosHub || []) %>;
+</script>
+<script src="/js/tickets.js"></script>
+</body>
+</html>

@@ -1,0 +1,164 @@
+/* ── PAINEL DE TICKET ─────────────────────────────────────────────
+   Mesma receita de Painel de Erros / Auditoria de Qualidade: uma rota só,
+   "telas" trocadas por JS, tudo em cima dos tokens de base.css. Todo
+   seletor é prefixado com "tk-" pra não colidir com outras páginas que
+   carregam junto. */
+
+.tk-scope { max-width: 1200px; margin: 0 auto; padding: 0 1.25rem 5rem; }
+
+/* ===== Cabeçalho + navegação ===== */
+.tk-header {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+  padding: 1.5rem 0 1rem; position: sticky; top: 0; z-index: 20;
+  background: color-mix(in oklab, var(--bg) 88%, transparent);
+  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+}
+.tk-header h1 { font-size: 21px; font-weight: 700; letter-spacing: -0.01em; margin: 0; }
+.tk-sub { font-size: 12.5px; color: var(--text-muted); margin-top: 3px; display: flex; align-items: center; gap: 8px; }
+.tk-last-sync { color: var(--text-hint); white-space: nowrap; }
+
+.tk-nav { display: flex; gap: 6px; flex-wrap: wrap; }
+.tk-nav button {
+  background: transparent; border: 1px solid var(--border); color: var(--text-muted);
+  padding: 8px 14px; border-radius: var(--radius-sm); cursor: pointer; font-size: 13px; font-weight: 600;
+  font-family: inherit; white-space: nowrap;
+}
+.tk-nav button:hover { border-color: var(--gold-dark); color: var(--text); }
+.tk-nav button.active { background: var(--gold); border-color: var(--gold); color: var(--on-gold, #1c1c1c); }
+
+/* ===== Filtros ===== */
+.tk-filters { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 18px; }
+.tk-filters select {
+  font-size: 12.5px; padding: 7px 10px; border: 1px solid var(--border-strong); border-radius: var(--radius-sm);
+  background: var(--surface-2); color: var(--text); font-family: inherit; cursor: pointer;
+}
+.tk-iconbtn {
+  width: 32px; height: 32px; border-radius: var(--radius-sm); border: 1px solid var(--border-strong);
+  background: var(--surface-2); color: var(--text-muted); cursor: pointer; font-size: 14px;
+  display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.tk-iconbtn:hover { border-color: var(--gold-dark); color: var(--gold); }
+
+/* ===== Boot ===== */
+.tk-boot { min-height: 40vh; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 10px; color: var(--text-muted); font-size: 13px; text-align: center; }
+.tk-spinner { width: 26px; height: 26px; border-radius: 50%; border: 3px solid var(--border); border-top-color: var(--gold); animation: tk-spin .8s linear infinite; }
+@keyframes tk-spin { to { transform: rotate(360deg); } }
+.tk-boot-err { max-width: 440px; padding: 24px; }
+.tk-boot-err .e-title { font-size: 16px; font-weight: 700; margin-top: 10px; color: var(--text); }
+.tk-boot-err .e-sub { font-size: 13px; color: var(--text-muted); margin-top: 8px; line-height: 1.55; }
+
+/* ===== KPIs (topo da lista + dashboard) ===== */
+.tk-kpis { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+.tk-kpi { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 18px; min-width: 150px; flex: 1; }
+.tk-kpi .k-l { font-size: 11px; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+.tk-kpi .k-v { font-size: 24px; font-weight: 800; margin-top: 4px; color: var(--text); font-variant-numeric: tabular-nums; }
+.tk-kpi.warn { border-color: var(--bad); background: var(--bad-bg); }
+.tk-kpi.warn .k-v { color: var(--bad-text, var(--bad)); }
+.tk-kpi.accent { border-color: var(--gold-dark); background: var(--gold-dim); }
+
+/* ===== Cards / stat ===== */
+.tk-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px 20px; margin-bottom: 14px; }
+.tk-card h3 { font-size: 14px; font-weight: 700; margin: 0; color: var(--text); }
+.tk-card .card-sub { font-size: 12.5px; color: var(--text-muted); margin: 4px 0 10px; line-height: 1.45; }
+.tk-grid-2col { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 14px; }
+
+/* ===== Ranking em barra (TMR por responsável/identificador) ===== */
+.tk-rk-row { padding: 11px 0; border-bottom: 1px solid var(--border); }
+.tk-rk-row:last-child { border-bottom: 0; }
+.tk-rk-top { display: flex; align-items: center; gap: 9px; font-size: 13.5px; }
+.tk-rk-name { font-weight: 600; color: var(--text); }
+.tk-rk-count { margin-left: auto; color: var(--text-muted); font-size: 12.5px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.tk-rk-bar { height: 6px; border-radius: 999px; background: var(--surface-3); margin-top: 8px; overflow: hidden; }
+.tk-rk-bar i { display: block; height: 100%; border-radius: 999px; background: var(--gold); }
+
+/* ===== Badges / pílulas ===== */
+.tk-badge { font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 999px; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px; }
+.tk-badge-aberto { background: var(--warn-bg); color: var(--warn-text, var(--warn)); }
+.tk-badge-fechado { background: var(--ok-bg); color: var(--ok-text, var(--ok)); }
+.tk-badge-muted { background: var(--surface-3); color: var(--text-muted); }
+.tk-age { font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 999px; white-space: nowrap; }
+.tk-age-old { background: var(--bad-bg); color: var(--bad-text, var(--bad)); }
+.tk-age-mid { background: var(--warn-bg); color: var(--warn-text, var(--warn)); }
+.tk-age-ok { background: var(--surface-3); color: var(--text-muted); }
+.tk-idchip { font-family: ui-monospace, "JetBrains Mono", monospace; font-size: 12px; background: var(--surface-2); border: 1px solid var(--border-strong); border-radius: 6px; padding: 2px 8px; color: var(--text); }
+
+/* ===== Tabela ===== */
+.tk-scope table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.tk-scope thead th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--text-muted); font-weight: 700; padding: 9px 12px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+.tk-scope tbody td { padding: 11px 12px; border-bottom: 1px solid var(--border); vertical-align: middle; color: var(--text); }
+.tk-scope tbody tr.tk-clickable { cursor: pointer; }
+.tk-scope tbody tr.tk-clickable:hover { background: var(--surface-2); }
+.tk-tbl-wrap { overflow-x: auto; }
+.tk-empty { text-align: center; padding: 36px 20px; }
+.tk-empty .e-title { font-weight: 700; font-size: 14px; color: var(--text); }
+.tk-empty .e-sub { font-size: 12.5px; color: var(--text-muted); margin-top: 5px; }
+
+/* ===== Toast ===== */
+.tk-toast-wrap { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%); z-index: 300; display: flex; flex-direction: column; gap: 8px; align-items: center; }
+.tk-toast { background: var(--surface-3); color: var(--text); padding: 11px 18px; border-radius: var(--radius-sm); font-size: 13px; font-weight: 600; box-shadow: var(--shadow); display: flex; align-items: center; gap: 10px; opacity: 0; transform: translateY(8px); transition: opacity .2s, transform .2s; max-width: 90vw; border: 1px solid var(--border-strong); }
+.tk-toast.show { opacity: 1; transform: translateY(0); }
+.tk-toast .tok { color: var(--ok); font-weight: 800; }
+.tk-toast .terr { color: var(--bad); font-weight: 800; }
+
+/* ===== Campos de formulário ===== */
+.tk-field-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; }
+.tk-field label { font-size: 10.5px; text-transform: uppercase; letter-spacing: .06em; color: var(--text-muted); font-weight: 700; display: block; margin-bottom: 5px; }
+.tk-field input, .tk-field select, .tk-field textarea { width: 100%; font-size: 13px; padding: 9px 11px; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); background: var(--surface-2); color: var(--text); font-family: inherit; }
+.tk-field input:focus, .tk-field select:focus, .tk-field textarea:focus { outline: 2px solid var(--gold); outline-offset: 0; }
+.tk-field textarea { resize: vertical; min-height: 60px; line-height: 1.45; }
+.tk-field.err input, .tk-field.err select { border-color: var(--bad) !important; box-shadow: 0 0 0 2px var(--bad-bg); }
+.tk-field-msg { color: var(--bad-text, var(--bad)); font-size: 11.5px; margin-top: 4px; font-weight: 600; }
+.tk-readonly-block { font-size: 13.5px; line-height: 1.5; color: var(--text); background: var(--surface-2); border-radius: var(--radius-sm); padding: 11px 13px; }
+.tk-save-msg { font-size: 12px; color: var(--text-muted); }
+.tk-sec-title { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; color: var(--text); margin-bottom: 12px; }
+
+/* ===== Botões ===== */
+.tk-btn { font-weight: 700; font-size: 13px; padding: 9px 18px; border-radius: var(--radius-sm); cursor: pointer; font-family: inherit; border: none; }
+.tk-btn-primary { background: var(--gold); color: var(--on-gold, #1c1c1c); }
+.tk-btn-primary:hover { filter: brightness(0.95); }
+.tk-btn-primary:disabled { opacity: .5; cursor: default; }
+.tk-btn-ghost { background: transparent; color: var(--text); border: 1px solid var(--border-strong); }
+.tk-btn-ghost:hover { background: var(--surface-2); }
+.tk-btn-accent { background: var(--gold); color: var(--on-gold, #1c1c1c); }
+.tk-btn-accent:hover { filter: brightness(0.95); }
+.tk-btn-bad { background: var(--bad-bg); color: var(--bad-text, var(--bad)); border: 1px solid var(--bad); }
+.tk-btn-bad:hover { filter: brightness(0.95); }
+.tk-btn-bad:disabled { opacity: .5; cursor: default; }
+
+/* ===== Drawer lateral (detalhe do ticket) ===== */
+.tk-drawer-scrim { position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 400; opacity: 0; transition: opacity .18s ease; }
+.tk-drawer-scrim.show { opacity: 1; }
+.tk-drawer { position: fixed; top: 0; right: 0; height: 100vh; width: min(520px, 94vw); background: var(--surface); box-shadow: -16px 0 48px rgba(0,0,0,.35); z-index: 401; display: flex; flex-direction: column; transform: translateX(100%); transition: transform .24s cubic-bezier(.4,0,.2,1); }
+.tk-drawer.show { transform: translateX(0); }
+.tk-drawer-head { padding: 15px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: flex-start; gap: 10px; }
+.tk-drawer-body { padding: 18px 20px; overflow-y: auto; flex: 1; }
+.tk-drawer-foot { padding: 14px 20px; border-top: 1px solid var(--border); display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap; background: var(--surface); align-items: center; }
+.tk-close-btn { flex-shrink: 0; width: 32px; height: 32px; border-radius: var(--radius-sm); border: 1px solid var(--border-strong); background: var(--surface-2); color: var(--text-muted); font-size: 15px; cursor: pointer; }
+.tk-close-btn:hover { background: var(--surface-3); }
+@media (max-width: 640px) { .tk-drawer { width: 100vw; } }
+
+/* ===== Histórico (timeline no drawer) ===== */
+.tk-hist-box { display: flex; flex-direction: column; }
+.tk-hist-day { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; color: var(--text-hint); margin: 6px 0 10px; padding-top: 4px; }
+.tk-hist-day:first-child { padding-top: 0; }
+.tk-hist-item { display: flex; gap: 11px; padding-bottom: 15px; position: relative; }
+.tk-hist-item:not(:last-child)::before { content: ""; position: absolute; left: 4px; top: 13px; bottom: 0; width: 2px; background: var(--border); }
+.tk-hist-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--gold); margin-top: 3px; flex: 0 0 auto; z-index: 1; }
+.tk-hist-content { flex: 1; min-width: 0; }
+.tk-hist-line { font-size: 13px; color: var(--text); line-height: 1.4; }
+.tk-hist-meta { font-size: 11.5px; color: var(--text-muted); margin-top: 2px; }
+.tk-hist-empty { font-size: 12.5px; color: var(--text-muted); font-style: italic; line-height: 1.5; }
+
+/* ===== Modal "Novo ticket" ===== */
+.tk-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.6); display: flex; align-items: flex-start; justify-content: center; padding: 40px 16px; z-index: 500; overflow-y: auto; }
+.tk-modal { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow); width: 100%; max-width: 640px; margin: auto; display: flex; flex-direction: column; max-height: calc(100vh - 80px); }
+.tk-modal-head { padding: 20px 24px; border-bottom: 1px solid var(--border); display: flex; align-items: flex-start; gap: 16px; }
+.tk-modal-head .title { font-size: 18px; font-weight: 800; letter-spacing: -.2px; color: var(--text); }
+.tk-modal-head .sub { font-size: 12.5px; color: var(--text-muted); margin-top: 4px; }
+.tk-modal-body { padding: 20px 24px; overflow-y: auto; flex: 1; }
+.tk-modal-foot { padding: 14px 24px; border-top: 1px solid var(--border); display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap; background: var(--surface); align-items: center; }
+
+@media (max-width: 900px) {
+  .tk-header { padding-top: 66px; }
+  .tk-scope { padding: 0 1rem 4rem; }
+}

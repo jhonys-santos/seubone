@@ -1,0 +1,583 @@
+// Painel de Ticket — acompanhamento de tickets (pedido atrasado,
+// refabricação, erro de envio) com tempo de abertura/fechamento e TMR
+// (tempo médio de resolução). Mesma receita do Painel de Erros: uma rota
+// só, "telas" trocadas por JS, Google Sheets + Apps Script por trás.
+
+(function () {
+  'use strict';
+
+  function tkEsc(v) {
+    return String(v == null ? '' : v).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  }
+
+  const SESSAO = window.USUARIO_SESSAO || null;
+  const papel = (SESSAO && SESSAO.role === 'gestor') ? 'gestor' : 'colaborador';
+  const USUARIOS_HUB = window.USUARIOS_HUB || [];
+
+  const IDENTIFICADOR_OPCOES = ['Pedido atrasado', 'Refabricação', 'Erro de Envio'];
+  const SETOR_OPCOES = ['Vendas', 'Fábrica', 'Dupla (Vendedor e Designer)', 'Escritório', 'Cliente', 'Estoque'];
+
+  let RECORDS = [];
+  let LAST_SYNC = null;
+  let CASO_ATUAL = null;
+  const tkState = { screen: 'lista', fStatus: 'abertos', fResponsavel: '', fIdentificador: '', fSetor: '' };
+
+  /* ================= CARREGAMENTO ================= */
+
+  async function tkLoadRealData() {
+    const res = await fetch('/tickets/api/tickets');
+    const json = await res.json();
+    if (!json.ok) throw new Error(json.erro || json.error || 'Erro desconhecido');
+    return json.tickets.map((t) => ({ id: t.rowIndex, ...t }));
+  }
+
+  async function tkBoot() {
+    const bootEl = document.getElementById('tkBoot');
+    const mainEl = document.getElementById('tkMain');
+    bootEl.style.display = 'flex'; mainEl.style.display = 'none';
+    try {
+      RECORDS = await tkLoadRealData();
+    } catch (err) {
+      bootEl.innerHTML = `<div class="tk-boot-err">
+        <div class="e-title">Não consegui carregar os dados</div>
+        <div class="e-sub">O servidor demorou demais ou está indisponível. Aguarde alguns segundos e tente de novo.</div>
+        <button class="tk-btn tk-btn-primary" id="tkBtnRetryBoot" style="margin-top:10px">Tentar de novo</button>
+        <div style="font-size:11px;color:var(--text-hint);margin-top:12px">${tkEsc(String(err && err.message || err))}</div>
+      </div>`;
+      document.getElementById('tkBtnRetryBoot').addEventListener('click', tkBoot);
+      return;
+    }
+    LAST_SYNC = Date.now();
+    tkInitFilterOptions();
+    bootEl.style.display = 'none'; mainEl.style.display = '';
+    tkRender();
+    tkUpdateLastSync();
+    syncFromHash();
+  }
+
+  async function tkRefreshData(silent) {
+    const btn = document.getElementById('tkBtnRefresh');
+    if (!silent) { btn.disabled = true; btn.textContent = '…'; }
+    try {
+      RECORDS = await tkLoadRealData();
+      LAST_SYNC = Date.now();
+      tkInitFilterOptions();
+      tkRender();
+      tkUpdateLastSync();
+    } catch (err) {
+      toast('Não consegui atualizar agora.', false);
+    } finally {
+      if (!silent) { btn.disabled = false; btn.textContent = '⟳'; }
+    }
+  }
+
+  function tkUpdateLastSync() {
+    const el = document.getElementById('tkLastSync');
+    if (el && LAST_SYNC) el.textContent = 'atualizado há pouco';
+  }
+
+  function tkInitFilterOptions() {
+    const fillSelect = (id, values, placeholder) => {
+      const el = document.getElementById(id);
+      const current = el.value;
+      el.innerHTML = `<option value="">${placeholder}</option>` + values.map((v) => `<option value="${tkEsc(v)}">${tkEsc(v)}</option>`).join('');
+      el.value = current;
+    };
+    const responsaveis = Array.from(new Set(RECORDS.map((r) => r.responsavel).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+    const identificadores = Array.from(new Set([...IDENTIFICADOR_OPCOES, ...RECORDS.map((r) => r.identificador).filter(Boolean)]));
+    const setores = Array.from(new Set([...SETOR_OPCOES, ...RECORDS.map((r) => r.setor).filter(Boolean)]));
+    fillSelect('tkFResponsavel', responsaveis, 'Todos os responsáveis');
+    fillSelect('tkFIdentificador', identificadores, 'Todos os identificadores');
+    fillSelect('tkFSetor', setores, 'Todos os setores');
+  }
+
+  /* ================= TEMPO ================= */
+
+  function parseData(iso) { return iso ? new Date(iso) : null; }
+
+  function horasEntre(a, b) {
+    if (!a || !b) return null;
+    return Math.max(0, (b.getTime() - a.getTime()) / 3600000);
+  }
+
+  function fmtHoras(h) {
+    if (h == null) return '—';
+    if (h < 1) return Math.round(h * 60) + 'min';
+    if (h < 24) return Math.round(h) + 'h';
+    const dias = Math.floor(h / 24);
+    const resto = Math.round(h % 24);
+    return dias + 'd' + (resto ? ' ' + resto + 'h' : '');
+  }
+
+  // Ticket aberto: tempo decorrido até agora. Ticket fechado: tempo total
+  // até o fechamento (não continua correndo).
+  function tempoTicket(r) {
+    const abertura = parseData(r.dataAbertura);
+    const fim = r.status === 'Fechado' ? parseData(r.dataFechamento) : new Date();
+    return horasEntre(abertura, fim);
+  }
+
+  function idadeClasse(horas) {
+    if (horas == null) return 'tk-age-ok';
+    if (horas >= 72) return 'tk-age-old';
+    if (horas >= 24) return 'tk-age-mid';
+    return 'tk-age-ok';
+  }
+
+  function fmtDataHora(iso) {
+    const d = parseData(iso);
+    if (!d) return '—';
+    return d.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  }
+
+  /* ================= PAPÉIS ================= */
+
+  function souEuOResponsavel(r) { return !!(SESSAO && r.responsavelSlug && r.responsavelSlug === SESSAO.slug); }
+  function podeFechar(r) { return r.status !== 'Fechado' && (papel === 'gestor' || souEuOResponsavel(r)); }
+  function podeAtribuir() { return papel === 'gestor'; }
+
+  /* ================= TOAST ================= */
+
+  function toast(msg, ok) {
+    let wrap = document.getElementById('tkToastWrap');
+    if (!wrap) { wrap = document.createElement('div'); wrap.id = 'tkToastWrap'; wrap.className = 'tk-toast-wrap'; document.body.appendChild(wrap); }
+    const t = document.createElement('div'); t.className = 'tk-toast';
+    t.innerHTML = (ok === true ? '<span class="tok">✓</span> ' : ok === false ? '<span class="terr">!</span> ' : '') + msg;
+    wrap.appendChild(t); void t.offsetWidth; t.classList.add('show');
+    setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.remove(), 250); }, 3200);
+  }
+
+  /* ================= NAVEGAÇÃO ================= */
+
+  document.getElementById('tkNav').addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-view]');
+    if (!btn) return;
+    tkState.screen = btn.dataset.view;
+    document.querySelectorAll('#tkNav button').forEach((b) => b.classList.toggle('active', b === btn));
+    tkRender();
+  });
+  document.getElementById('tkBtnRefresh').addEventListener('click', () => tkRefreshData(false));
+  document.getElementById('tkBtnNovo').addEventListener('click', openNovoTicket);
+  document.getElementById('tkFStatus').addEventListener('change', (e) => { tkState.fStatus = e.target.value; tkRender(); });
+  document.getElementById('tkFResponsavel').addEventListener('change', (e) => { tkState.fResponsavel = e.target.value; tkRender(); });
+  document.getElementById('tkFIdentificador').addEventListener('change', (e) => { tkState.fIdentificador = e.target.value; tkRender(); });
+  document.getElementById('tkFSetor').addEventListener('change', (e) => { tkState.fSetor = e.target.value; tkRender(); });
+
+  function tkRender() {
+    const main = document.getElementById('tkMain');
+    const filtEl = document.getElementById('tkFilters');
+    filtEl.style.display = tkState.screen === 'dashboard' ? 'none' : '';
+    if (tkState.screen === 'dashboard') { renderDashboard(main); return; }
+    renderLista(main);
+  }
+
+  /* ================= LISTA ================= */
+
+  function rowsFiltradas() {
+    return RECORDS.filter((r) => {
+      if (tkState.fStatus === 'abertos' && r.status === 'Fechado') return false;
+      if (tkState.fStatus === 'fechados' && r.status !== 'Fechado') return false;
+      if (tkState.fResponsavel && r.responsavel !== tkState.fResponsavel) return false;
+      if (tkState.fIdentificador && r.identificador !== tkState.fIdentificador) return false;
+      if (tkState.fSetor && r.setor !== tkState.fSetor) return false;
+      return true;
+    }).sort((a, b) => new Date(b.dataAbertura) - new Date(a.dataAbertura));
+  }
+
+  function statusBadge(r) {
+    if (r.status === 'Fechado') return `<span class="tk-badge tk-badge-fechado">Fechado</span>`;
+    return `<span class="tk-badge tk-badge-aberto">Aberto</span>`;
+  }
+
+  function renderLista(main) {
+    const abertos = RECORDS.filter((r) => r.status !== 'Fechado');
+    const semResponsavel = abertos.filter((r) => !r.responsavel).length;
+    const rows = rowsFiltradas();
+
+    main.innerHTML = `
+      <div class="tk-kpis">
+        <div class="tk-kpi"><div class="k-l">Abertos</div><div class="k-v">${abertos.length}</div></div>
+        <div class="tk-kpi ${semResponsavel ? 'warn' : ''}"><div class="k-l">Sem responsável</div><div class="k-v">${semResponsavel}</div></div>
+        <div class="tk-kpi"><div class="k-l">Fechados</div><div class="k-v">${RECORDS.length - abertos.length}</div></div>
+      </div>
+      <div class="tk-card" style="padding:0">
+        <div class="tk-tbl-wrap">
+          <table>
+            <thead><tr>
+              <th>Ticket</th><th>Pedido</th><th>Identificador</th><th>Setor</th><th>Responsável</th><th>Status</th><th>${tkState.fStatus === 'fechados' ? 'Tempo total' : 'Aberto há'}</th>
+            </tr></thead>
+            <tbody>
+              ${rows.length === 0 ? `<tr><td colspan="7"><div class="tk-empty"><div class="e-title">Nenhum ticket encontrado</div><div class="e-sub">Ajuste os filtros ou clique em "+ Novo ticket".</div></div></td></tr>` : rows.map((r) => {
+                const horas = tempoTicket(r);
+                return `<tr class="tk-clickable" data-id="${r.id}">
+                  <td>${r.idTicket ? '#' + tkEsc(r.idTicket) : '<span style="color:var(--text-hint)">—</span>'}</td>
+                  <td style="font-weight:600">${tkEsc(r.pedido) || '—'}</td>
+                  <td>${tkEsc(r.identificador) || '—'}</td>
+                  <td>${tkEsc(r.setor) || '—'}</td>
+                  <td>${tkEsc(r.responsavel) || '<span style="color:var(--warn-text,var(--warn))">não atribuído</span>'}</td>
+                  <td>${statusBadge(r)}</td>
+                  <td><span class="tk-age ${idadeClasse(horas)}">${fmtHoras(horas)}</span></td>
+                </tr>`;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    `;
+    main.querySelectorAll('tbody tr.tk-clickable').forEach((tr) => {
+      tr.addEventListener('click', () => openTicket(Number(tr.dataset.id)));
+    });
+  }
+
+  /* ================= DASHBOARD ================= */
+
+  function tmrDe(lista) {
+    const fechados = lista.filter((r) => r.status === 'Fechado' && r.dataAbertura && r.dataFechamento);
+    if (!fechados.length) return null;
+    const soma = fechados.reduce((s, r) => s + (horasEntre(parseData(r.dataAbertura), parseData(r.dataFechamento)) || 0), 0);
+    return soma / fechados.length;
+  }
+
+  function rankingPor(campo) {
+    const grupos = new Map();
+    RECORDS.filter((r) => r.status === 'Fechado' && r[campo]).forEach((r) => {
+      const chave = r[campo];
+      if (!grupos.has(chave)) grupos.set(chave, []);
+      grupos.get(chave).push(r);
+    });
+    return Array.from(grupos.entries())
+      .map(([nome, lista]) => ({ nome, tmr: tmrDe(lista), n: lista.length }))
+      .filter((g) => g.tmr != null)
+      .sort((a, b) => b.tmr - a.tmr);
+  }
+
+  function renderRanking(titulo, sub, grupos) {
+    const max = grupos.length ? Math.max(...grupos.map((g) => g.tmr)) : 1;
+    return `
+      <div class="tk-card">
+        <h3>${titulo}</h3>
+        <div class="card-sub">${sub}</div>
+        ${grupos.length === 0 ? `<div class="tk-hist-empty">Sem tickets fechados nesse recorte ainda.</div>` : grupos.map((g) => `
+          <div class="tk-rk-row">
+            <div class="tk-rk-top">
+              <span class="tk-rk-name">${tkEsc(g.nome)}</span>
+              <span class="tk-rk-count">${fmtHoras(g.tmr)} · ${g.n} ticket(s)</span>
+            </div>
+            <div class="tk-rk-bar"><i style="width:${Math.max(4, g.tmr / max * 100)}%"></i></div>
+          </div>
+        `).join('')}
+      </div>`;
+  }
+
+  function renderDashboard(main) {
+    const tmrGeral = tmrDe(RECORDS);
+    const abertos = RECORDS.filter((r) => r.status !== 'Fechado').length;
+    const fechados = RECORDS.length - abertos;
+
+    main.innerHTML = `
+      <div class="tk-kpis">
+        <div class="tk-kpi accent"><div class="k-l">TMR geral</div><div class="k-v">${fmtHoras(tmrGeral)}</div></div>
+        <div class="tk-kpi"><div class="k-l">Tickets abertos</div><div class="k-v">${abertos}</div></div>
+        <div class="tk-kpi"><div class="k-l">Tickets fechados</div><div class="k-v">${fechados}</div></div>
+      </div>
+      <div class="tk-grid-2col">
+        ${renderRanking('TMR por responsável', 'Tempo médio de resolução entre a abertura e o fechamento, só de tickets fechados.', rankingPor('responsavel'))}
+        ${renderRanking('TMR por identificador', 'Quais tipos de ticket demoram mais pra resolver.', rankingPor('identificador'))}
+      </div>
+    `;
+  }
+
+  /* ================= DRAWER ================= */
+
+  function parseTicketHash() { const m = (location.hash || '').match(/^#\/t\/(-?\d+)/); return m ? Number(m[1]) : null; }
+
+  function drawerInnerHTML(r) {
+    const horas = tempoTicket(r);
+    const respOptions = ['<option value="">— não atribuído —</option>']
+      .concat(USUARIOS_HUB.map((u) => `<option value="${tkEsc(u.slug)}" ${u.slug === r.responsavelSlug ? 'selected' : ''}>${tkEsc(u.nome)}</option>`))
+      .join('');
+    return `
+      <div class="tk-drawer-head">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:17px;font-weight:800;letter-spacing:-.2px;color:var(--text)">${tkEsc(r.pedido) || (r.idTicket ? '#' + tkEsc(r.idTicket) : 'Ticket #' + r.id)}</div>
+          <div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:8px">
+            ${r.idTicket ? `<span class="tk-idchip">#${tkEsc(r.idTicket)}</span>` : ''}
+            ${statusBadge(r)}
+            <span class="tk-age ${idadeClasse(horas)}">${r.status === 'Fechado' ? 'Resolvido em ' : 'Aberto há '}${fmtHoras(horas)}</span>
+          </div>
+        </div>
+        <button class="tk-close-btn" id="tkDrwClose">✕</button>
+      </div>
+      <div class="tk-drawer-body">
+        <div class="tk-sec-title">Dados do ticket</div>
+        <div class="tk-field-grid" style="margin-bottom:16px">
+          <div class="tk-field"><label>Identificador</label><div class="tk-readonly-block">${tkEsc(r.identificador) || '—'}</div></div>
+          <div class="tk-field"><label>Setor</label><div class="tk-readonly-block">${tkEsc(r.setor) || '—'}</div></div>
+          <div class="tk-field"><label>ID da venda</label><div class="tk-readonly-block">${tkEsc(r.idVenda) || '—'}</div></div>
+          <div class="tk-field"><label>Origem</label><div class="tk-readonly-block">${r.origem === 'n8n' ? 'Automático (n8n)' : 'Manual'}</div></div>
+          <div class="tk-field"><label>Aberto em</label><div class="tk-readonly-block">${fmtDataHora(r.dataAbertura)}</div></div>
+          <div class="tk-field"><label>Fechado em</label><div class="tk-readonly-block">${fmtDataHora(r.dataFechamento)}</div></div>
+        </div>
+        ${r.link ? `<div class="tk-field" style="margin-bottom:16px"><label>Link</label><div class="tk-readonly-block"><a href="${tkEsc(r.link)}" target="_blank" rel="noopener">${tkEsc(r.link)}</a></div></div>` : ''}
+        ${r.observacao ? `<div class="tk-field" style="margin-bottom:16px"><label>Observação</label><div class="tk-readonly-block" style="font-style:italic">${tkEsc(r.observacao)}</div></div>` : ''}
+
+        <div class="tk-sec-title" style="margin-top:20px">Responsável</div>
+        ${podeAtribuir()
+          ? `<div class="tk-field" style="margin-bottom:0"><select id="tkSelResponsavel">${respOptions}</select>
+              <div style="display:flex;justify-content:flex-end;margin-top:8px"><button class="tk-btn tk-btn-ghost" id="tkBtnAtribuir" type="button">Atribuir</button></div>
+            </div>`
+          : `<div class="tk-readonly-block">${tkEsc(r.responsavel) || 'não atribuído'}</div>`}
+
+        <div class="tk-sec-title" style="margin-top:20px">Histórico</div>
+        <div id="tkHistBox" class="tk-hist-box">Carregando…</div>
+
+        <div class="tk-sec-title" style="margin-top:20px">Comentar</div>
+        <div class="tk-field" style="margin-bottom:0">
+          <textarea id="tkComentarioInput" placeholder="Alguma atualização sobre esse ticket? Deixe um comentário, o gestor será avisado."></textarea>
+          <div style="display:flex;justify-content:flex-end;align-items:center;gap:10px;margin-top:8px">
+            <span class="tk-save-msg" id="tkSaveMsgComentario"></span>
+            <button class="tk-btn tk-btn-primary" type="button" id="tkBtnComentar">Comentar</button>
+          </div>
+        </div>
+      </div>
+      <div class="tk-drawer-foot">
+        <span class="tk-save-msg" id="tkSaveMsg"></span>
+        <button class="tk-btn tk-btn-ghost" id="tkDrwFechar">Fechar drawer</button>
+        ${podeFechar(r) ? `<button class="tk-btn tk-btn-primary" id="tkBtnFecharTicket">Fechar ticket</button>` : ''}
+      </div>
+    `;
+  }
+
+  async function carregarHistoricoTicket(rowIndex) {
+    const box = document.getElementById('tkHistBox');
+    if (!box) return;
+    try {
+      const res = await fetch('/tickets/api/historico?rowIndex=' + encodeURIComponent(rowIndex));
+      const json = await res.json();
+      if (CASO_ATUAL !== rowIndex) return;
+      const evs = (json && json.ok && json.eventos) ? json.eventos : [];
+      if (!evs.length) {
+        box.innerHTML = '<div class="tk-hist-empty">Nenhum evento ainda.</div>';
+        return;
+      }
+      const groups = []; const idxByDay = {};
+      evs.forEach((ev) => {
+        const day = (String(ev.quando || '').split(/[ T]/)[0]) || 'Sem data';
+        if (idxByDay[day] === undefined) { idxByDay[day] = groups.length; groups.push({ day, items: [] }); }
+        groups[idxByDay[day]].items.push(ev);
+      });
+      box.innerHTML = groups.map((g) => `<div class="tk-hist-day">${tkEsc(g.day)}</div>` + g.items.map((ev) => `<div class="tk-hist-item">
+        <div class="tk-hist-dot"></div>
+        <div class="tk-hist-content">
+          <div class="tk-hist-line"><b>${tkEsc(ev.acao)}</b>${ev.detalhe ? ' · ' + tkEsc(ev.detalhe) : ''}</div>
+          <div class="tk-hist-meta">${tkEsc(ev.usuario) || '—'}</div>
+        </div>
+      </div>`).join('')).join('');
+    } catch (e) {
+      if (CASO_ATUAL === rowIndex) box.innerHTML = '<div class="tk-hist-empty">Não consegui carregar o histórico agora.</div>';
+    }
+  }
+
+  function renderDrawer(id) {
+    const r = RECORDS.find((x) => x.id === id);
+    if (!r) { closeDrawer(true); return; }
+    CASO_ATUAL = id;
+    const root = document.getElementById('tkModalRoot');
+    const existing = root.querySelector('.tk-drawer');
+    const html = drawerInnerHTML(r);
+    if (existing) {
+      existing.innerHTML = html;
+    } else {
+      root.innerHTML = `<div class="tk-drawer-scrim" id="tkDrawerScrim"></div><div class="tk-drawer" id="tkDrawer" role="dialog" aria-modal="true" aria-label="Detalhe do ticket">${html}</div>`;
+      const scrim = document.getElementById('tkDrawerScrim');
+      const dr = document.getElementById('tkDrawer');
+      scrim.addEventListener('click', () => closeDrawer(false));
+      void dr.offsetWidth;
+      scrim.classList.add('show'); dr.classList.add('show');
+    }
+    wireDrawer(r);
+  }
+
+  function wireDrawer(r) {
+    const $ = (i) => document.getElementById(i);
+    carregarHistoricoTicket(r.id);
+    $('tkDrwClose').addEventListener('click', () => closeDrawer(false));
+    const fechar = $('tkDrwFechar'); if (fechar) fechar.addEventListener('click', () => closeDrawer(false));
+
+    const btnAtribuir = $('tkBtnAtribuir');
+    if (btnAtribuir) {
+      btnAtribuir.addEventListener('click', async () => {
+        const sel = $('tkSelResponsavel');
+        const slug = sel.value;
+        const nome = slug ? (USUARIOS_HUB.find((u) => u.slug === slug) || {}).nome || '' : '';
+        btnAtribuir.disabled = true;
+        try {
+          const res = await fetch('/tickets/api/atribuir', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rowIndex: r.id, responsavel: nome, responsavelSlug: slug }) });
+          const json = await res.json();
+          if (!json.ok) throw new Error(json.erro || json.error || 'Erro desconhecido');
+          Object.assign(r, { responsavel: nome, responsavelSlug: slug });
+          await tkRefreshData(true);
+          renderDrawer(r.id);
+          toast('Responsável atualizado', true);
+        } catch (err) {
+          toast('Erro: ' + err.message, false);
+        } finally {
+          btnAtribuir.disabled = false;
+        }
+      });
+    }
+
+    const btnComentar = $('tkBtnComentar');
+    if (btnComentar) {
+      btnComentar.addEventListener('click', async () => {
+        const ta = $('tkComentarioInput');
+        const msg = $('tkSaveMsgComentario');
+        const texto = (ta.value || '').trim();
+        if (!texto) { ta.focus(); return; }
+        btnComentar.disabled = true; msg.textContent = 'Enviando…';
+        try {
+          const res = await fetch('/tickets/api/comentar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rowIndex: r.id, comentario: texto }) });
+          const json = await res.json();
+          if (!json.ok) throw new Error(json.erro || json.error || 'Erro desconhecido');
+          ta.value = ''; msg.textContent = '';
+          await carregarHistoricoTicket(r.id);
+          toast('Comentário adicionado', true);
+        } catch (err) {
+          msg.textContent = 'Erro: ' + err.message;
+        } finally {
+          btnComentar.disabled = false;
+        }
+      });
+    }
+
+    const btnFechar = $('tkBtnFecharTicket');
+    if (btnFechar) {
+      btnFechar.addEventListener('click', async () => {
+        btnFechar.disabled = true;
+        try {
+          const res = await fetch('/tickets/api/fechar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rowIndex: r.id }) });
+          const json = await res.json();
+          if (!json.ok) throw new Error(json.erro || json.error || 'Erro desconhecido');
+          await tkRefreshData(true);
+          closeDrawer(false);
+          tkRender();
+          toast('Ticket fechado', true);
+        } catch (err) {
+          toast('Erro: ' + err.message, false);
+          btnFechar.disabled = false;
+        }
+      });
+    }
+  }
+
+  function openTicket(id) {
+    if (parseTicketHash() === id) renderDrawer(id);
+    else location.hash = '#/t/' + id;
+  }
+
+  function closeDrawer(fromHash) {
+    const root = document.getElementById('tkModalRoot');
+    const dr = root.querySelector('.tk-drawer'), sc = root.querySelector('.tk-drawer-scrim');
+    CASO_ATUAL = null;
+    if (dr) dr.classList.remove('show');
+    if (sc) sc.classList.remove('show');
+    setTimeout(() => { const el = document.getElementById('tkModalRoot'); if (CASO_ATUAL === null && el && el.querySelector('.tk-drawer')) el.innerHTML = ''; }, 240);
+    if (!fromHash && parseTicketHash() !== null) history.pushState(null, '', '#/tickets');
+  }
+
+  function syncFromHash() {
+    const id = parseTicketHash();
+    if (id !== null && RECORDS.find((x) => x.id === id)) renderDrawer(id);
+    else closeDrawer(true);
+  }
+  window.addEventListener('hashchange', syncFromHash);
+  document.addEventListener('keydown', (e) => { if (CASO_ATUAL !== null && e.key === 'Escape') closeDrawer(false); });
+
+  /* ================= NOVO TICKET ================= */
+
+  function openNovoTicket() {
+    const modalRoot = document.getElementById('tkModalRoot');
+    const optVazia = '<option value="">—</option>';
+    const identOptions = optVazia + IDENTIFICADOR_OPCOES.map((o) => `<option value="${tkEsc(o)}">${tkEsc(o)}</option>`).join('');
+    const setorOptions = optVazia + SETOR_OPCOES.map((o) => `<option value="${tkEsc(o)}">${tkEsc(o)}</option>`).join('');
+    const respOptions = optVazia + USUARIOS_HUB.map((u) => `<option value="${tkEsc(u.slug)}">${tkEsc(u.nome)}</option>`).join('');
+
+    modalRoot.innerHTML = `
+      <div class="tk-overlay" id="tkOverlayNovo">
+        <div class="tk-modal" role="dialog" aria-modal="true" aria-label="Abrir novo ticket">
+          <div class="tk-modal-head">
+            <div style="flex:1;min-width:0">
+              <div class="title">Abrir novo ticket</div>
+              <div class="sub">Preencha o que souber. Se deixar o responsável em branco, o ticket entra como "não atribuído" e todo gestor é avisado.</div>
+            </div>
+            <button class="tk-close-btn" id="tkCloseModalNovo">✕</button>
+          </div>
+          <div class="tk-modal-body">
+            <form id="tkFormNovo">
+              <div class="tk-field-grid" style="margin-bottom:14px">
+                <div class="tk-field"><label>ID do ticket (Octadesk etc.)</label><input type="text" name="idTicket" placeholder="Ex: 16536"></div>
+                <div class="tk-field"><label>Pedido / Cliente</label><input type="text" name="pedido" placeholder="Ex: Pedro 9366"></div>
+              </div>
+              <div class="tk-field-grid" style="margin-bottom:14px">
+                <div class="tk-field"><label>Identificador *</label><select name="identificador">${identOptions}</select></div>
+                <div class="tk-field"><label>Setor</label><select name="setor">${setorOptions}</select></div>
+              </div>
+              <div class="tk-field-grid" style="margin-bottom:14px">
+                <div class="tk-field"><label>ID da venda</label><input type="text" name="idVenda" placeholder="Opcional"></div>
+                <div class="tk-field"><label>Responsável</label><select name="responsavelSlug">${respOptions}</select></div>
+              </div>
+              <div class="tk-field" style="margin-bottom:14px"><label>Link</label><input type="url" name="link" placeholder="https://..."></div>
+              <div class="tk-field"><label>Observação</label><textarea name="observacao" placeholder="Contexto inicial do ticket"></textarea></div>
+            </form>
+          </div>
+          <div class="tk-modal-foot">
+            <span class="tk-save-msg" id="tkSaveMsgNovo"></span>
+            <button class="tk-btn tk-btn-ghost" id="tkBtnCancelarNovo">Cancelar</button>
+            <button class="tk-btn tk-btn-accent" id="tkBtnCriarTicket">Abrir ticket</button>
+          </div>
+        </div>
+      </div>
+    `;
+
+    const close = () => { modalRoot.innerHTML = ''; };
+    document.getElementById('tkCloseModalNovo').addEventListener('click', close);
+    document.getElementById('tkBtnCancelarNovo').addEventListener('click', close);
+    document.getElementById('tkOverlayNovo').addEventListener('click', (e) => { if (e.target.id === 'tkOverlayNovo') close(); });
+
+    document.getElementById('tkBtnCriarTicket').addEventListener('click', async () => {
+      const form = document.getElementById('tkFormNovo');
+      const msg = document.getElementById('tkSaveMsgNovo');
+      const fd = new FormData(form);
+      const g = (n) => (fd.get(n) || '').toString().trim();
+
+      if (!g('identificador')) { msg.textContent = 'Selecione um identificador.'; return; }
+      if (!g('pedido') && !g('idTicket')) { msg.textContent = 'Informe ao menos o pedido/cliente ou o ID do ticket.'; return; }
+
+      const responsavelSlug = g('responsavelSlug');
+      const responsavel = responsavelSlug ? (USUARIOS_HUB.find((u) => u.slug === responsavelSlug) || {}).nome || '' : '';
+
+      const btn = document.getElementById('tkBtnCriarTicket');
+      btn.disabled = true; msg.textContent = 'Gravando…';
+      try {
+        const res = await fetch('/tickets/api/criar', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            idTicket: g('idTicket'), pedido: g('pedido'), idVenda: g('idVenda'),
+            identificador: g('identificador'), setor: g('setor'), responsavel, responsavelSlug,
+            link: g('link'), observacao: g('observacao'),
+          }),
+        });
+        const json = await res.json();
+        if (!json.ok) throw new Error(json.erro || json.error || 'Erro desconhecido');
+        close();
+        await tkRefreshData(true);
+        tkRender();
+        toast('Ticket aberto', true);
+      } catch (err) {
+        msg.textContent = 'Erro: ' + err.message; btn.disabled = false;
+      }
+    });
+  }
+
+  tkBoot();
+})();

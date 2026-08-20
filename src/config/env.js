@@ -60,4 +60,9 @@ module.exports = {
   auditoriaAppsScriptUrl: required('AUDITORIA_APPS_SCRIPT_URL', ''),
 
   errosAppsScriptUrl: required('ERROS_APPS_SCRIPT_URL', ''),
+
+  // Painel de Ticket — planilha "Tickets". Ver apps-script/tickets/Code.gs.
+  // Reaproveita o mesmo N8N_WEBHOOK_SECRET acima pro webhook de criação
+  // automática (n8n → hub), sem precisar de um segredo novo por integração.
+  ticketsAppsScriptUrl: required('TICKETS_APPS_SCRIPT_URL', ''),
 };
