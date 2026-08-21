@@ -128,7 +128,7 @@
   let RECORDS = [];
   let LAST_SYNC = null;
   let CASO_ATUAL = null;
-  const tkState = { screen: 'lista', fStatus: 'abertos', fResponsavel: '', fIdentificador: '', fSetor: '' };
+  const tkState = { screen: 'lista', fStatus: 'abertos', fResponsavel: '', fIdentificador: '', fSetor: '', busca: '' };
 
   /* ================= CARREGAMENTO ================= */
 
@@ -327,6 +327,7 @@
   document.getElementById('tkFResponsavel').addEventListener('change', (e) => { tkState.fResponsavel = e.target.value; tkRender(); });
   document.getElementById('tkFIdentificador').addEventListener('change', (e) => { tkState.fIdentificador = e.target.value; tkRender(); });
   document.getElementById('tkFSetor').addEventListener('change', (e) => { tkState.fSetor = e.target.value; tkRender(); });
+  document.getElementById('tkBusca').addEventListener('input', (e) => { tkState.busca = e.target.value.trim().toLowerCase(); tkRender(); });
 
   function tkRender() {
     const main = document.getElementById('tkMain');
@@ -345,6 +346,11 @@
       if (tkState.fResponsavel && r.responsavel !== tkState.fResponsavel) return false;
       if (tkState.fIdentificador && r.identificador !== tkState.fIdentificador) return false;
       if (tkState.fSetor && r.setor !== tkState.fSetor) return false;
+      if (tkState.busca) {
+        const termo = tkState.busca;
+        const bate = [r.pedido, r.idTicket, r.idVenda].some((v) => String(v || '').toLowerCase().includes(termo));
+        if (!bate) return false;
+      }
       return true;
     }).sort((a, b) => new Date(b.dataAbertura) - new Date(a.dataAbertura));
   }

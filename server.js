@@ -7,6 +7,7 @@ const helmet = require('helmet');
 
 const env = require('./src/config/env');
 const usuariosService = require('./src/services/usuarios.service');
+const { iniciarChecagemAtrasos } = require('./src/services/ticketsAtraso.service');
 const catalogoPaineis = require('./src/config/paineis');
 const catalogoAtalhos = require('./src/config/atalhos');
 
@@ -129,6 +130,7 @@ usuariosService
     app.listen(env.port, () => {
       console.log(`SeuBoné Hub rodando em http://localhost:${env.port}`);
     });
+    iniciarChecagemAtrasos();
   })
   .catch((err) => {
     // Sem a lista de usuários carregada, ninguém consegue logar — melhor

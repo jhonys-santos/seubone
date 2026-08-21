@@ -32,6 +32,11 @@
   font-size: 12.5px; padding: 7px 10px; border: 1px solid var(--border-strong); border-radius: var(--radius-sm);
   background: var(--surface-2); color: var(--text); font-family: inherit; cursor: pointer;
 }
+.tk-searchbar {
+  font-size: 12.5px; padding: 7px 10px; border: 1px solid var(--border-strong); border-radius: var(--radius-sm);
+  background: var(--surface-2); color: var(--text); font-family: inherit; min-width: 220px; flex: 1 1 220px;
+}
+.tk-searchbar:focus { outline: none; border-color: var(--gold-dark); }
 .tk-iconbtn {
   width: 32px; height: 32px; border-radius: var(--radius-sm); border: 1px solid var(--border-strong);
   background: var(--surface-2); color: var(--text-muted); cursor: pointer; font-size: 14px;

@@ -17,6 +17,9 @@
  *    - doPost action:adicionarAnexos → anexa imagem(ns) a um ticket já existente
  *    - doPost action:atualizarAcompanhamento → evento/entrega/prazos, editado por quem trata o ticket
  *    - doPost action:definirLink → preenche o link do card quando criado sem ele
+ *    - doPost action:marcarAtrasoNotificado → controla se já foi avisado o
+ *      responsável de um ticket atrasado (evita notificar de novo a cada
+ *      checagem periódica do hub, enquanto o atraso for o mesmo)
  *
  *  Mapeamento de colunas por NOME DO CABEÇALHO (tolerante a acento/maiúscula) —
  *  mesma receita do Painel de Erros (COLUNAS + buildColMap_).
@@ -65,6 +68,7 @@ var COLUNAS = {
   ppe:            ['ppe', 'prazo previsto de entrega'],
   previsaoFinalizacao: ['previsao de finalizacao', 'previsão de finalização'],
   pFolha:         ['p folha', 'prazo de producao', 'prazo de produção'],
+  atrasoNotificado: ['atraso notificado', 'notificado atraso', 'aviso atraso enviado'],
 };
 
 var STATUS_ABERTO = 'Aberto';
@@ -226,6 +230,7 @@ function doGet(e) {
         ppe:                 fmtDate_(get(row, 'ppe')),
         previsaoFinalizacao: fmtDate_(get(row, 'previsaoFinalizacao')),
         pFolha:              fmtDate_(get(row, 'pFolha')),
+        atrasoNotificado:    parseBool_(get(row, 'atrasoNotificado')),
       });
     }
     return jsonOut_({ ok: true, tickets: tickets });
@@ -249,6 +254,7 @@ function doPost(e) {
     if (action === 'adicionarAnexos') return adicionarAnexos_(body);
     if (action === 'atualizarAcompanhamento') return atualizarAcompanhamento_(body);
     if (action === 'definirLink') return definirLink_(body);
+    if (action === 'marcarAtrasoNotificado') return marcarAtrasoNotificado_(body);
 
     return jsonOut_({ ok: false, error: 'Ação inválida: ' + action });
   } catch (err) {
@@ -440,6 +446,26 @@ function comentarTicket_(f) {
   logHist_(f.rowIndex, idTicket, f.usuario, 'Comentário', texto, f.usuarioSlug);
 
   return jsonOut_({ ok: true, rowIndex: f.rowIndex, idTicket: String(idTicket || '') });
+}
+
+/**
+ * Marca/desmarca se o responsável já foi avisado do atraso deste ticket —
+ * chamado pelo checador periódico do hub (Node), nunca pela UI. Não gera
+ * evento no Histórico (é controle interno, não uma ação de alguém).
+ */
+function marcarAtrasoNotificado_(f) {
+  if (!f.rowIndex) return jsonOut_({ ok: false, error: 'rowIndex ausente' });
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    var sh = getSheet_();
+    var col = buildColMap_(sh.getDataRange().getValues()[0]);
+    if (col.atrasoNotificado == null) return jsonOut_({ ok: false, error: 'Coluna "Atraso Notificado" não existe na planilha.' });
+    sh.getRange(f.rowIndex, col.atrasoNotificado + 1).setValue(f.notificado ? 'TRUE' : 'FALSE');
+    return jsonOut_({ ok: true, rowIndex: f.rowIndex });
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 /* ============================ ANEXOS (Google Drive) ============================
