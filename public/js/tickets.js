@@ -102,7 +102,7 @@
     { status: STATUS_RESOLVIDO, cor: '#15A15A' },
   ];
 
-  const IDENTIFICADOR_OPCOES = ['Pedido atrasado', 'Refabricação', 'Erro de Envio'];
+  const IDENTIFICADOR_OPCOES = ['Pedido atrasado', 'Refabricação', 'Erro de Envio', 'NPS', 'Reclame Aqui'];
   // Sugestões do campo "Setor" — texto livre com datalist (igual o campo
   // "Responsável" do Painel de Erros), não uma lista fechada.
   const SETOR_OPCOES = ['Fábrica Cacinho', 'Fábrica Bonés Brasil', 'Fábrica CIA Bruto', '88 Brindes', 'Fábrica Neidinha', 'Fábrica LaserTools', 'Fábrica SLC', 'Fábrica (Outro)', 'Transportadora'];
@@ -114,6 +114,16 @@
   const SLA_DIAS = { 'Pedido atrasado': 1, 'Refabricação': 3, 'Erro de Envio': 1 };
 
   let dashEscopoChart = 'todos'; // 'todos' | 'meus' — só afeta o gráfico de fluxo
+  let tkStatusChart = null; // instância Chart.js do donut de status (destruída/recriada a cada render do dashboard)
+
+  const PRAZO_BUCKETS = [
+    { key: 'atrasado', label: 'Atrasado', cor: '#C63A32' },
+    { key: 'hoje', label: 'Vence hoje', cor: '#E0762A' },
+    { key: '1_3', label: '1-3 dias', cor: '#E0A400' },
+    { key: '4_7', label: '4-7 dias', cor: '#8FBF3F' },
+    { key: '8_mais', label: '8+ dias', cor: '#1E8A4D' },
+    { key: 'sem_prazo', label: 'Sem prazo', cor: '#6A7079' },
+  ];
 
   let RECORDS = [];
   let LAST_SYNC = null;
@@ -181,9 +191,9 @@
       el.innerHTML = `<option value="">${placeholder}</option>` + values.map((v) => `<option value="${tkEsc(v)}">${tkEsc(v)}</option>`).join('');
       el.value = current;
     };
-    const responsaveis = Array.from(new Set(RECORDS.map((r) => r.responsavel).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'pt-BR'));
-    const identificadores = Array.from(new Set([...IDENTIFICADOR_OPCOES, ...RECORDS.map((r) => r.identificador).filter(Boolean)]));
-    const setores = Array.from(new Set([...SETOR_OPCOES, ...RECORDS.map((r) => r.setor).filter(Boolean)]));
+    const responsaveis = Array.from(new Set(visibleRecords().map((r) => r.responsavel).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+    const identificadores = Array.from(new Set([...IDENTIFICADOR_OPCOES, ...visibleRecords().map((r) => r.identificador).filter(Boolean)]));
+    const setores = Array.from(new Set([...SETOR_OPCOES, ...visibleRecords().map((r) => r.setor).filter(Boolean)]));
     fillSelect('tkFResponsavel', responsaveis, 'Todos os responsáveis');
     fillSelect('tkFIdentificador', identificadores, 'Todos os identificadores');
     fillSelect('tkFSetor', setores, 'Todos os setores');
@@ -251,10 +261,28 @@
     return Math.round((prazo.getTime() - soData(new Date()).getTime()) / 86400000);
   }
 
+  // Bucket do "Prazo dos pedidos em aberto" — null pra ticket já resolvido
+  // (não entra nesse gráfico); 'sem_prazo' pra identificador sem SLA.
+  function prazoBucketKey(r) {
+    if (r.status === STATUS_RESOLVIDO) return null;
+    const d = diasParaPrazo(r);
+    if (d == null) return 'sem_prazo';
+    if (d < 0) return 'atrasado';
+    if (d === 0) return 'hoje';
+    if (d <= 3) return '1_3';
+    if (d <= 7) return '4_7';
+    return '8_mais';
+  }
+
   /* ================= PAPÉIS ================= */
 
   function souEuOResponsavel(r) { return !!(SESSAO && r.responsavelSlug && r.responsavelSlug === SESSAO.slug); }
   function podeAlterarStatus(r) { return papel === 'gestor' || souEuOResponsavel(r); }
+
+  // Gestor vê todo mundo; colaborador só vê os tickets em que ele é o
+  // responsável (mesmo padrão de "colaborador vê só o próprio" do Painel
+  // de Erros) — ticket sem responsável nenhum não aparece pra colaborador.
+  function visibleRecords() { return papel === 'gestor' ? RECORDS : RECORDS.filter(souEuOResponsavel); }
   function podeAtribuir() { return papel === 'gestor'; }
 
   /* ================= TOAST ================= */
@@ -295,7 +323,7 @@
   /* ================= LISTA ================= */
 
   function rowsFiltradas() {
-    return RECORDS.filter((r) => {
+    return visibleRecords().filter((r) => {
       if (tkState.fStatus === 'abertos' && r.status === STATUS_RESOLVIDO) return false;
       if (tkState.fStatus === 'fechados' && r.status !== STATUS_RESOLVIDO) return false;
       if (tkState.fResponsavel && r.responsavel !== tkState.fResponsavel) return false;
@@ -311,15 +339,16 @@
   }
 
   function renderLista(main) {
-    const abertos = RECORDS.filter((r) => r.status !== STATUS_RESOLVIDO);
+    const visiveis = visibleRecords();
+    const abertos = visiveis.filter((r) => r.status !== STATUS_RESOLVIDO);
     const semResponsavel = abertos.filter((r) => !r.responsavel).length;
     const rows = rowsFiltradas();
 
     main.innerHTML = `
       <div class="tk-kpis">
         <div class="tk-kpi"><div class="k-l">Abertos</div><div class="k-v">${abertos.length}</div></div>
-        <div class="tk-kpi ${semResponsavel ? 'warn' : ''}"><div class="k-l">Sem responsável</div><div class="k-v">${semResponsavel}</div></div>
-        <div class="tk-kpi"><div class="k-l">Fechados</div><div class="k-v">${RECORDS.length - abertos.length}</div></div>
+        ${papel === 'gestor' ? `<div class="tk-kpi ${semResponsavel ? 'warn' : ''}"><div class="k-l">Sem responsável</div><div class="k-v">${semResponsavel}</div></div>` : ''}
+        <div class="tk-kpi"><div class="k-l">Fechados</div><div class="k-v">${visiveis.length - abertos.length}</div></div>
       </div>
       <div class="tk-card" style="padding:0">
         <div class="tk-tbl-wrap">
@@ -361,7 +390,7 @@
 
   function rankingPor(campo) {
     const grupos = new Map();
-    RECORDS.filter((r) => r.status === STATUS_RESOLVIDO && r[campo]).forEach((r) => {
+    visibleRecords().filter((r) => r.status === STATUS_RESOLVIDO && r[campo]).forEach((r) => {
       const chave = r[campo];
       if (!grupos.has(chave)) grupos.set(chave, []);
       grupos.get(chave).push(r);
@@ -390,37 +419,91 @@
       </div>`;
   }
 
-  function contarPrazos(lista) {
-    let vencidos = 0, hoje = 0, amanha = 0;
-    lista.forEach((r) => {
-      const d = diasParaPrazo(r);
-      if (d == null) return;
-      if (d < 0) vencidos++;
-      else if (d === 0) hoje++;
-      else if (d === 1) amanha++;
-    });
-    return { vencidos, hoje, amanha };
+  function renderKpisTopo(visiveis) {
+    const abertosList = visiveis.filter((r) => r.status !== STATUS_RESOLVIDO);
+    const fechadosList = visiveis.filter((r) => r.status === STATUS_RESOLVIDO);
+    const pctFinalizado = visiveis.length ? Math.round(fechadosList.length / visiveis.length * 100) : 0;
+
+    const comPrazo = abertosList.map((r) => ({ d: diasParaPrazo(r) })).filter((x) => x.d != null);
+    const atrasados = comPrazo.filter((x) => x.d < 0);
+    const mediaAtraso = atrasados.length ? Math.round(atrasados.reduce((s, x) => s + Math.abs(x.d), 0) / atrasados.length) : 0;
+    const venceHoje = comPrazo.filter((x) => x.d === 0).length;
+    const vence3d = comPrazo.filter((x) => x.d >= 1 && x.d <= 3).length;
+
+    return `
+      <div class="tk-kpis">
+        <div class="tk-kpi"><div class="k-l">Total no quadro</div><div class="k-v">${visiveis.length}</div></div>
+        <div class="tk-kpi"><div class="k-l">Em aberto</div><div class="k-v">${abertosList.length}</div><div class="k-foot">${fechadosList.length} finalizado(s) (${pctFinalizado}%)</div></div>
+        <div class="tk-kpi ${atrasados.length ? 'warn' : ''}"><div class="k-l">Atrasados</div><div class="k-v">${atrasados.length}</div>${atrasados.length ? `<div class="k-foot">média de ${mediaAtraso} dia(s) de atraso</div>` : ''}</div>
+        <div class="tk-kpi"><div class="k-l">Vence hoje</div><div class="k-v">${venceHoje}</div></div>
+        <div class="tk-kpi"><div class="k-l">Vence em ≤3 dias</div><div class="k-v">${vence3d}</div></div>
+        <div class="tk-kpi accent"><div class="k-l">TMR geral</div><div class="k-v">${fmtHoras(tmrDe(visiveis))}</div></div>
+      </div>`;
   }
 
-  function renderPrazosTable() {
-    const abertos = RECORDS.filter((r) => r.status !== STATUS_RESOLVIDO);
-    const meus = abertos.filter(souEuOResponsavel);
-    const cMeus = contarPrazos(meus);
-    const cTodos = contarPrazos(abertos);
-    const cel = (n) => `<td class="tk-num ${n > 0 ? 'tk-prazo-bad' : ''}">${n}</td>`;
+  function renderStatusDonut(visiveis) {
+    const total = visiveis.length;
+    const counts = STATUS_DEF.map((sd) => ({ ...sd, n: visiveis.filter((r) => r.status === sd.status).length }));
     return `
       <div class="tk-card">
-        <h3>Prazos</h3>
-        <div class="card-sub">SLA por identificador (Pedido atrasado e Erro de Envio: 1 dia · Refabricação: 3 dias), só tickets abertos.</div>
-        <div class="tk-tbl-wrap">
-          <table>
-            <thead><tr><th></th><th>Vencidos</th><th>Vence hoje</th><th>Vence amanhã</th></tr></thead>
-            <tbody>
-              <tr><td style="font-weight:600">Meus</td>${cel(cMeus.vencidos)}${cel(cMeus.hoje)}${cel(cMeus.amanha)}</tr>
-              <tr><td style="font-weight:600">Todos</td>${cel(cTodos.vencidos)}${cel(cTodos.hoje)}${cel(cTodos.amanha)}</tr>
-            </tbody>
-          </table>
+        <h3>Distribuição por status</h3>
+        <div style="display:flex;align-items:center;gap:20px;flex-wrap:wrap;margin-top:6px">
+          <div style="width:140px;height:140px;flex-shrink:0"><canvas id="tkChartStatus"></canvas></div>
+          <div style="flex:1;min-width:180px">
+            ${counts.map((c) => `
+              <div style="display:flex;align-items:center;gap:8px;padding:5px 0;font-size:13px">
+                <span class="tk-legend-dot" style="background:${c.cor}"></span>
+                <span style="flex:1;color:var(--text)">${c.status}</span>
+                <span style="font-weight:700;color:var(--text)">${c.n}</span>
+                <span style="color:var(--text-muted);font-size:11.5px;min-width:34px;text-align:right">${total ? Math.round(c.n / total * 100) : 0}%</span>
+              </div>
+            `).join('')}
+          </div>
         </div>
+      </div>`;
+  }
+
+  function renderPrazoBuckets(visiveis) {
+    const abertosList = visiveis.filter((r) => r.status !== STATUS_RESOLVIDO);
+    const counts = PRAZO_BUCKETS.map((b) => ({ ...b, n: abertosList.filter((r) => prazoBucketKey(r) === b.key).length }));
+    const max = Math.max(1, ...counts.map((c) => c.n));
+    return `
+      <div class="tk-card">
+        <h3>Prazo dos pedidos em aberto</h3>
+        <div class="card-sub">SLA por identificador (Pedido atrasado e Erro de Envio: 1 dia · Refabricação: 3 dias).</div>
+        ${counts.map((c) => `
+          <div class="tk-rk-row">
+            <div class="tk-rk-top">
+              <span class="tk-rk-name">${c.label}</span>
+              <span class="tk-rk-count">${c.n}</span>
+            </div>
+            <div class="tk-rk-bar"><i style="width:${c.n ? Math.max(4, c.n / max * 100) : 0}%;background:${c.cor}"></i></div>
+          </div>
+        `).join('')}
+      </div>`;
+  }
+
+  function contagemPor(visiveis, campo) {
+    const grupos = new Map();
+    visiveis.filter((r) => r[campo]).forEach((r) => grupos.set(r[campo], (grupos.get(r[campo]) || 0) + 1));
+    return Array.from(grupos.entries()).map(([nome, n]) => ({ nome, n })).sort((a, b) => b.n - a.n);
+  }
+
+  function renderRankingContagem(titulo, sub, grupos) {
+    const max = grupos.length ? Math.max(...grupos.map((g) => g.n)) : 1;
+    return `
+      <div class="tk-card">
+        <h3>${titulo}</h3>
+        <div class="card-sub">${sub}</div>
+        ${grupos.length === 0 ? `<div class="tk-hist-empty">Sem dados nesse recorte ainda.</div>` : grupos.map((g) => `
+          <div class="tk-rk-row">
+            <div class="tk-rk-top">
+              <span class="tk-rk-name">${tkEsc(g.nome)}</span>
+              <span class="tk-rk-count">${g.n} ticket(s)</span>
+            </div>
+            <div class="tk-rk-bar"><i style="width:${Math.max(4, g.n / max * 100)}%"></i></div>
+          </div>
+        `).join('')}
       </div>`;
   }
 
@@ -442,7 +525,7 @@
   }
 
   function renderFluxoChart() {
-    const lista = dashEscopoChart === 'meus' ? RECORDS.filter(souEuOResponsavel) : RECORDS;
+    const lista = (papel === 'gestor' && dashEscopoChart === 'meus') ? visibleRecords().filter(souEuOResponsavel) : visibleRecords();
     const buckets = bucketsPorDia(lista, 14);
     const max = Math.max(1, ...buckets.map((b) => Math.max(b.abertos, b.fechados)));
     const diaLabel = (d) => d.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '') + ' ' + String(d.getDate()).padStart(2, '0') + '/' + String(d.getMonth() + 1).padStart(2, '0');
@@ -450,10 +533,10 @@
       <div class="tk-card">
         <div class="tk-card-head-row">
           <h3>Abertos x Fechados por dia</h3>
-          <div class="tk-seg-toggle" id="tkFluxoEscopo">
+          ${papel === 'gestor' ? `<div class="tk-seg-toggle" id="tkFluxoEscopo">
             <button class="seg ${dashEscopoChart === 'meus' ? 'on' : ''}" data-escopo="meus" type="button">Meus</button>
             <button class="seg ${dashEscopoChart === 'todos' ? 'on' : ''}" data-escopo="todos" type="button">Todos</button>
-          </div>
+          </div>` : ''}
         </div>
         <div class="card-sub"><span class="tk-legend-dot azul"></span>Abertos no dia&nbsp;&nbsp;<span class="tk-legend-dot verde"></span>Fechados no dia</div>
         <div class="tk-fluxo-chart">
@@ -471,23 +554,34 @@
   }
 
   function renderDashboard(main) {
-    const tmrGeral = tmrDe(RECORDS);
-    const abertos = RECORDS.filter((r) => r.status !== STATUS_RESOLVIDO).length;
-    const fechados = RECORDS.length - abertos;
+    const visiveis = visibleRecords();
 
     main.innerHTML = `
-      <div class="tk-kpis">
-        <div class="tk-kpi accent"><div class="k-l">TMR geral</div><div class="k-v">${fmtHoras(tmrGeral)}</div></div>
-        <div class="tk-kpi"><div class="k-l">Tickets abertos</div><div class="k-v">${abertos}</div></div>
-        <div class="tk-kpi"><div class="k-l">Tickets fechados</div><div class="k-v">${fechados}</div></div>
+      ${renderKpisTopo(visiveis)}
+      <div class="tk-grid-2col">
+        ${renderStatusDonut(visiveis)}
+        ${renderPrazoBuckets(visiveis)}
       </div>
-      ${renderPrazosTable()}
+      ${renderRankingContagem('Pedidos por Fábrica', papel === 'gestor' ? 'Quantidade de tickets por setor/fábrica.' : 'Quantidade dos seus tickets por setor/fábrica.', contagemPor(visiveis, 'setor'))}
       ${renderFluxoChart()}
       <div class="tk-grid-2col">
         ${renderRanking('TMR por responsável', 'Tempo médio de resolução entre a abertura e o fechamento, só de tickets fechados.', rankingPor('responsavel'))}
         ${renderRanking('TMR por identificador', 'Quais tipos de ticket demoram mais pra resolver.', rankingPor('identificador'))}
       </div>
     `;
+
+    if (tkStatusChart) { tkStatusChart.destroy(); tkStatusChart = null; }
+    const canvasStatus = document.getElementById('tkChartStatus');
+    if (canvasStatus) {
+      tkStatusChart = new Chart(canvasStatus, {
+        type: 'doughnut',
+        data: {
+          labels: STATUS_DEF.map((s) => s.status),
+          datasets: [{ data: STATUS_DEF.map((sd) => visiveis.filter((r) => r.status === sd.status).length), backgroundColor: STATUS_DEF.map((s) => s.cor), borderWidth: 0 }],
+        },
+        options: { responsive: true, maintainAspectRatio: false, cutout: '68%', plugins: { legend: { display: false }, tooltip: { enabled: true } } },
+      });
+    }
 
     const escopoBox = document.getElementById('tkFluxoEscopo');
     if (escopoBox) {

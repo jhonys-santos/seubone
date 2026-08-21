@@ -52,7 +52,9 @@
 .tk-kpi { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 18px; min-width: 150px; flex: 1; }
 .tk-kpi .k-l { font-size: 11px; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
 .tk-kpi .k-v { font-size: 24px; font-weight: 800; margin-top: 4px; color: var(--text); font-variant-numeric: tabular-nums; }
+.tk-kpi .k-foot { font-size: 11px; color: var(--text-muted); margin-top: 5px; }
 .tk-kpi.warn { border-color: var(--bad); background: var(--bad-bg); }
+.tk-kpi.warn .k-foot { color: var(--bad-text, var(--bad)); }
 .tk-kpi.warn .k-v { color: var(--bad-text, var(--bad)); }
 .tk-kpi.accent { border-color: var(--gold-dark); background: var(--gold-dim); }
 
