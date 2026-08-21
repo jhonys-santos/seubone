@@ -10,6 +10,83 @@
     return String(v == null ? '' : v).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   }
 
+  /* ================= ANEXOS (Drive / data URL) — mesma receita do Painel de Erros ================= */
+  const MAX_FOTOS = 6;
+  const MAX_ANEXOS_MB = 15;
+
+  function tkParseFotos(v) {
+    return String(v || '').split(/\n+/).flatMap((line) => line.split(',').map((s) => s.trim())).filter(Boolean);
+  }
+  function tkFotoSrc(u) {
+    u = String(u || '');
+    if (/^data:|^blob:/.test(u)) return u;
+    if (/drive\.google|docs\.google|googleusercontent/.test(u)) {
+      const m = u.match(/[-\w]{25,}/);
+      if (m) return 'https://drive.google.com/thumbnail?id=' + m[0] + '&sz=w1600';
+    }
+    return u;
+  }
+  /** Lê um File de imagem, redimensiona (máx ~1280px) e devolve um JPEG data URL leve. */
+  function tkComprimirImagem(file, maxDim = 1280, quality = 0.82) {
+    return new Promise((resolve, reject) => {
+      if (!file || !/^image\//.test(file.type)) return reject(new Error('Arquivo não é imagem'));
+      const reader = new FileReader();
+      reader.onload = () => {
+        const img = new Image();
+        img.onload = () => {
+          let { width: w, height: h } = img;
+          if (w > maxDim || h > maxDim) { const s = maxDim / Math.max(w, h); w = Math.round(w * s); h = Math.round(h * s); }
+          const c = document.createElement('canvas'); c.width = w; c.height = h;
+          c.getContext('2d').drawImage(img, 0, 0, w, h);
+          resolve(c.toDataURL('image/jpeg', quality));
+        };
+        img.onerror = () => reject(new Error('Não consegui ler a imagem'));
+        img.src = reader.result;
+      };
+      reader.onerror = () => reject(new Error('Falha ao ler o arquivo'));
+      reader.readAsDataURL(file);
+    });
+  }
+  function tkPhotoBadge(r) {
+    const n = tkParseFotos(r.anexos).length;
+    return n ? `<span class="tk-photo-badge" title="${n} anexo(s)">📎 ${n}</span>` : '';
+  }
+
+  /* ===== Lightbox de fotos (Esc fecha, ← → navegam) ===== */
+  let TK_LB = { urls: [], idx: 0, prevFocus: null };
+  function tkOpenLightbox(urls, i) {
+    if (!urls || !urls.length) return;
+    TK_LB.urls = urls.map(tkFotoSrc); TK_LB.idx = Math.max(0, Math.min(urls.length - 1, i || 0)); TK_LB.prevFocus = document.activeElement;
+    let root = document.getElementById('tkLbRoot');
+    if (!root) { root = document.createElement('div'); root.id = 'tkLbRoot'; document.body.appendChild(root); }
+    tkLbRender();
+  }
+  function tkLbRender() {
+    const root = document.getElementById('tkLbRoot'); if (!root) return;
+    const multi = TK_LB.urls.length > 1;
+    root.innerHTML = `<div class="tk-lb-scrim" id="tkLbScrim" role="dialog" aria-modal="true" aria-label="Visualizador de anexo">
+        <button class="tk-lb-x" id="tkLbClose" title="Fechar (Esc)" aria-label="Fechar">✕</button>
+        ${multi ? `<button class="tk-lb-nav tk-lb-prev" id="tkLbPrev" aria-label="Anterior">‹</button>` : ''}
+        <img class="tk-lb-img" src="${tkEsc(TK_LB.urls[TK_LB.idx])}" alt="Anexo ${TK_LB.idx + 1} de ${TK_LB.urls.length}">
+        ${multi ? `<button class="tk-lb-nav tk-lb-next" id="tkLbNext" aria-label="Próximo">›</button>` : ''}
+        ${multi ? `<div class="tk-lb-count">${TK_LB.idx + 1} / ${TK_LB.urls.length}</div>` : ''}
+      </div>`;
+    const sc = document.getElementById('tkLbScrim');
+    sc.addEventListener('click', (e) => { if (e.target === sc) tkCloseLightbox(); });
+    document.getElementById('tkLbClose').addEventListener('click', tkCloseLightbox);
+    const p = document.getElementById('tkLbPrev'), n = document.getElementById('tkLbNext');
+    if (p) p.addEventListener('click', () => tkLbGoto(TK_LB.idx - 1));
+    if (n) n.addEventListener('click', () => tkLbGoto(TK_LB.idx + 1));
+  }
+  function tkLbGoto(i) { if (!TK_LB.urls.length) return; TK_LB.idx = (i + TK_LB.urls.length) % TK_LB.urls.length; tkLbRender(); }
+  function tkCloseLightbox() { const root = document.getElementById('tkLbRoot'); if (root) root.innerHTML = ''; TK_LB.urls = []; if (TK_LB.prevFocus && TK_LB.prevFocus.focus) { try { TK_LB.prevFocus.focus(); } catch (e) {} } }
+  document.addEventListener('keydown', (e) => {
+    if (!TK_LB.urls.length) return;
+    if (e.key === 'Escape') tkCloseLightbox();
+    else if (e.key === 'ArrowLeft') tkLbGoto(TK_LB.idx - 1);
+    else if (e.key === 'ArrowRight') tkLbGoto(TK_LB.idx + 1);
+  });
+
   const SESSAO = window.USUARIO_SESSAO || null;
   const papel = (SESSAO && SESSAO.role === 'gestor') ? 'gestor' : 'colaborador';
   const USUARIOS_HUB = window.USUARIOS_HUB || [];
@@ -244,7 +321,7 @@
                 const horas = tempoTicket(r);
                 return `<tr class="tk-clickable" data-id="${r.id}">
                   <td>${r.idTicket ? '#' + tkEsc(r.idTicket) : '<span style="color:var(--text-hint)">—</span>'}</td>
-                  <td style="font-weight:600">${tkEsc(r.pedido) || '—'}</td>
+                  <td style="font-weight:600">${tkEsc(r.pedido) || '—'} ${tkPhotoBadge(r)}</td>
                   <td>${tkEsc(r.identificador) || '—'}</td>
                   <td>${tkEsc(r.setor) || '—'}</td>
                   <td>${tkEsc(r.responsavel) || '<span style="color:var(--warn-text,var(--warn))">não atribuído</span>'}</td>
@@ -443,12 +520,51 @@
         ${r.link ? `<div class="tk-field" style="margin-bottom:16px"><label>Link</label><div class="tk-readonly-block"><a href="${tkEsc(r.link)}" target="_blank" rel="noopener">${tkEsc(r.link)}</a></div></div>` : ''}
         ${r.observacao ? `<div class="tk-field" style="margin-bottom:16px"><label>Observação</label><div class="tk-readonly-block" style="font-style:italic">${tkEsc(r.observacao)}</div></div>` : ''}
 
+        <div class="tk-sec-title" style="margin-top:20px">Anexos${(() => { const n = tkParseFotos(r.anexos).length; return n ? ` (${n})` : ''; })()}</div>
+        ${(() => {
+          const fs = tkParseFotos(r.anexos);
+          return fs.length ? `<div style="display:flex;flex-wrap:wrap;gap:9px;margin-bottom:12px">${fs.map((u, i) => `<img class="tk-thumb tk-lb-thumb" data-idx="${i}" src="${tkEsc(tkFotoSrc(u))}" alt="Anexo ${i + 1}" title="Ampliar" loading="lazy">`).join('')}</div>` : '';
+        })()}
+        <div class="tk-foto-drop" id="tkFotoDrop"><b>Clique para adicionar imagem</b> ou arraste aqui</div>
+        <input type="file" id="tkFotoInput" accept="image/*" multiple style="display:none">
+        <div class="tk-foto-prev" id="tkFotoPrev"></div>
+        <div style="display:flex;justify-content:flex-end;align-items:center;gap:10px;margin-top:8px">
+          <span class="tk-save-msg" id="tkSaveMsgAnexo"></span>
+          <button class="tk-btn tk-btn-ghost" type="button" id="tkBtnEnviarAnexos" style="display:none">Enviar anexos</button>
+        </div>
+
         <div class="tk-sec-title" style="margin-top:20px">Responsável</div>
         ${podeAtribuir()
           ? `<div class="tk-field" style="margin-bottom:0"><select id="tkSelResponsavel">${respOptions}</select>
               <div style="display:flex;justify-content:flex-end;margin-top:8px"><button class="tk-btn tk-btn-ghost" id="tkBtnAtribuir" type="button">Atribuir</button></div>
             </div>`
           : `<div class="tk-readonly-block">${tkEsc(r.responsavel) || 'não atribuído'}</div>`}
+
+        <div class="tk-sec-title" style="margin-top:20px">Acompanhamento</div>
+        <div style="font-size:12.5px;color:var(--text-muted);margin:-6px 0 12px;line-height:1.45">Informações de quem está tratando o ticket, não afeta prazo nem status.</div>
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text);margin-bottom:12px;cursor:pointer">
+          <input type="checkbox" id="tkChkEvento" ${r.temEvento ? 'checked' : ''} style="width:15px;height:15px;accent-color:var(--gold)">
+          Este pedido tem evento com data definida
+        </label>
+        <div class="tk-field" id="tkGrupoDataEvento" style="margin-bottom:14px;display:${r.temEvento ? '' : 'none'}">
+          <label>Data do evento</label>
+          <input type="date" id="tkInpDataEvento" value="${tkEsc((r.dataEvento || '').slice(0, 10))}">
+        </div>
+        <div class="tk-field" style="margin-bottom:14px">
+          <label>Entrega</label>
+          <select id="tkSelEntrega">
+            <option value="">— selecione —</option>
+            ${['Domicílio', 'Escritório', 'Aeroporto'].map((o) => `<option value="${o}" ${r.entrega === o ? 'selected' : ''}>${o}</option>`).join('')}
+          </select>
+        </div>
+        <div class="tk-field" id="tkGrupoAeroporto" style="margin-bottom:14px;display:${r.entrega === 'Aeroporto' ? '' : 'none'}">
+          <label>Qual aeroporto?</label>
+          <input type="text" id="tkInpAeroporto" value="${tkEsc(r.aeroporto)}" placeholder="Ex: Aeroporto de Natal (NAT)">
+        </div>
+        <div style="display:flex;justify-content:flex-end;align-items:center;gap:10px">
+          <span class="tk-save-msg" id="tkSaveMsgAcomp"></span>
+          <button class="tk-btn tk-btn-ghost" type="button" id="tkBtnSalvarAcomp">Salvar acompanhamento</button>
+        </div>
 
         <div class="tk-sec-title" style="margin-top:20px">Histórico</div>
         <div id="tkHistBox" class="tk-hist-box">Carregando…</div>
@@ -525,6 +641,94 @@
     carregarHistoricoTicket(r.id);
     $('tkDrwClose').addEventListener('click', () => closeDrawer(false));
     const fechar = $('tkDrwFechar'); if (fechar) fechar.addEventListener('click', () => closeDrawer(false));
+
+    const anexosExistentes = tkParseFotos(r.anexos).map(tkFotoSrc);
+    document.querySelectorAll('.tk-drawer .tk-lb-thumb').forEach((el) => {
+      el.addEventListener('click', () => tkOpenLightbox(anexosExistentes, Number(el.dataset.idx)));
+    });
+
+    // --- Acompanhamento: evento do cliente + entrega ---
+    const chkEvento = $('tkChkEvento');
+    const grupoDataEvento = $('tkGrupoDataEvento');
+    chkEvento.addEventListener('change', () => { grupoDataEvento.style.display = chkEvento.checked ? '' : 'none'; });
+    const selEntrega = $('tkSelEntrega');
+    const grupoAeroporto = $('tkGrupoAeroporto');
+    selEntrega.addEventListener('change', () => { grupoAeroporto.style.display = selEntrega.value === 'Aeroporto' ? '' : 'none'; });
+    $('tkBtnSalvarAcomp').addEventListener('click', async () => {
+      const btn = $('tkBtnSalvarAcomp');
+      const msg = $('tkSaveMsgAcomp');
+      const temEvento = chkEvento.checked;
+      const dataEvento = temEvento ? $('tkInpDataEvento').value : '';
+      const entrega = selEntrega.value;
+      const aeroporto = entrega === 'Aeroporto' ? $('tkInpAeroporto').value.trim() : '';
+      btn.disabled = true; msg.textContent = 'Gravando…';
+      try {
+        const res = await fetch('/tickets/api/acompanhamento', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rowIndex: r.id, temEvento, dataEvento, entrega, aeroporto }) });
+        const json = await res.json();
+        if (!json.ok) throw new Error(json.erro || json.error || 'Erro desconhecido');
+        Object.assign(r, { temEvento, dataEvento, entrega, aeroporto });
+        await tkRefreshData(true);
+        msg.textContent = '';
+        toast('Acompanhamento salvo', true);
+      } catch (err) {
+        msg.textContent = 'Erro: ' + err.message;
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
+    // --- Novos anexos: seleção + preview (mesmo padrão do Painel de Erros, só imagem) ---
+    const NOVAS_FOTOS = []; // { url: data URL, nome }
+    const fotoDrop = $('tkFotoDrop');
+    const fotoInput = $('tkFotoInput');
+    const fotoPrev = $('tkFotoPrev');
+    const btnEnviarAnexos = $('tkBtnEnviarAnexos');
+    const renderFotoPrev = () => {
+      fotoPrev.innerHTML = NOVAS_FOTOS.map((f, i) => `<div class="fp"><img src="${f.url}" alt=""><button type="button" class="rm" data-i="${i}" title="Remover">✕</button></div>`).join('');
+      fotoPrev.querySelectorAll('.rm').forEach((b) => b.addEventListener('click', () => { NOVAS_FOTOS.splice(Number(b.dataset.i), 1); renderFotoPrev(); }));
+      fotoDrop.innerHTML = NOVAS_FOTOS.length ? `<b>${NOVAS_FOTOS.length} imagem(ns) selecionada(s)</b> · clique para adicionar mais (até ${MAX_FOTOS})` : `<b>Clique para adicionar imagem</b> ou arraste aqui`;
+      btnEnviarAnexos.style.display = NOVAS_FOTOS.length ? '' : 'none';
+    };
+    const addFotos = async (files) => {
+      const lista = Array.from(files).filter((f) => /^image\//.test(f.type));
+      if (!lista.length) { toast('Só é possível anexar imagens.', false); return; }
+      const tamanhoNovo = lista.reduce((soma, f) => soma + f.size, 0);
+      const tamanhoAtual = NOVAS_FOTOS.reduce((soma, f) => soma + (f.url.length * 0.75), 0);
+      if (tamanhoAtual + tamanhoNovo > MAX_ANEXOS_MB * 1024 * 1024) {
+        toast(`As imagens somadas passariam de ${MAX_ANEXOS_MB} MB. Envie menos ou imagens menores.`, false);
+        return;
+      }
+      for (const f of lista) {
+        if (NOVAS_FOTOS.length >= MAX_FOTOS) { toast('Máximo de ' + MAX_FOTOS + ' imagens por vez', false); break; }
+        try {
+          const url = await tkComprimirImagem(f);
+          NOVAS_FOTOS.push({ url, nome: f.name });
+        } catch (err) { toast('Arquivo ignorado: ' + err.message, false); }
+      }
+      renderFotoPrev();
+    };
+    fotoDrop.addEventListener('click', () => fotoInput.click());
+    fotoInput.addEventListener('change', () => { addFotos(fotoInput.files); fotoInput.value = ''; });
+    ['dragover', 'dragenter'].forEach((ev) => fotoDrop.addEventListener(ev, (e) => { e.preventDefault(); fotoDrop.style.borderColor = 'var(--gold)'; }));
+    ['dragleave', 'drop'].forEach((ev) => fotoDrop.addEventListener(ev, (e) => { e.preventDefault(); fotoDrop.style.borderColor = ''; }));
+    fotoDrop.addEventListener('drop', (e) => { if (e.dataTransfer?.files?.length) addFotos(e.dataTransfer.files); });
+
+    btnEnviarAnexos.addEventListener('click', async () => {
+      const msg = $('tkSaveMsgAnexo');
+      btnEnviarAnexos.disabled = true; msg.textContent = 'Enviando…';
+      try {
+        const res = await fetch('/tickets/api/anexar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rowIndex: r.id, fotos: NOVAS_FOTOS.map((f) => f.url) }) });
+        const json = await res.json();
+        if (!json.ok) throw new Error(json.erro || json.error || 'Erro desconhecido');
+        r.anexos = json.anexos || r.anexos;
+        await tkRefreshData(true);
+        renderDrawer(r.id);
+        toast('Anexo(s) adicionado(s)', true);
+      } catch (err) {
+        msg.textContent = 'Erro: ' + err.message;
+        btnEnviarAnexos.disabled = false;
+      }
+    });
 
     const btnAtribuir = $('tkBtnAtribuir');
     if (btnAtribuir) {
@@ -648,7 +852,13 @@
                 <div class="tk-field"><label>Responsável</label><select name="responsavelSlug">${respOptions}</select></div>
               </div>
               <div class="tk-field" style="margin-bottom:14px"><label>Link</label><input type="url" name="link" placeholder="https://..."></div>
-              <div class="tk-field"><label>Observação</label><textarea name="observacao" placeholder="Contexto inicial do ticket"></textarea></div>
+              <div class="tk-field" style="margin-bottom:14px"><label>Observação</label><textarea name="observacao" placeholder="Contexto inicial do ticket"></textarea></div>
+              <div class="tk-field">
+                <label>Imagens (opcional)</label>
+                <div class="tk-foto-drop" id="tkFotoDropNovo"><b>Clique para adicionar imagem</b> ou arraste aqui</div>
+                <input type="file" id="tkFotoInputNovo" accept="image/*" multiple style="display:none">
+                <div class="tk-foto-prev" id="tkFotoPrevNovo"></div>
+              </div>
             </form>
           </div>
           <div class="tk-modal-foot">
@@ -664,6 +874,39 @@
     document.getElementById('tkCloseModalNovo').addEventListener('click', close);
     document.getElementById('tkBtnCancelarNovo').addEventListener('click', close);
     document.getElementById('tkOverlayNovo').addEventListener('click', (e) => { if (e.target.id === 'tkOverlayNovo') close(); });
+
+    const FOTOS_NOVO = [];
+    const fotoDropNovo = document.getElementById('tkFotoDropNovo');
+    const fotoInputNovo = document.getElementById('tkFotoInputNovo');
+    const fotoPrevNovo = document.getElementById('tkFotoPrevNovo');
+    const renderFotoPrevNovo = () => {
+      fotoPrevNovo.innerHTML = FOTOS_NOVO.map((f, i) => `<div class="fp"><img src="${f.url}" alt=""><button type="button" class="rm" data-i="${i}" title="Remover">✕</button></div>`).join('');
+      fotoPrevNovo.querySelectorAll('.rm').forEach((b) => b.addEventListener('click', () => { FOTOS_NOVO.splice(Number(b.dataset.i), 1); renderFotoPrevNovo(); }));
+      fotoDropNovo.innerHTML = FOTOS_NOVO.length ? `<b>${FOTOS_NOVO.length} imagem(ns) selecionada(s)</b> · clique para adicionar mais (até ${MAX_FOTOS})` : `<b>Clique para adicionar imagem</b> ou arraste aqui`;
+    };
+    const addFotosNovo = async (files) => {
+      const lista = Array.from(files).filter((f) => /^image\//.test(f.type));
+      if (!lista.length) { toast('Só é possível anexar imagens.', false); return; }
+      const tamanhoNovo = lista.reduce((soma, f) => soma + f.size, 0);
+      const tamanhoAtual = FOTOS_NOVO.reduce((soma, f) => soma + (f.url.length * 0.75), 0);
+      if (tamanhoAtual + tamanhoNovo > MAX_ANEXOS_MB * 1024 * 1024) {
+        toast(`As imagens somadas passariam de ${MAX_ANEXOS_MB} MB. Envie menos ou imagens menores.`, false);
+        return;
+      }
+      for (const f of lista) {
+        if (FOTOS_NOVO.length >= MAX_FOTOS) { toast('Máximo de ' + MAX_FOTOS + ' imagens', false); break; }
+        try {
+          const url = await tkComprimirImagem(f);
+          FOTOS_NOVO.push({ url, nome: f.name });
+        } catch (err) { toast('Arquivo ignorado: ' + err.message, false); }
+      }
+      renderFotoPrevNovo();
+    };
+    fotoDropNovo.addEventListener('click', () => fotoInputNovo.click());
+    fotoInputNovo.addEventListener('change', () => { addFotosNovo(fotoInputNovo.files); fotoInputNovo.value = ''; });
+    ['dragover', 'dragenter'].forEach((ev) => fotoDropNovo.addEventListener(ev, (e) => { e.preventDefault(); fotoDropNovo.style.borderColor = 'var(--gold)'; }));
+    ['dragleave', 'drop'].forEach((ev) => fotoDropNovo.addEventListener(ev, (e) => { e.preventDefault(); fotoDropNovo.style.borderColor = ''; }));
+    fotoDropNovo.addEventListener('drop', (e) => { if (e.dataTransfer?.files?.length) addFotosNovo(e.dataTransfer.files); });
 
     document.getElementById('tkBtnCriarTicket').addEventListener('click', async () => {
       const form = document.getElementById('tkFormNovo');
@@ -684,7 +927,7 @@
           body: JSON.stringify({
             pedido: g('pedido'), idVenda: g('idVenda'),
             identificador: g('identificador'), setor: g('setor'), responsavel, responsavelSlug,
-            link: g('link'), observacao: g('observacao'),
+            link: g('link'), observacao: g('observacao'), fotos: FOTOS_NOVO.map((f) => f.url),
           }),
         });
         const json = await res.json();

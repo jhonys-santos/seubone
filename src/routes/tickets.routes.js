@@ -92,12 +92,12 @@ router.get('/api/historico', async (req, res) => {
 // ticket (igual "registrar" no Painel de Erros).
 router.post('/api/criar', async (req, res) => {
   try {
-    const { pedido, idVenda, identificador, setor, responsavel, responsavelSlug, link, observacao } = req.body;
+    const { pedido, idVenda, identificador, setor, responsavel, responsavelSlug, link, observacao, fotos } = req.body;
     const json = await chamarAppsScript(env.ticketsAppsScriptUrl, {
       method: 'POST',
       body: {
         action: 'criar', pedido, idVenda, identificador, setor, responsavel, responsavelSlug, link, observacao,
-        origem: 'manual', usuario: req.session.user.nome, usuarioSlug: req.session.user.slug,
+        fotos: fotos || [], origem: 'manual', usuario: req.session.user.nome, usuarioSlug: req.session.user.slug,
       },
     });
     if (json.ok && !responsavel) {
@@ -168,6 +168,40 @@ router.post('/api/comentar', async (req, res) => {
     res.json(json);
   } catch (err) {
     res.status(502).json({ ok: false, erro: 'Falha ao comentar: ' + err.message });
+  }
+});
+
+// Anexar imagem(ns) a um ticket já existente — na criação ou depois, com o
+// ticket já atribuído a alguém. Mesma trava aberta de comentar/fechar:
+// qualquer um com acesso ao painel pode anexar.
+router.post('/api/anexar', async (req, res) => {
+  try {
+    const { rowIndex, fotos } = req.body;
+    if (!fotos || !fotos.length) {
+      return res.status(400).json({ ok: false, erro: 'Nenhum arquivo enviado.' });
+    }
+    const json = await chamarAppsScript(env.ticketsAppsScriptUrl, {
+      method: 'POST',
+      body: { action: 'adicionarAnexos', rowIndex, fotos, usuario: req.session.user.nome, usuarioSlug: req.session.user.slug },
+    });
+    res.json(json);
+  } catch (err) {
+    res.status(502).json({ ok: false, erro: 'Falha ao anexar arquivo(s): ' + err.message });
+  }
+});
+
+// Acompanhamento (evento do cliente, entrega) — anotação de quem está
+// tratando o ticket, sem trava extra de role (mesma ideia de comentar).
+router.post('/api/acompanhamento', async (req, res) => {
+  try {
+    const { rowIndex, temEvento, dataEvento, entrega, aeroporto } = req.body;
+    const json = await chamarAppsScript(env.ticketsAppsScriptUrl, {
+      method: 'POST',
+      body: { action: 'atualizarAcompanhamento', rowIndex, temEvento, dataEvento, entrega, aeroporto, usuario: req.session.user.nome, usuarioSlug: req.session.user.slug },
+    });
+    res.json(json);
+  } catch (err) {
+    res.status(502).json({ ok: false, erro: 'Falha ao salvar acompanhamento: ' + err.message });
   }
 });
 

@@ -14,6 +14,8 @@
  *    - doPost action:atribuir     → define/troca o responsável
  *    - doPost action:fechar       → marca como Fechado e grava a data
  *    - doPost action:comentarTicket → comentário de acompanhamento (Histórico)
+ *    - doPost action:adicionarAnexos → anexa imagem(ns) a um ticket já existente
+ *    - doPost action:atualizarAcompanhamento → evento/entrega, editado por quem trata o ticket
  *
  *  Mapeamento de colunas por NOME DO CABEÇALHO (tolerante a acento/maiúscula) —
  *  mesma receita do Painel de Erros (COLUNAS + buildColMap_).
@@ -32,6 +34,14 @@ var SEGREDO_HUB = 'PREENCHA_APENAS_NO_APPS_SCRIPT_REAL';
 var SHEET_NAME = 'Tickets';
 var HIST_SHEET_NAME = 'Historico';
 
+/**
+ * Pasta do Google Drive onde as imagens anexadas aos tickets são salvas.
+ * Em branco = o script cria/reusa "Fotos - Painel de Ticket" na raiz do
+ * Drive. Compartilhadas como "qualquer pessoa com o link pode ver".
+ */
+var FOTOS_FOLDER_ID = '';
+var FOTOS_FOLDER_NAME = 'Fotos - Painel de Ticket';
+
 var COLUNAS = {
   idTicket:       ['id ticket', 'id do ticket', 'ticket'],
   pedido:         ['pedido/cliente', 'pedido', 'cliente'],
@@ -46,6 +56,11 @@ var COLUNAS = {
   origem:         ['origem'],
   link:           ['link'],
   observacao:     ['observacao', 'observação'],
+  anexos:         ['anexos', 'foto', 'fotos', 'imagem', 'imagens', 'anexo'],
+  temEvento:      ['tem evento', 'evento com data'],
+  dataEvento:     ['data do evento', 'data evento'],
+  entrega:        ['entrega'],
+  aeroporto:      ['aeroporto', 'qual aeroporto'],
 };
 
 var STATUS_ABERTO = 'Aberto';
@@ -59,6 +74,12 @@ function norm_(s) {
     .normalize('NFD').replace(/[̀-ͯ]/g, '')
     .replace(/\s+/g, ' ')
     .trim();
+}
+
+function parseBool_(v) {
+  if (v === true) return true;
+  var s = norm_(v);
+  return s === 'true' || s === 'sim' || s === 'x' || s === 'verdadeiro' || s === '1';
 }
 
 function getSheet_() {
@@ -193,6 +214,11 @@ function doGet(e) {
         origem:          String(get(row, 'origem') || '').trim(),
         link:            String(get(row, 'link') || '').trim(),
         observacao:      String(get(row, 'observacao') || '').trim(),
+        anexos:          String(get(row, 'anexos') || '').trim(),
+        temEvento:       parseBool_(get(row, 'temEvento')),
+        dataEvento:      fmtDate_(get(row, 'dataEvento')),
+        entrega:         String(get(row, 'entrega') || '').trim(),
+        aeroporto:       String(get(row, 'aeroporto') || '').trim(),
       });
     }
     return jsonOut_({ ok: true, tickets: tickets });
@@ -213,6 +239,8 @@ function doPost(e) {
     if (action === 'atribuir')       return atribuirResponsavel_(body);
     if (action === 'fechar')         return fecharTicket_(body);
     if (action === 'comentarTicket') return comentarTicket_(body);
+    if (action === 'adicionarAnexos') return adicionarAnexos_(body);
+    if (action === 'atualizarAcompanhamento') return atualizarAcompanhamento_(body);
 
     return jsonOut_({ ok: false, error: 'Ação inválida: ' + action });
   } catch (err) {
@@ -256,6 +284,15 @@ function criarTicket_(f) {
     setCell_(sh, novaLinha, col, 'link', f.link);
     setCell_(sh, novaLinha, col, 'observacao', f.observacao);
 
+    if (f.fotos && f.fotos.length) {
+      try {
+        var links = salvarFotos_(f.fotos, idGerado);
+        if (links) setCell_(sh, novaLinha, col, 'anexos', links);
+      } catch (e) {
+        logHist_(novaLinha, idGerado, f.usuario, 'Falha ao salvar anexos', String(e && e.message || e), f.usuarioSlug);
+      }
+    }
+
     logHist_(novaLinha, idGerado, f.usuario || (f.origem === 'n8n' ? 'n8n' : ''), 'Ticket aberto',
       [f.identificador, f.setor].filter(String).join(' · '), f.usuarioSlug);
 
@@ -277,6 +314,35 @@ function atribuirResponsavel_(f) {
 
     var idTicket = (col.idTicket != null) ? sh.getRange(f.rowIndex, col.idTicket + 1).getValue() : '';
     logHist_(f.rowIndex, idTicket, f.usuario, 'Responsável atribuído', f.responsavel || '', f.usuarioSlug);
+
+    return jsonOut_({ ok: true, rowIndex: f.rowIndex, idTicket: String(idTicket || '') });
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/**
+ * Acompanhamento de quem está tratando o ticket (evento do cliente,
+ * entrega) — não é decisão de gestão, só anotação de quem está com o
+ * ticket, por isso sem trava de role (igual comentar/fechar).
+ */
+function atualizarAcompanhamento_(f) {
+  if (!f.rowIndex) return jsonOut_({ ok: false, error: 'rowIndex ausente' });
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    var sh = getSheet_();
+    var col = buildColMap_(sh.getDataRange().getValues()[0]);
+
+    var temEvento = !!f.temEvento;
+    if (col.temEvento != null) sh.getRange(f.rowIndex, col.temEvento + 1).setValue(temEvento ? 'TRUE' : 'FALSE');
+    if (col.dataEvento != null) sh.getRange(f.rowIndex, col.dataEvento + 1).setValue(temEvento ? (f.dataEvento || '') : '');
+    if (col.entrega != null) sh.getRange(f.rowIndex, col.entrega + 1).setValue(f.entrega || '');
+    if (col.aeroporto != null) sh.getRange(f.rowIndex, col.aeroporto + 1).setValue(f.entrega === 'Aeroporto' ? (f.aeroporto || '') : '');
+
+    var idTicket = (col.idTicket != null) ? sh.getRange(f.rowIndex, col.idTicket + 1).getValue() : '';
+    var detalhe = [temEvento ? 'evento em ' + (f.dataEvento || '?') : '', f.entrega].filter(String).join(' · ');
+    logHist_(f.rowIndex, idTicket, f.usuario, 'Acompanhamento atualizado', detalhe, f.usuarioSlug);
 
     return jsonOut_({ ok: true, rowIndex: f.rowIndex, idTicket: String(idTicket || '') });
   } finally {
@@ -324,4 +390,77 @@ function comentarTicket_(f) {
   logHist_(f.rowIndex, idTicket, f.usuario, 'Comentário', texto, f.usuarioSlug);
 
   return jsonOut_({ ok: true, rowIndex: f.rowIndex, idTicket: String(idTicket || '') });
+}
+
+/* ============================ ANEXOS (Google Drive) ============================
+ * Mesma receita do Painel de Erros: imagens chegam como data URL (já
+ * comprimidas no navegador), são salvas como arquivo no Drive, e o link de
+ * cada uma entra na coluna "Anexos" separado por vírgula.
+ */
+
+function getFotosFolder_() {
+  if (FOTOS_FOLDER_ID) {
+    try { return DriveApp.getFolderById(FOTOS_FOLDER_ID); } catch (e) {}
+  }
+  var it = DriveApp.getFoldersByName(FOTOS_FOLDER_NAME);
+  return it.hasNext() ? it.next() : DriveApp.createFolder(FOTOS_FOLDER_NAME);
+}
+
+function salvarFotos_(fotos, idTicket) {
+  if (!fotos || !fotos.length) return '';
+  var folder;
+  try {
+    folder = getFotosFolder_();
+  } catch (e) {
+    throw new Error('Sem acesso ao Google Drive. Autorize o escopo do Drive (rode getFotosFolder_ no editor) e republique a implantação. Detalhe: ' + (e && e.message || e));
+  }
+  var urls = [];
+  for (var i = 0; i < fotos.length; i++) {
+    try {
+      var dataUrl = String(fotos[i] || '');
+      var m = dataUrl.match(/^data:([^;]+);base64,(.*)$/);
+      if (!m) continue;
+      var mime = m[1];
+      var bytes = Utilities.base64Decode(m[2]);
+      var ext = (mime.split('/')[1] || 'jpg').replace('jpeg', 'jpg');
+      var nome = 'ticket_' + (idTicket || 's-id') + '_' + (i + 1) + '_' + new Date().getTime() + '.' + ext;
+      var blob = Utilities.newBlob(bytes, mime, nome);
+      var file = folder.createFile(blob);
+      try { file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); } catch (e) {}
+      urls.push(file.getUrl());
+    } catch (e) {}
+  }
+  return urls.join(',');
+}
+
+/**
+ * Anexa imagem(ns) a um ticket já existente (criado antes, com ou sem
+ * responsável) — não troca nada além da coluna Anexos, e nunca substitui
+ * links já salvos: sempre acrescenta aos que já existem na linha.
+ */
+function adicionarAnexos_(f) {
+  if (!f.rowIndex) return jsonOut_({ ok: false, error: 'rowIndex ausente' });
+  if (!f.fotos || !f.fotos.length) return jsonOut_({ ok: false, error: 'Nenhum arquivo enviado.' });
+
+  var lock = LockService.getScriptLock();
+  try { lock.waitLock(20000); } catch (e) { return jsonOut_({ ok: false, error: 'Sistema ocupado, tente novamente em alguns segundos.' }); }
+  try {
+    var sh = getSheet_();
+    var col = buildColMap_(sh.getDataRange().getValues()[0]);
+    if (col.anexos == null) return jsonOut_({ ok: false, error: 'Coluna "Anexos" não existe na planilha.' });
+
+    var idTicket = (col.idTicket != null) ? sh.getRange(f.rowIndex, col.idTicket + 1).getValue() : '';
+    var novosLinks = salvarFotos_(f.fotos, idTicket);
+    if (!novosLinks) return jsonOut_({ ok: false, error: 'Não consegui salvar os arquivos.' });
+
+    var atual = String(sh.getRange(f.rowIndex, col.anexos + 1).getValue() || '').trim();
+    var combinado = atual ? atual + ',' + novosLinks : novosLinks;
+    sh.getRange(f.rowIndex, col.anexos + 1).setValue(combinado);
+
+    logHist_(f.rowIndex, idTicket, f.usuario, 'Anexo(s) adicionado(s)', f.fotos.length + ' arquivo(s)', f.usuarioSlug);
+
+    return jsonOut_({ ok: true, rowIndex: f.rowIndex, idTicket: String(idTicket || ''), anexos: combinado });
+  } finally {
+    lock.releaseLock();
+  }
 }

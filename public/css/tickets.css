@@ -183,3 +183,24 @@
   .tk-header { padding-top: 66px; }
   .tk-scope { padding: 0 1rem 4rem; }
 }
+
+/* ===== Anexos (miniaturas + upload) ===== */
+.tk-photo-badge { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; font-weight: 700; color: var(--text-muted); background: var(--surface-3); border-radius: 999px; padding: 1px 7px; white-space: nowrap; }
+.tk-thumb { width: 78px; height: 78px; border-radius: var(--radius-sm); object-fit: cover; border: 1px solid var(--border-strong); background: var(--surface-3); display: block; cursor: zoom-in; }
+.tk-foto-drop { border: 1.5px dashed var(--border-strong); border-radius: var(--radius); padding: 14px; text-align: center; cursor: pointer; color: var(--text-muted); font-size: 12.5px; background: var(--surface-2); }
+.tk-foto-drop:hover { border-color: var(--gold-dark); background: var(--gold-dim); }
+.tk-foto-drop b { color: var(--text); }
+.tk-foto-prev { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 10px; }
+.tk-foto-prev .fp { position: relative; width: 74px; height: 74px; }
+.tk-foto-prev .fp img { width: 100%; height: 100%; object-fit: cover; border-radius: var(--radius-sm); border: 1px solid var(--border-strong); }
+.tk-foto-prev .fp .rm { position: absolute; top: -7px; right: -7px; width: 20px; height: 20px; border-radius: 50%; background: var(--bad); color: #fff; border: 2px solid var(--surface); cursor: pointer; font-size: 11px; line-height: 1; display: flex; align-items: center; justify-content: center; }
+
+/* ===== Lightbox / carrossel de anexos ===== */
+.tk-lb-scrim { position: fixed; inset: 0; z-index: 600; background: rgba(6,7,9,.9); display: flex; align-items: center; justify-content: center; padding: 40px; }
+.tk-lb-img { max-width: 92vw; max-height: 88vh; border-radius: 10px; box-shadow: 0 20px 70px rgba(0,0,0,.6); object-fit: contain; }
+.tk-lb-x { position: absolute; top: 18px; right: 20px; width: 42px; height: 42px; border-radius: 11px; border: 1px solid rgba(255,255,255,.22); background: rgba(255,255,255,.08); color: #fff; font-size: 17px; cursor: pointer; }
+.tk-lb-x:hover { background: rgba(255,255,255,.18); }
+.tk-lb-nav { position: absolute; top: 50%; transform: translateY(-50%); width: 52px; height: 52px; border-radius: 50%; border: 1px solid rgba(255,255,255,.22); background: rgba(255,255,255,.08); color: #fff; font-size: 26px; line-height: 1; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.tk-lb-nav:hover { background: rgba(255,255,255,.2); }
+.tk-lb-prev { left: 22px; } .tk-lb-next { right: 22px; }
+.tk-lb-count { position: absolute; bottom: 22px; left: 50%; transform: translateX(-50%); color: #e7ecf3; font-size: 13px; font-variant-numeric: tabular-nums; background: rgba(0,0,0,.4); padding: 5px 12px; border-radius: 999px; }
