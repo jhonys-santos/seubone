@@ -91,6 +91,17 @@
   const papel = (SESSAO && SESSAO.role === 'gestor') ? 'gestor' : 'colaborador';
   const USUARIOS_HUB = window.USUARIOS_HUB || [];
 
+  // "Resolvido" é o único status que fecha o ticket (grava data de
+  // fechamento) — os outros 3 são todos considerados "aberto" pra fins de
+  // TMR/prazo/filtro.
+  const STATUS_RESOLVIDO = 'Resolvido';
+  const STATUS_DEF = [
+    { status: 'Aberto', cor: '#2A6FDB' },
+    { status: 'Em acompanhamento', cor: '#E0A400' },
+    { status: 'Urgência', cor: '#C63A32' },
+    { status: STATUS_RESOLVIDO, cor: '#15A15A' },
+  ];
+
   const IDENTIFICADOR_OPCOES = ['Pedido atrasado', 'Refabricação', 'Erro de Envio'];
   // Sugestões do campo "Setor" — texto livre com datalist (igual o campo
   // "Responsável" do Painel de Erros), não uma lista fechada.
@@ -200,7 +211,7 @@
   // até o fechamento (não continua correndo).
   function tempoTicket(r) {
     const abertura = parseData(r.dataAbertura);
-    const fim = r.status === 'Fechado' ? parseData(r.dataFechamento) : new Date();
+    const fim = r.status === STATUS_RESOLVIDO ? parseData(r.dataFechamento) : new Date();
     return horasEntre(abertura, fim);
   }
 
@@ -234,7 +245,7 @@
 
   // Dias até o prazo (negativo = vencido). Só faz sentido pra ticket aberto.
   function diasParaPrazo(r) {
-    if (r.status === 'Fechado') return null;
+    if (r.status === STATUS_RESOLVIDO) return null;
     const prazo = prazoTicket(r);
     if (!prazo) return null;
     return Math.round((prazo.getTime() - soData(new Date()).getTime()) / 86400000);
@@ -243,7 +254,7 @@
   /* ================= PAPÉIS ================= */
 
   function souEuOResponsavel(r) { return !!(SESSAO && r.responsavelSlug && r.responsavelSlug === SESSAO.slug); }
-  function podeFechar(r) { return r.status !== 'Fechado' && (papel === 'gestor' || souEuOResponsavel(r)); }
+  function podeAlterarStatus(r) { return papel === 'gestor' || souEuOResponsavel(r); }
   function podeAtribuir() { return papel === 'gestor'; }
 
   /* ================= TOAST ================= */
@@ -285,8 +296,8 @@
 
   function rowsFiltradas() {
     return RECORDS.filter((r) => {
-      if (tkState.fStatus === 'abertos' && r.status === 'Fechado') return false;
-      if (tkState.fStatus === 'fechados' && r.status !== 'Fechado') return false;
+      if (tkState.fStatus === 'abertos' && r.status === STATUS_RESOLVIDO) return false;
+      if (tkState.fStatus === 'fechados' && r.status !== STATUS_RESOLVIDO) return false;
       if (tkState.fResponsavel && r.responsavel !== tkState.fResponsavel) return false;
       if (tkState.fIdentificador && r.identificador !== tkState.fIdentificador) return false;
       if (tkState.fSetor && r.setor !== tkState.fSetor) return false;
@@ -295,12 +306,12 @@
   }
 
   function statusBadge(r) {
-    if (r.status === 'Fechado') return `<span class="tk-badge tk-badge-fechado">Fechado</span>`;
-    return `<span class="tk-badge tk-badge-aberto">Aberto</span>`;
+    const sd = STATUS_DEF.find((s) => s.status === r.status) || STATUS_DEF[0];
+    return `<span class="tk-badge" style="background:color-mix(in oklab, ${sd.cor} 16%, transparent);color:${sd.cor}">${tkEsc(sd.status)}</span>`;
   }
 
   function renderLista(main) {
-    const abertos = RECORDS.filter((r) => r.status !== 'Fechado');
+    const abertos = RECORDS.filter((r) => r.status !== STATUS_RESOLVIDO);
     const semResponsavel = abertos.filter((r) => !r.responsavel).length;
     const rows = rowsFiltradas();
 
@@ -342,7 +353,7 @@
   /* ================= DASHBOARD ================= */
 
   function tmrDe(lista) {
-    const fechados = lista.filter((r) => r.status === 'Fechado' && r.dataAbertura && r.dataFechamento);
+    const fechados = lista.filter((r) => r.status === STATUS_RESOLVIDO && r.dataAbertura && r.dataFechamento);
     if (!fechados.length) return null;
     const soma = fechados.reduce((s, r) => s + (horasEntre(parseData(r.dataAbertura), parseData(r.dataFechamento)) || 0), 0);
     return soma / fechados.length;
@@ -350,7 +361,7 @@
 
   function rankingPor(campo) {
     const grupos = new Map();
-    RECORDS.filter((r) => r.status === 'Fechado' && r[campo]).forEach((r) => {
+    RECORDS.filter((r) => r.status === STATUS_RESOLVIDO && r[campo]).forEach((r) => {
       const chave = r[campo];
       if (!grupos.has(chave)) grupos.set(chave, []);
       grupos.get(chave).push(r);
@@ -392,7 +403,7 @@
   }
 
   function renderPrazosTable() {
-    const abertos = RECORDS.filter((r) => r.status !== 'Fechado');
+    const abertos = RECORDS.filter((r) => r.status !== STATUS_RESOLVIDO);
     const meus = abertos.filter(souEuOResponsavel);
     const cMeus = contarPrazos(meus);
     const cTodos = contarPrazos(abertos);
@@ -461,7 +472,7 @@
 
   function renderDashboard(main) {
     const tmrGeral = tmrDe(RECORDS);
-    const abertos = RECORDS.filter((r) => r.status !== 'Fechado').length;
+    const abertos = RECORDS.filter((r) => r.status !== STATUS_RESOLVIDO).length;
     const fechados = RECORDS.length - abertos;
 
     main.innerHTML = `
@@ -502,12 +513,13 @@
           <div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:8px">
             ${r.idTicket ? `<span class="tk-idchip">#${tkEsc(r.idTicket)}</span>` : ''}
             ${statusBadge(r)}
-            <span class="tk-age ${idadeClasse(horas)}">${r.status === 'Fechado' ? 'Resolvido em ' : 'Aberto há '}${fmtHoras(horas)}</span>
+            <span class="tk-age ${idadeClasse(horas)}">${r.status === STATUS_RESOLVIDO ? 'Resolvido em ' : 'Aberto há '}${fmtHoras(horas)}</span>
           </div>
         </div>
         <button class="tk-close-btn" id="tkDrwClose">✕</button>
       </div>
       <div class="tk-drawer-body">
+        ${podeAlterarStatus(r) ? `<div class="tk-status-seg" style="margin-bottom:18px">${STATUS_DEF.map((sd) => `<button class="tk-stbtn ${r.status === sd.status ? 'on' : ''}" data-status="${sd.status}" style="--c:${sd.cor}">${sd.status}</button>`).join('')}</div>` : ''}
         <div class="tk-sec-title">Dados do ticket</div>
         <div class="tk-field-grid" style="margin-bottom:16px">
           <div class="tk-field"><label>Identificador</label><div class="tk-readonly-block">${tkEsc(r.identificador) || '—'}</div></div>
@@ -517,7 +529,15 @@
           <div class="tk-field"><label>Aberto em</label><div class="tk-readonly-block">${fmtDataHora(r.dataAbertura)}</div></div>
           <div class="tk-field"><label>Fechado em</label><div class="tk-readonly-block">${fmtDataHora(r.dataFechamento)}</div></div>
         </div>
-        ${r.link ? `<div class="tk-field" style="margin-bottom:16px"><label>Link</label><div class="tk-readonly-block"><a href="${tkEsc(r.link)}" target="_blank" rel="noopener">${tkEsc(r.link)}</a></div></div>` : ''}
+        <div class="tk-field" style="margin-bottom:16px">
+          <label>Link</label>
+          ${r.link
+            ? `<a href="${tkEsc(r.link)}" target="_blank" rel="noopener" class="tk-btn tk-btn-ghost" style="display:inline-flex;align-items:center;gap:6px;text-decoration:none">Abrir card <i class="ti ti-external-link" aria-hidden="true"></i></a>`
+            : `<div style="display:flex;gap:8px">
+                <input type="url" id="tkInpLink" placeholder="https://..." style="flex:1">
+                <button class="tk-btn tk-btn-ghost" type="button" id="tkBtnSalvarLink">Adicionar</button>
+              </div>`}
+        </div>
         ${r.observacao ? `<div class="tk-field" style="margin-bottom:16px"><label>Observação</label><div class="tk-readonly-block" style="font-style:italic">${tkEsc(r.observacao)}</div></div>` : ''}
 
         <div class="tk-sec-title" style="margin-top:20px">Anexos${(() => { const n = tkParseFotos(r.anexos).length; return n ? ` (${n})` : ''; })()}</div>
@@ -541,7 +561,12 @@
           : `<div class="tk-readonly-block">${tkEsc(r.responsavel) || 'não atribuído'}</div>`}
 
         <div class="tk-sec-title" style="margin-top:20px">Acompanhamento</div>
-        <div style="font-size:12.5px;color:var(--text-muted);margin:-6px 0 12px;line-height:1.45">Informações de quem está tratando o ticket, não afeta prazo nem status.</div>
+        <div style="font-size:12.5px;color:var(--text-muted);margin:-6px 0 12px;line-height:1.45">Informações de quem está tratando o ticket, não afeta prazo de SLA nem status.</div>
+        <div class="tk-field-grid" style="margin-bottom:14px">
+          <div class="tk-field"><label>PPE (prazo previsto de entrega)</label><input type="date" id="tkInpPpe" value="${tkEsc((r.ppe || '').slice(0, 10))}"></div>
+          <div class="tk-field"><label>Previsão de finalização</label><input type="date" id="tkInpPrevisao" value="${tkEsc((r.previsaoFinalizacao || '').slice(0, 10))}"></div>
+          <div class="tk-field"><label>P. Folha (prazo de produção)</label><input type="date" id="tkInpPFolha" value="${tkEsc((r.pFolha || '').slice(0, 10))}"></div>
+        </div>
         <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text);margin-bottom:12px;cursor:pointer">
           <input type="checkbox" id="tkChkEvento" ${r.temEvento ? 'checked' : ''} style="width:15px;height:15px;accent-color:var(--gold)">
           Este pedido tem evento com data definida
@@ -566,9 +591,6 @@
           <button class="tk-btn tk-btn-ghost" type="button" id="tkBtnSalvarAcomp">Salvar acompanhamento</button>
         </div>
 
-        <div class="tk-sec-title" style="margin-top:20px">Histórico</div>
-        <div id="tkHistBox" class="tk-hist-box">Carregando…</div>
-
         <div class="tk-sec-title" style="margin-top:20px">Comentar</div>
         <div class="tk-field" style="margin-bottom:0">
           <textarea id="tkComentarioInput" placeholder="Alguma atualização sobre esse ticket? Deixe um comentário, o gestor será avisado."></textarea>
@@ -577,11 +599,13 @@
             <button class="tk-btn tk-btn-primary" type="button" id="tkBtnComentar">Comentar</button>
           </div>
         </div>
+
+        <div class="tk-sec-title" style="margin-top:20px">Histórico</div>
+        <div id="tkHistBox" class="tk-hist-box">Carregando…</div>
       </div>
       <div class="tk-drawer-foot">
         <span class="tk-save-msg" id="tkSaveMsg"></span>
         <button class="tk-btn tk-btn-ghost" id="tkDrwFechar">Fechar drawer</button>
-        ${podeFechar(r) ? `<button class="tk-btn tk-btn-primary" id="tkBtnFecharTicket">Fechar ticket</button>` : ''}
       </div>
     `;
   }
@@ -636,16 +660,55 @@
     wireDrawer(r);
   }
 
+  async function setTicketStatus(r, status) {
+    if (!podeAlterarStatus(r) || r.status === status) return;
+    try {
+      const res = await fetch('/tickets/api/status', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rowIndex: r.id, status }) });
+      const json = await res.json();
+      if (!json.ok) throw new Error(json.erro || json.error || 'Erro desconhecido');
+      await tkRefreshData(true);
+      if (CASO_ATUAL === r.id) renderDrawer(r.id);
+      else tkRender();
+      toast('Status: ' + status, true);
+    } catch (err) {
+      toast('Não consegui mudar o status: ' + err.message, false);
+    }
+  }
+
   function wireDrawer(r) {
     const $ = (i) => document.getElementById(i);
     carregarHistoricoTicket(r.id);
     $('tkDrwClose').addEventListener('click', () => closeDrawer(false));
     const fechar = $('tkDrwFechar'); if (fechar) fechar.addEventListener('click', () => closeDrawer(false));
 
+    document.querySelectorAll('.tk-drawer .tk-stbtn').forEach((b) => b.addEventListener('click', () => setTicketStatus(r, b.dataset.status)));
+
     const anexosExistentes = tkParseFotos(r.anexos).map(tkFotoSrc);
     document.querySelectorAll('.tk-drawer .tk-lb-thumb').forEach((el) => {
       el.addEventListener('click', () => tkOpenLightbox(anexosExistentes, Number(el.dataset.idx)));
     });
+
+    const btnSalvarLink = $('tkBtnSalvarLink');
+    if (btnSalvarLink) {
+      btnSalvarLink.addEventListener('click', async () => {
+        const inp = $('tkInpLink');
+        const link = inp.value.trim();
+        if (!link) { inp.focus(); return; }
+        btnSalvarLink.disabled = true;
+        try {
+          const res = await fetch('/tickets/api/link', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rowIndex: r.id, link }) });
+          const json = await res.json();
+          if (!json.ok) throw new Error(json.erro || json.error || 'Erro desconhecido');
+          r.link = link;
+          await tkRefreshData(true);
+          renderDrawer(r.id);
+          toast('Link adicionado', true);
+        } catch (err) {
+          toast('Erro: ' + err.message, false);
+          btnSalvarLink.disabled = false;
+        }
+      });
+    }
 
     // --- Acompanhamento: evento do cliente + entrega ---
     const chkEvento = $('tkChkEvento');
@@ -661,12 +724,15 @@
       const dataEvento = temEvento ? $('tkInpDataEvento').value : '';
       const entrega = selEntrega.value;
       const aeroporto = entrega === 'Aeroporto' ? $('tkInpAeroporto').value.trim() : '';
+      const ppe = $('tkInpPpe').value;
+      const previsaoFinalizacao = $('tkInpPrevisao').value;
+      const pFolha = $('tkInpPFolha').value;
       btn.disabled = true; msg.textContent = 'Gravando…';
       try {
-        const res = await fetch('/tickets/api/acompanhamento', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rowIndex: r.id, temEvento, dataEvento, entrega, aeroporto }) });
+        const res = await fetch('/tickets/api/acompanhamento', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rowIndex: r.id, temEvento, dataEvento, entrega, aeroporto, ppe, previsaoFinalizacao, pFolha }) });
         const json = await res.json();
         if (!json.ok) throw new Error(json.erro || json.error || 'Erro desconhecido');
-        Object.assign(r, { temEvento, dataEvento, entrega, aeroporto });
+        Object.assign(r, { temEvento, dataEvento, entrega, aeroporto, ppe, previsaoFinalizacao, pFolha });
         await tkRefreshData(true);
         msg.textContent = '';
         toast('Acompanhamento salvo', true);
@@ -776,24 +842,6 @@
       });
     }
 
-    const btnFechar = $('tkBtnFecharTicket');
-    if (btnFechar) {
-      btnFechar.addEventListener('click', async () => {
-        btnFechar.disabled = true;
-        try {
-          const res = await fetch('/tickets/api/fechar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rowIndex: r.id }) });
-          const json = await res.json();
-          if (!json.ok) throw new Error(json.erro || json.error || 'Erro desconhecido');
-          await tkRefreshData(true);
-          closeDrawer(false);
-          tkRender();
-          toast('Ticket fechado', true);
-        } catch (err) {
-          toast('Erro: ' + err.message, false);
-          btnFechar.disabled = false;
-        }
-      });
-    }
   }
 
   function openTicket(id) {

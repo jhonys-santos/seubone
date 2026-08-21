@@ -12,10 +12,11 @@
  *    - doGet ?action=historico&rowIndex=N → eventos de um ticket
  *    - doPost action:criar       → registra um novo ticket (manual ou via n8n)
  *    - doPost action:atribuir     → define/troca o responsável
- *    - doPost action:fechar       → marca como Fechado e grava a data
+ *    - doPost action:mudarStatus  → Aberto/Em acompanhamento/Urgência/Resolvido (Resolvido = fecha)
  *    - doPost action:comentarTicket → comentário de acompanhamento (Histórico)
  *    - doPost action:adicionarAnexos → anexa imagem(ns) a um ticket já existente
- *    - doPost action:atualizarAcompanhamento → evento/entrega, editado por quem trata o ticket
+ *    - doPost action:atualizarAcompanhamento → evento/entrega/prazos, editado por quem trata o ticket
+ *    - doPost action:definirLink → preenche o link do card quando criado sem ele
  *
  *  Mapeamento de colunas por NOME DO CABEÇALHO (tolerante a acento/maiúscula) —
  *  mesma receita do Painel de Erros (COLUNAS + buildColMap_).
@@ -61,10 +62,13 @@ var COLUNAS = {
   dataEvento:     ['data do evento', 'data evento'],
   entrega:        ['entrega'],
   aeroporto:      ['aeroporto', 'qual aeroporto'],
+  ppe:            ['ppe', 'prazo previsto de entrega'],
+  previsaoFinalizacao: ['previsao de finalizacao', 'previsão de finalização'],
+  pFolha:         ['p folha', 'prazo de producao', 'prazo de produção'],
 };
 
 var STATUS_ABERTO = 'Aberto';
-var STATUS_FECHADO = 'Fechado';
+var STATUS_RESOLVIDO = 'Resolvido';
 
 /* ============================ HELPERS ============================ */
 
@@ -219,6 +223,9 @@ function doGet(e) {
         dataEvento:      fmtDate_(get(row, 'dataEvento')),
         entrega:         String(get(row, 'entrega') || '').trim(),
         aeroporto:       String(get(row, 'aeroporto') || '').trim(),
+        ppe:                 fmtDate_(get(row, 'ppe')),
+        previsaoFinalizacao: fmtDate_(get(row, 'previsaoFinalizacao')),
+        pFolha:              fmtDate_(get(row, 'pFolha')),
       });
     }
     return jsonOut_({ ok: true, tickets: tickets });
@@ -237,10 +244,11 @@ function doPost(e) {
     var action = body.action;
     if (action === 'criar')          return criarTicket_(body);
     if (action === 'atribuir')       return atribuirResponsavel_(body);
-    if (action === 'fechar')         return fecharTicket_(body);
+    if (action === 'mudarStatus')    return mudarStatus_(body);
     if (action === 'comentarTicket') return comentarTicket_(body);
     if (action === 'adicionarAnexos') return adicionarAnexos_(body);
     if (action === 'atualizarAcompanhamento') return atualizarAcompanhamento_(body);
+    if (action === 'definirLink') return definirLink_(body);
 
     return jsonOut_({ ok: false, error: 'Ação inválida: ' + action });
   } catch (err) {
@@ -322,6 +330,33 @@ function atribuirResponsavel_(f) {
 }
 
 /**
+ * Preenche o link do card quando o ticket foi criado sem ele — sem trava
+ * de role (igual comentar/fechar), qualquer um com acesso ao painel pode
+ * adicionar.
+ */
+function definirLink_(f) {
+  if (!f.rowIndex) return jsonOut_({ ok: false, error: 'rowIndex ausente' });
+  var texto = String(f.link || '').trim();
+  if (!texto) return jsonOut_({ ok: false, error: 'Link vazio.' });
+
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    var sh = getSheet_();
+    var col = buildColMap_(sh.getDataRange().getValues()[0]);
+    if (col.link == null) return jsonOut_({ ok: false, error: 'Coluna "Link" não existe na planilha.' });
+    sh.getRange(f.rowIndex, col.link + 1).setValue(texto);
+
+    var idTicket = (col.idTicket != null) ? sh.getRange(f.rowIndex, col.idTicket + 1).getValue() : '';
+    logHist_(f.rowIndex, idTicket, f.usuario, 'Link adicionado', texto, f.usuarioSlug);
+
+    return jsonOut_({ ok: true, rowIndex: f.rowIndex, idTicket: String(idTicket || ''), link: texto });
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/**
  * Acompanhamento de quem está tratando o ticket (evento do cliente,
  * entrega) — não é decisão de gestão, só anotação de quem está com o
  * ticket, por isso sem trava de role (igual comentar/fechar).
@@ -339,6 +374,9 @@ function atualizarAcompanhamento_(f) {
     if (col.dataEvento != null) sh.getRange(f.rowIndex, col.dataEvento + 1).setValue(temEvento ? (f.dataEvento || '') : '');
     if (col.entrega != null) sh.getRange(f.rowIndex, col.entrega + 1).setValue(f.entrega || '');
     if (col.aeroporto != null) sh.getRange(f.rowIndex, col.aeroporto + 1).setValue(f.entrega === 'Aeroporto' ? (f.aeroporto || '') : '');
+    if (col.ppe != null) sh.getRange(f.rowIndex, col.ppe + 1).setValue(f.ppe || '');
+    if (col.previsaoFinalizacao != null) sh.getRange(f.rowIndex, col.previsaoFinalizacao + 1).setValue(f.previsaoFinalizacao || '');
+    if (col.pFolha != null) sh.getRange(f.rowIndex, col.pFolha + 1).setValue(f.pFolha || '');
 
     var idTicket = (col.idTicket != null) ? sh.getRange(f.rowIndex, col.idTicket + 1).getValue() : '';
     var detalhe = [temEvento ? 'evento em ' + (f.dataEvento || '?') : '', f.entrega].filter(String).join(' · ');
@@ -350,8 +388,14 @@ function atualizarAcompanhamento_(f) {
   }
 }
 
-function fecharTicket_(f) {
-  if (!f.rowIndex) return jsonOut_({ ok: false, error: 'rowIndex ausente' });
+/**
+ * Muda o status do ticket entre os 4 estados (Aberto / Em acompanhamento /
+ * Urgência / Resolvido). "Resolvido" fecha o ticket (grava Data fechamento);
+ * saindo de "Resolvido" pra qualquer outro estado (reabertura) limpa essa
+ * data — não fica uma data de fechamento velha num ticket reaberto.
+ */
+function mudarStatus_(f) {
+  if (!f.rowIndex || !f.status) return jsonOut_({ ok: false, error: 'rowIndex/status ausente' });
   var lock = LockService.getScriptLock();
   lock.waitLock(20000);
   try {
@@ -359,15 +403,21 @@ function fecharTicket_(f) {
     var col = buildColMap_(sh.getDataRange().getValues()[0]);
 
     var statusAtual = String(sh.getRange(f.rowIndex, col.status + 1).getValue() || '').trim();
-    if (statusAtual === STATUS_FECHADO) return jsonOut_({ ok: false, error: 'Esse ticket já está fechado.' });
+    if (statusAtual === STATUS_RESOLVIDO && f.status === STATUS_RESOLVIDO) {
+      return jsonOut_({ ok: false, error: 'Esse ticket já está resolvido.' });
+    }
 
-    sh.getRange(f.rowIndex, col.status + 1).setValue(STATUS_FECHADO);
-    sh.getRange(f.rowIndex, col.dataFechamento + 1).setValue(new Date());
+    sh.getRange(f.rowIndex, col.status + 1).setValue(f.status);
+    if (f.status === STATUS_RESOLVIDO) {
+      sh.getRange(f.rowIndex, col.dataFechamento + 1).setValue(new Date());
+    } else if (statusAtual === STATUS_RESOLVIDO) {
+      sh.getRange(f.rowIndex, col.dataFechamento + 1).setValue('');
+    }
 
     var idTicket = (col.idTicket != null) ? sh.getRange(f.rowIndex, col.idTicket + 1).getValue() : '';
-    logHist_(f.rowIndex, idTicket, f.usuario, 'Ticket fechado', '', f.usuarioSlug);
+    logHist_(f.rowIndex, idTicket, f.usuario, 'Status alterado', statusAtual + ' → ' + f.status, f.usuarioSlug);
 
-    return jsonOut_({ ok: true, rowIndex: f.rowIndex, idTicket: String(idTicket || '') });
+    return jsonOut_({ ok: true, rowIndex: f.rowIndex, idTicket: String(idTicket || ''), status: f.status });
   } finally {
     lock.releaseLock();
   }

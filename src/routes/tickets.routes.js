@@ -129,18 +129,24 @@ router.post('/api/atribuir', requireRole('gestor'), async (req, res) => {
   }
 });
 
-// Fechar ticket — sem trava extra de role no servidor (mesmo padrão do
-// "finalizarRefab" em Erros): a UI só mostra o botão pro responsável ou
-// pro gestor, mas qualquer um com acesso ao painel pode chamar essa rota.
-router.post('/api/fechar', async (req, res) => {
+// Mudar status (Aberto / Em acompanhamento / Urgência / Resolvido) — sem
+// trava extra de role no servidor (mesmo padrão do "finalizarRefab" em
+// Erros): a UI só mostra o controle pro responsável ou pro gestor, mas
+// qualquer um com acesso ao painel pode chamar essa rota. "Resolvido"
+// fecha o ticket (grava data de fechamento) do lado do Apps Script.
+router.post('/api/status', async (req, res) => {
   try {
+    const { rowIndex, status } = req.body;
+    if (!status) {
+      return res.status(400).json({ ok: false, erro: 'Status ausente.' });
+    }
     const json = await chamarAppsScript(env.ticketsAppsScriptUrl, {
       method: 'POST',
-      body: { action: 'fechar', rowIndex: req.body.rowIndex, usuario: req.session.user.nome, usuarioSlug: req.session.user.slug },
+      body: { action: 'mudarStatus', rowIndex, status, usuario: req.session.user.nome, usuarioSlug: req.session.user.slug },
     });
     res.json(json);
   } catch (err) {
-    res.status(502).json({ ok: false, erro: 'Falha ao fechar ticket: ' + err.message });
+    res.status(502).json({ ok: false, erro: 'Falha ao mudar status: ' + err.message });
   }
 });
 
@@ -190,18 +196,36 @@ router.post('/api/anexar', async (req, res) => {
   }
 });
 
-// Acompanhamento (evento do cliente, entrega) — anotação de quem está
-// tratando o ticket, sem trava extra de role (mesma ideia de comentar).
+// Acompanhamento (evento do cliente, entrega, prazos) — anotação de quem
+// está tratando o ticket, sem trava extra de role (mesma ideia de comentar).
 router.post('/api/acompanhamento', async (req, res) => {
   try {
-    const { rowIndex, temEvento, dataEvento, entrega, aeroporto } = req.body;
+    const { rowIndex, temEvento, dataEvento, entrega, aeroporto, ppe, previsaoFinalizacao, pFolha } = req.body;
     const json = await chamarAppsScript(env.ticketsAppsScriptUrl, {
       method: 'POST',
-      body: { action: 'atualizarAcompanhamento', rowIndex, temEvento, dataEvento, entrega, aeroporto, usuario: req.session.user.nome, usuarioSlug: req.session.user.slug },
+      body: { action: 'atualizarAcompanhamento', rowIndex, temEvento, dataEvento, entrega, aeroporto, ppe, previsaoFinalizacao, pFolha, usuario: req.session.user.nome, usuarioSlug: req.session.user.slug },
     });
     res.json(json);
   } catch (err) {
     res.status(502).json({ ok: false, erro: 'Falha ao salvar acompanhamento: ' + err.message });
+  }
+});
+
+// Preencher o link do card quando o ticket foi criado sem ele — sem trava
+// extra de role, mesma ideia de comentar/fechar.
+router.post('/api/link', async (req, res) => {
+  try {
+    const { rowIndex, link } = req.body;
+    if (!link || !String(link).trim()) {
+      return res.status(400).json({ ok: false, erro: 'Link vazio.' });
+    }
+    const json = await chamarAppsScript(env.ticketsAppsScriptUrl, {
+      method: 'POST',
+      body: { action: 'definirLink', rowIndex, link, usuario: req.session.user.nome, usuarioSlug: req.session.user.slug },
+    });
+    res.json(json);
+  } catch (err) {
+    res.status(502).json({ ok: false, erro: 'Falha ao salvar link: ' + err.message });
   }
 });
 

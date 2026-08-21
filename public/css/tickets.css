@@ -94,9 +94,13 @@
 
 /* ===== Badges / pílulas ===== */
 .tk-badge { font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 999px; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px; }
-.tk-badge-aberto { background: var(--warn-bg); color: var(--warn-text, var(--warn)); }
-.tk-badge-fechado { background: var(--ok-bg); color: var(--ok-text, var(--ok)); }
 .tk-badge-muted { background: var(--surface-3); color: var(--text-muted); }
+
+/* ===== Status (controle segmentado, cor por --c inline) ===== */
+.tk-status-seg { display: flex; flex-wrap: wrap; gap: 6px; }
+.tk-stbtn { border: 1px solid var(--border-strong); background: var(--surface-2); border-radius: var(--radius-sm); padding: 6px 11px; font-size: 12px; font-weight: 600; color: var(--text-muted); cursor: pointer; font-family: inherit; }
+.tk-stbtn:hover { border-color: var(--c); color: var(--c); }
+.tk-stbtn.on { background: var(--c); border-color: var(--c); color: #fff; }
 .tk-age { font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 999px; white-space: nowrap; }
 .tk-age-old { background: var(--bad-bg); color: var(--bad-text, var(--bad)); }
 .tk-age-mid { background: var(--warn-bg); color: var(--warn-text, var(--warn)); }
@@ -109,7 +113,14 @@
 .tk-scope tbody td { padding: 11px 12px; border-bottom: 1px solid var(--border); vertical-align: middle; color: var(--text); }
 .tk-scope tbody tr.tk-clickable { cursor: pointer; }
 .tk-scope tbody tr.tk-clickable:hover { background: var(--surface-2); }
-.tk-tbl-wrap { overflow-x: auto; }
+.tk-tbl-wrap {
+  overflow-x: auto; scrollbar-width: thin; scrollbar-color: transparent transparent;
+}
+.tk-tbl-wrap:hover { scrollbar-color: var(--border-strong) transparent; }
+.tk-tbl-wrap::-webkit-scrollbar { height: 5px; }
+.tk-tbl-wrap::-webkit-scrollbar-track { background: transparent; }
+.tk-tbl-wrap::-webkit-scrollbar-thumb { background: transparent; border-radius: 10px; }
+.tk-tbl-wrap:hover::-webkit-scrollbar-thumb { background: var(--border-strong); }
 .tk-empty { text-align: center; padding: 36px 20px; }
 .tk-empty .e-title { font-weight: 700; font-size: 14px; color: var(--text); }
 .tk-empty .e-sub { font-size: 12.5px; color: var(--text-muted); margin-top: 5px; }
@@ -152,7 +163,15 @@
 .tk-drawer { position: fixed; top: 0; right: 0; height: 100vh; width: min(520px, 94vw); background: var(--surface); box-shadow: -16px 0 48px rgba(0,0,0,.35); z-index: 401; display: flex; flex-direction: column; transform: translateX(100%); transition: transform .24s cubic-bezier(.4,0,.2,1); }
 .tk-drawer.show { transform: translateX(0); }
 .tk-drawer-head { padding: 15px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: flex-start; gap: 10px; }
-.tk-drawer-body { padding: 18px 20px; overflow-y: auto; flex: 1; }
+.tk-drawer-body {
+  padding: 18px 20px; overflow-y: auto; flex: 1;
+  scrollbar-width: thin; scrollbar-color: transparent transparent;
+}
+.tk-drawer-body:hover { scrollbar-color: var(--border-strong) transparent; }
+.tk-drawer-body::-webkit-scrollbar { width: 5px; }
+.tk-drawer-body::-webkit-scrollbar-track { background: transparent; }
+.tk-drawer-body::-webkit-scrollbar-thumb { background: transparent; border-radius: 10px; }
+.tk-drawer-body:hover::-webkit-scrollbar-thumb { background: var(--border-strong); }
 .tk-drawer-foot { padding: 14px 20px; border-top: 1px solid var(--border); display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap; background: var(--surface); align-items: center; }
 .tk-close-btn { flex-shrink: 0; width: 32px; height: 32px; border-radius: var(--radius-sm); border: 1px solid var(--border-strong); background: var(--surface-2); color: var(--text-muted); font-size: 15px; cursor: pointer; }
 .tk-close-btn:hover { background: var(--surface-3); }
@@ -171,12 +190,29 @@
 .tk-hist-empty { font-size: 12.5px; color: var(--text-muted); font-style: italic; line-height: 1.5; }
 
 /* ===== Modal "Novo ticket" ===== */
-.tk-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.6); display: flex; align-items: flex-start; justify-content: center; padding: 40px 16px; z-index: 500; overflow-y: auto; }
+.tk-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,.6); display: flex; align-items: flex-start; justify-content: center;
+  padding: 40px 16px; z-index: 500; overflow-y: auto;
+  scrollbar-width: thin; scrollbar-color: transparent transparent;
+}
+.tk-overlay:hover { scrollbar-color: var(--border-strong) transparent; }
+.tk-overlay::-webkit-scrollbar { width: 5px; }
+.tk-overlay::-webkit-scrollbar-track { background: transparent; }
+.tk-overlay::-webkit-scrollbar-thumb { background: transparent; border-radius: 10px; }
+.tk-overlay:hover::-webkit-scrollbar-thumb { background: var(--border-strong); }
 .tk-modal { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow); width: 100%; max-width: 640px; margin: auto; display: flex; flex-direction: column; max-height: calc(100vh - 80px); }
 .tk-modal-head { padding: 20px 24px; border-bottom: 1px solid var(--border); display: flex; align-items: flex-start; gap: 16px; }
 .tk-modal-head .title { font-size: 18px; font-weight: 800; letter-spacing: -.2px; color: var(--text); }
 .tk-modal-head .sub { font-size: 12.5px; color: var(--text-muted); margin-top: 4px; }
-.tk-modal-body { padding: 20px 24px; overflow-y: auto; flex: 1; }
+.tk-modal-body {
+  padding: 20px 24px; overflow-y: auto; flex: 1;
+  scrollbar-width: thin; scrollbar-color: transparent transparent;
+}
+.tk-modal-body:hover { scrollbar-color: var(--border-strong) transparent; }
+.tk-modal-body::-webkit-scrollbar { width: 5px; }
+.tk-modal-body::-webkit-scrollbar-track { background: transparent; }
+.tk-modal-body::-webkit-scrollbar-thumb { background: transparent; border-radius: 10px; }
+.tk-modal-body:hover::-webkit-scrollbar-thumb { background: var(--border-strong); }
 .tk-modal-foot { padding: 14px 24px; border-top: 1px solid var(--border); display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap; background: var(--surface); align-items: center; }
 
 @media (max-width: 900px) {
