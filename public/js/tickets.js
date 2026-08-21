@@ -15,7 +15,17 @@
   const USUARIOS_HUB = window.USUARIOS_HUB || [];
 
   const IDENTIFICADOR_OPCOES = ['Pedido atrasado', 'Refabricação', 'Erro de Envio'];
-  const SETOR_OPCOES = ['Vendas', 'Fábrica', 'Dupla (Vendedor e Designer)', 'Escritório', 'Cliente', 'Estoque'];
+  // Sugestões do campo "Setor" — texto livre com datalist (igual o campo
+  // "Responsável" do Painel de Erros), não uma lista fechada.
+  const SETOR_OPCOES = ['Fábrica Cacinho', 'Fábrica Bonés Brasil', 'Fábrica CIA Bruto', '88 Brindes', 'Fábrica Neidinha', 'Fábrica LaserTools', 'Fábrica SLC', 'Fábrica (Outro)', 'Transportadora'];
+
+  // SLA fixo por identificador (dias corridos a partir da abertura) — define
+  // o prazo usado nos contadores de Vencidos/Vence hoje/Vence amanhã do
+  // dashboard. Identificador sem SLA definido aqui simplesmente não entra
+  // nesses contadores (não é "vencido", é "sem prazo").
+  const SLA_DIAS = { 'Pedido atrasado': 1, 'Refabricação': 3, 'Erro de Envio': 1 };
+
+  let dashEscopoChart = 'todos'; // 'todos' | 'meus' — só afeta o gráfico de fluxo
 
   let RECORDS = [];
   let LAST_SYNC = null;
@@ -130,6 +140,29 @@
     return d.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
   }
 
+  // Só data, sem hora — pra comparar "dias até o prazo" sem a hora exata
+  // do dia empurrar o resultado pra um lado ou outro.
+  function soData(d) { const x = new Date(d.getTime()); x.setHours(0, 0, 0, 0); return x; }
+
+  // Prazo = abertura + SLA do identificador (dias corridos). null se o
+  // identificador não tem SLA definido em SLA_DIAS.
+  function prazoTicket(r) {
+    const dias = SLA_DIAS[r.identificador];
+    const abertura = parseData(r.dataAbertura);
+    if (dias == null || !abertura) return null;
+    const prazo = soData(abertura);
+    prazo.setDate(prazo.getDate() + dias);
+    return prazo;
+  }
+
+  // Dias até o prazo (negativo = vencido). Só faz sentido pra ticket aberto.
+  function diasParaPrazo(r) {
+    if (r.status === 'Fechado') return null;
+    const prazo = prazoTicket(r);
+    if (!prazo) return null;
+    return Math.round((prazo.getTime() - soData(new Date()).getTime()) / 86400000);
+  }
+
   /* ================= PAPÉIS ================= */
 
   function souEuOResponsavel(r) { return !!(SESSAO && r.responsavelSlug && r.responsavelSlug === SESSAO.slug); }
@@ -204,7 +237,7 @@
         <div class="tk-tbl-wrap">
           <table>
             <thead><tr>
-              <th>Ticket</th><th>Pedido</th><th>Identificador</th><th>Setor</th><th>Responsável</th><th>Status</th><th>${tkState.fStatus === 'fechados' ? 'Tempo total' : 'Aberto há'}</th>
+              <th>Ticket</th><th>Cliente</th><th>Identificador</th><th>Setor</th><th>Responsável</th><th>Status</th><th>${tkState.fStatus === 'fechados' ? 'Tempo total' : 'Aberto há'}</th>
             </tr></thead>
             <tbody>
               ${rows.length === 0 ? `<tr><td colspan="7"><div class="tk-empty"><div class="e-title">Nenhum ticket encontrado</div><div class="e-sub">Ajuste os filtros ou clique em "+ Novo ticket".</div></div></td></tr>` : rows.map((r) => {
@@ -269,6 +302,86 @@
       </div>`;
   }
 
+  function contarPrazos(lista) {
+    let vencidos = 0, hoje = 0, amanha = 0;
+    lista.forEach((r) => {
+      const d = diasParaPrazo(r);
+      if (d == null) return;
+      if (d < 0) vencidos++;
+      else if (d === 0) hoje++;
+      else if (d === 1) amanha++;
+    });
+    return { vencidos, hoje, amanha };
+  }
+
+  function renderPrazosTable() {
+    const abertos = RECORDS.filter((r) => r.status !== 'Fechado');
+    const meus = abertos.filter(souEuOResponsavel);
+    const cMeus = contarPrazos(meus);
+    const cTodos = contarPrazos(abertos);
+    const cel = (n) => `<td class="tk-num ${n > 0 ? 'tk-prazo-bad' : ''}">${n}</td>`;
+    return `
+      <div class="tk-card">
+        <h3>Prazos</h3>
+        <div class="card-sub">SLA por identificador (Pedido atrasado e Erro de Envio: 1 dia · Refabricação: 3 dias), só tickets abertos.</div>
+        <div class="tk-tbl-wrap">
+          <table>
+            <thead><tr><th></th><th>Vencidos</th><th>Vence hoje</th><th>Vence amanhã</th></tr></thead>
+            <tbody>
+              <tr><td style="font-weight:600">Meus</td>${cel(cMeus.vencidos)}${cel(cMeus.hoje)}${cel(cMeus.amanha)}</tr>
+              <tr><td style="font-weight:600">Todos</td>${cel(cTodos.vencidos)}${cel(cTodos.hoje)}${cel(cTodos.amanha)}</tr>
+            </tbody>
+          </table>
+        </div>
+      </div>`;
+  }
+
+  function bucketsPorDia(lista, dias) {
+    const hoje = soData(new Date());
+    const buckets = [];
+    for (let i = dias - 1; i >= 0; i--) {
+      const dia = new Date(hoje.getTime()); dia.setDate(dia.getDate() - i);
+      buckets.push({ dia, abertos: 0, fechados: 0 });
+    }
+    const idxPorDia = new Map(buckets.map((b, i) => [b.dia.getTime(), i]));
+    lista.forEach((r) => {
+      const ab = parseData(r.dataAbertura);
+      if (ab) { const i = idxPorDia.get(soData(ab).getTime()); if (i != null) buckets[i].abertos++; }
+      const fc = parseData(r.dataFechamento);
+      if (fc) { const i = idxPorDia.get(soData(fc).getTime()); if (i != null) buckets[i].fechados++; }
+    });
+    return buckets;
+  }
+
+  function renderFluxoChart() {
+    const lista = dashEscopoChart === 'meus' ? RECORDS.filter(souEuOResponsavel) : RECORDS;
+    const buckets = bucketsPorDia(lista, 14);
+    const max = Math.max(1, ...buckets.map((b) => Math.max(b.abertos, b.fechados)));
+    const diaLabel = (d) => d.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '') + ' ' + String(d.getDate()).padStart(2, '0') + '/' + String(d.getMonth() + 1).padStart(2, '0');
+    return `
+      <div class="tk-card">
+        <div class="tk-card-head-row">
+          <h3>Abertos x Fechados por dia</h3>
+          <div class="tk-seg-toggle" id="tkFluxoEscopo">
+            <button class="seg ${dashEscopoChart === 'meus' ? 'on' : ''}" data-escopo="meus" type="button">Meus</button>
+            <button class="seg ${dashEscopoChart === 'todos' ? 'on' : ''}" data-escopo="todos" type="button">Todos</button>
+          </div>
+        </div>
+        <div class="card-sub"><span class="tk-legend-dot azul"></span>Abertos no dia&nbsp;&nbsp;<span class="tk-legend-dot verde"></span>Fechados no dia</div>
+        <div class="tk-fluxo-chart">
+          ${buckets.map((b) => `
+            <div class="tk-fluxo-day">
+              <div class="tk-fluxo-bars">
+                <div class="tk-fluxo-bar azul" style="height:${b.abertos ? Math.max(4, b.abertos / max * 100) : 0}%" title="${b.abertos} aberto(s)"></div>
+                <div class="tk-fluxo-bar verde" style="height:${b.fechados ? Math.max(4, b.fechados / max * 100) : 0}%" title="${b.fechados} fechado(s)"></div>
+              </div>
+              <div class="tk-fluxo-label">${tkEsc(diaLabel(b.dia))}</div>
+            </div>
+          `).join('')}
+        </div>
+      </div>`;
+  }
+
   function renderDashboard(main) {
     const tmrGeral = tmrDe(RECORDS);
     const abertos = RECORDS.filter((r) => r.status !== 'Fechado').length;
@@ -280,11 +393,20 @@
         <div class="tk-kpi"><div class="k-l">Tickets abertos</div><div class="k-v">${abertos}</div></div>
         <div class="tk-kpi"><div class="k-l">Tickets fechados</div><div class="k-v">${fechados}</div></div>
       </div>
+      ${renderPrazosTable()}
+      ${renderFluxoChart()}
       <div class="tk-grid-2col">
         ${renderRanking('TMR por responsável', 'Tempo médio de resolução entre a abertura e o fechamento, só de tickets fechados.', rankingPor('responsavel'))}
         ${renderRanking('TMR por identificador', 'Quais tipos de ticket demoram mais pra resolver.', rankingPor('identificador'))}
       </div>
     `;
+
+    const escopoBox = document.getElementById('tkFluxoEscopo');
+    if (escopoBox) {
+      escopoBox.querySelectorAll('.seg').forEach((btn) => {
+        btn.addEventListener('click', () => { dashEscopoChart = btn.dataset.escopo; renderDashboard(main); });
+      });
+    }
   }
 
   /* ================= DRAWER ================= */
@@ -499,7 +621,6 @@
     const modalRoot = document.getElementById('tkModalRoot');
     const optVazia = '<option value="">—</option>';
     const identOptions = optVazia + IDENTIFICADOR_OPCOES.map((o) => `<option value="${tkEsc(o)}">${tkEsc(o)}</option>`).join('');
-    const setorOptions = optVazia + SETOR_OPCOES.map((o) => `<option value="${tkEsc(o)}">${tkEsc(o)}</option>`).join('');
     const respOptions = optVazia + USUARIOS_HUB.map((u) => `<option value="${tkEsc(u.slug)}">${tkEsc(u.nome)}</option>`).join('');
 
     modalRoot.innerHTML = `
@@ -508,22 +629,22 @@
           <div class="tk-modal-head">
             <div style="flex:1;min-width:0">
               <div class="title">Abrir novo ticket</div>
-              <div class="sub">Preencha o que souber. Se deixar o responsável em branco, o ticket entra como "não atribuído" e todo gestor é avisado.</div>
+              <div class="sub">Preencha o que souber. O ID do ticket é gerado automaticamente. Se deixar o responsável em branco, o ticket entra como "não atribuído" e todo gestor é avisado.</div>
             </div>
             <button class="tk-close-btn" id="tkCloseModalNovo">✕</button>
           </div>
           <div class="tk-modal-body">
             <form id="tkFormNovo">
               <div class="tk-field-grid" style="margin-bottom:14px">
-                <div class="tk-field"><label>ID do ticket (Octadesk etc.)</label><input type="text" name="idTicket" placeholder="Ex: 16536"></div>
-                <div class="tk-field"><label>Pedido / Cliente</label><input type="text" name="pedido" placeholder="Ex: Pedro 9366"></div>
+                <div class="tk-field"><label>Nome do cliente</label><input type="text" name="pedido" placeholder="Ex: Pedro 9366"></div>
+                <div class="tk-field"><label>ID da venda</label><input type="text" name="idVenda" placeholder="Opcional"></div>
               </div>
               <div class="tk-field-grid" style="margin-bottom:14px">
                 <div class="tk-field"><label>Identificador *</label><select name="identificador">${identOptions}</select></div>
-                <div class="tk-field"><label>Setor</label><select name="setor">${setorOptions}</select></div>
+                <div class="tk-field"><label>Setor</label><input type="text" name="setor" list="tkSetorList" placeholder="Digite ou selecione"></div>
+                <datalist id="tkSetorList">${SETOR_OPCOES.map((o) => `<option value="${tkEsc(o)}">`).join('')}</datalist>
               </div>
               <div class="tk-field-grid" style="margin-bottom:14px">
-                <div class="tk-field"><label>ID da venda</label><input type="text" name="idVenda" placeholder="Opcional"></div>
                 <div class="tk-field"><label>Responsável</label><select name="responsavelSlug">${respOptions}</select></div>
               </div>
               <div class="tk-field" style="margin-bottom:14px"><label>Link</label><input type="url" name="link" placeholder="https://..."></div>
@@ -551,7 +672,6 @@
       const g = (n) => (fd.get(n) || '').toString().trim();
 
       if (!g('identificador')) { msg.textContent = 'Selecione um identificador.'; return; }
-      if (!g('pedido') && !g('idTicket')) { msg.textContent = 'Informe ao menos o pedido/cliente ou o ID do ticket.'; return; }
 
       const responsavelSlug = g('responsavelSlug');
       const responsavel = responsavelSlug ? (USUARIOS_HUB.find((u) => u.slug === responsavelSlug) || {}).nome || '' : '';
@@ -562,7 +682,7 @@
         const res = await fetch('/tickets/api/criar', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            idTicket: g('idTicket'), pedido: g('pedido'), idVenda: g('idVenda'),
+            pedido: g('pedido'), idVenda: g('idVenda'),
             identificador: g('identificador'), setor: g('setor'), responsavel, responsavelSlug,
             link: g('link'), observacao: g('observacao'),
           }),

@@ -229,9 +229,6 @@ function criarTicket_(f) {
   var lock = LockService.getScriptLock();
   try { lock.waitLock(20000); } catch (e) { return jsonOut_({ ok: false, error: 'Sistema ocupado, tente novamente em alguns segundos.' }); }
   try {
-    if (!f.pedido && !f.idTicket) {
-      return jsonOut_({ ok: false, error: 'Informe ao menos o pedido/cliente ou o ID do ticket.' });
-    }
     if (!f.identificador) {
       return jsonOut_({ ok: false, error: 'Identificador é obrigatório.' });
     }
@@ -241,7 +238,12 @@ function criarTicket_(f) {
     var col = buildColMap_(header);
     var novaLinha = sh.getLastRow() + 1;
 
-    setCell_(sh, novaLinha, col, 'idTicket', f.idTicket);
+    // ID do ticket é sempre gerado por aqui (nunca aceito de quem chama) —
+    // "T" + a própria linha da planilha, garantido único pelo LockService
+    // que envolve toda esta função.
+    var idGerado = 'T' + String(novaLinha - 1).padStart(5, '0');
+
+    setCell_(sh, novaLinha, col, 'idTicket', idGerado);
     setCell_(sh, novaLinha, col, 'pedido', f.pedido);
     setCell_(sh, novaLinha, col, 'idVenda', f.idVenda);
     setCell_(sh, novaLinha, col, 'identificador', f.identificador);
@@ -254,10 +256,10 @@ function criarTicket_(f) {
     setCell_(sh, novaLinha, col, 'link', f.link);
     setCell_(sh, novaLinha, col, 'observacao', f.observacao);
 
-    logHist_(novaLinha, f.idTicket, f.usuario || (f.origem === 'n8n' ? 'n8n' : ''), 'Ticket aberto',
+    logHist_(novaLinha, idGerado, f.usuario || (f.origem === 'n8n' ? 'n8n' : ''), 'Ticket aberto',
       [f.identificador, f.setor].filter(String).join(' · '), f.usuarioSlug);
 
-    return jsonOut_({ ok: true, rowIndex: novaLinha });
+    return jsonOut_({ ok: true, rowIndex: novaLinha, idTicket: idGerado });
   } finally {
     lock.releaseLock();
   }

@@ -60,7 +60,28 @@
 .tk-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px 20px; margin-bottom: 14px; }
 .tk-card h3 { font-size: 14px; font-weight: 700; margin: 0; color: var(--text); }
 .tk-card .card-sub { font-size: 12.5px; color: var(--text-muted); margin: 4px 0 10px; line-height: 1.45; }
+.tk-card-head-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 .tk-grid-2col { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 14px; }
+.tk-num { text-align: right; font-variant-numeric: tabular-nums; }
+.tk-prazo-bad { color: var(--bad-text, var(--bad)); font-weight: 700; }
+
+/* ===== Toggle segmentado (Meus/Todos) ===== */
+.tk-seg-toggle { display: inline-flex; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); overflow: hidden; flex: 0 0 auto; }
+.tk-seg-toggle .seg { border: 0; background: var(--surface-2); padding: 6px 12px; font-size: 12px; font-weight: 600; color: var(--text-muted); cursor: pointer; font-family: inherit; }
+.tk-seg-toggle .seg:hover { background: var(--surface-3); }
+.tk-seg-toggle .seg.on { background: var(--gold); color: var(--on-gold, #1c1c1c); }
+
+/* ===== Gráfico de fluxo (abertos x fechados por dia) ===== */
+.tk-legend-dot { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 4px; vertical-align: middle; }
+.tk-legend-dot.azul { background: #2A6FDB; }
+.tk-legend-dot.verde { background: #1E8A4D; }
+.tk-fluxo-chart { display: flex; gap: 10px; align-items: flex-end; height: 160px; overflow-x: auto; padding-top: 8px; }
+.tk-fluxo-day { display: flex; flex-direction: column; align-items: center; flex: 1 0 44px; min-width: 44px; height: 100%; }
+.tk-fluxo-bars { display: flex; align-items: flex-end; gap: 3px; flex: 1; width: 100%; justify-content: center; }
+.tk-fluxo-bar { width: 12px; border-radius: 3px 3px 0 0; min-height: 2px; }
+.tk-fluxo-bar.azul { background: #2A6FDB; }
+.tk-fluxo-bar.verde { background: #1E8A4D; }
+.tk-fluxo-label { font-size: 10.5px; color: var(--text-muted); margin-top: 6px; white-space: nowrap; }
 
 /* ===== Ranking em barra (TMR por responsável/identificador) ===== */
 .tk-rk-row { padding: 11px 0; border-bottom: 1px solid var(--border); }

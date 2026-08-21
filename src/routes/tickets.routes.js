@@ -28,20 +28,23 @@ function notificarGestoresSemResponsavel(rowIndex, idTicket, pedido) {
 // registro-demandas — não é um segredo novo por integração.
 router.post('/webhook/n8n', async (req, res) => {
   try {
-    const { segredo, idTicket, pedido, idVenda, identificador, setor, link, observacao } = req.body;
+    const { segredo, pedido, idVenda, identificador, setor, link, observacao } = req.body;
     if (!env.n8nWebhookSecret || segredo !== env.n8nWebhookSecret) {
       return res.status(401).json({ ok: false, erro: 'Segredo inválido.' });
     }
-    if (!identificador || (!pedido && !idTicket)) {
-      return res.status(400).json({ ok: false, erro: 'Informe "identificador" e ao menos "pedido" ou "idTicket".' });
+    if (!identificador) {
+      return res.status(400).json({ ok: false, erro: 'Informe "identificador".' });
     }
 
+    // "idTicket" não vem mais de fora — é sempre gerado pelo Apps Script
+    // (ver criarTicket_), pra ser o identificador único de dentro do hub,
+    // e não um número de outro sistema.
     const json = await chamarAppsScript(env.ticketsAppsScriptUrl, {
       method: 'POST',
-      body: { action: 'criar', idTicket, pedido, idVenda, identificador, setor, link, observacao, origem: 'n8n', usuario: 'n8n' },
+      body: { action: 'criar', pedido, idVenda, identificador, setor, link, observacao, origem: 'n8n', usuario: 'n8n' },
     });
     if (json.ok) {
-      notificarGestoresSemResponsavel(json.rowIndex, idTicket, pedido);
+      notificarGestoresSemResponsavel(json.rowIndex, json.idTicket, pedido);
     }
     res.json(json);
   } catch (err) {
@@ -51,10 +54,18 @@ router.post('/webhook/n8n', async (req, res) => {
 
 router.use(requireAuth, requirePainel('tickets'));
 
+// Nomes de contas de teste/diagnóstico que não devem aparecer como opção
+// de responsável — as contas continuam existindo (login etc.), só não
+// entram nesse dropdown.
+const NOMES_EXCLUIDOS_RESPONSAVEL = ['Diagnostico', 'Diag Gestor', 'Diag Colaborador', 'Diag Wallac'];
+
 router.get('/', (req, res) => {
   // Lista de usuários pro dropdown de "atribuir responsável" — só nome/slug,
   // nada sensível (mesma ideia de expor window.USUARIO_SESSAO pra sessão).
-  const usuarios = usuariosService.listarUsuarios().map((u) => ({ nome: u.nome, slug: u.slug }));
+  const usuarios = usuariosService
+    .listarUsuarios()
+    .filter((u) => !NOMES_EXCLUIDOS_RESPONSAVEL.includes(u.nome))
+    .map((u) => ({ nome: u.nome, slug: u.slug }));
   res.render('tickets/index', { usuariosHub: usuarios });
 });
 
@@ -81,16 +92,16 @@ router.get('/api/historico', async (req, res) => {
 // ticket (igual "registrar" no Painel de Erros).
 router.post('/api/criar', async (req, res) => {
   try {
-    const { idTicket, pedido, idVenda, identificador, setor, responsavel, responsavelSlug, link, observacao } = req.body;
+    const { pedido, idVenda, identificador, setor, responsavel, responsavelSlug, link, observacao } = req.body;
     const json = await chamarAppsScript(env.ticketsAppsScriptUrl, {
       method: 'POST',
       body: {
-        action: 'criar', idTicket, pedido, idVenda, identificador, setor, responsavel, responsavelSlug, link, observacao,
+        action: 'criar', pedido, idVenda, identificador, setor, responsavel, responsavelSlug, link, observacao,
         origem: 'manual', usuario: req.session.user.nome, usuarioSlug: req.session.user.slug,
       },
     });
     if (json.ok && !responsavel) {
-      notificarGestoresSemResponsavel(json.rowIndex, idTicket, pedido);
+      notificarGestoresSemResponsavel(json.rowIndex, json.idTicket, pedido);
     }
     res.json(json);
   } catch (err) {
