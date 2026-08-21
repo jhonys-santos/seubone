@@ -238,6 +238,22 @@
     return d.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
   }
 
+  // Só a data (sem hora) — usado nas colunas PPE/Previsão da lista.
+  function fmtDataCurta(iso) {
+    const d = parseData(iso);
+    if (!d) return '—';
+    return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  }
+
+  // Dias entre hoje e o PPE (negativo = já passou do prazo) — mostrado na
+  // lista independente do status, igual a referência mostra até em
+  // tickets já finalizados.
+  function diasParaPPE(r) {
+    const ppe = parseData(r.ppe);
+    if (!ppe) return null;
+    return Math.round((soData(ppe).getTime() - soData(new Date()).getTime()) / 86400000);
+  }
+
   // Só data, sem hora — pra comparar "dias até o prazo" sem a hora exata
   // do dia empurrar o resultado pra um lado ou outro.
   function soData(d) { const x = new Date(d.getTime()); x.setHours(0, 0, 0, 0); return x; }
@@ -354,16 +370,21 @@
         <div class="tk-tbl-wrap">
           <table>
             <thead><tr>
-              <th>Ticket</th><th>Cliente</th><th>Identificador</th><th>Setor</th><th>Responsável</th><th>Status</th><th>${tkState.fStatus === 'fechados' ? 'Tempo total' : 'Aberto há'}</th>
+              <th>Ticket</th><th>Cliente</th><th>Identificador</th><th>Setor</th><th>PPE</th><th>Dias</th><th>Previsão finalização</th><th>Responsável</th><th>Status</th><th>${tkState.fStatus === 'fechados' ? 'Tempo total' : 'Aberto há'}</th>
             </tr></thead>
             <tbody>
-              ${rows.length === 0 ? `<tr><td colspan="7"><div class="tk-empty"><div class="e-title">Nenhum ticket encontrado</div><div class="e-sub">Ajuste os filtros ou clique em "+ Novo ticket".</div></div></td></tr>` : rows.map((r) => {
+              ${rows.length === 0 ? `<tr><td colspan="10"><div class="tk-empty"><div class="e-title">Nenhum ticket encontrado</div><div class="e-sub">Ajuste os filtros ou clique em "+ Novo ticket".</div></div></td></tr>` : rows.map((r) => {
                 const horas = tempoTicket(r);
+                const dPPE = diasParaPPE(r);
+                const corDias = dPPE == null ? 'var(--text-hint)' : dPPE < 0 ? 'var(--bad-text,var(--bad))' : dPPE === 0 ? 'var(--warn-text,var(--warn))' : 'var(--text)';
                 return `<tr class="tk-clickable" data-id="${r.id}">
                   <td>${r.idTicket ? '#' + tkEsc(r.idTicket) : '<span style="color:var(--text-hint)">—</span>'}</td>
                   <td style="font-weight:600">${tkEsc(r.pedido) || '—'} ${tkPhotoBadge(r)}</td>
                   <td>${tkEsc(r.identificador) || '—'}</td>
-                  <td>${tkEsc(r.setor) || '—'}</td>
+                  <td>${r.setor ? `<span class="tk-badge tk-badge-muted">${tkEsc(r.setor)}</span>` : '—'}</td>
+                  <td>${fmtDataCurta(r.ppe)}</td>
+                  <td><span style="font-weight:700;font-variant-numeric:tabular-nums;color:${corDias}">${dPPE == null ? '—' : (dPPE > 0 ? '+' : '') + dPPE + 'd'}</span></td>
+                  <td>${fmtDataCurta(r.previsaoFinalizacao)}</td>
                   <td>${tkEsc(r.responsavel) || '<span style="color:var(--warn-text,var(--warn))">não atribuído</span>'}</td>
                   <td>${statusBadge(r)}</td>
                   <td><span class="tk-age ${idadeClasse(horas)}">${fmtHoras(horas)}</span></td>
@@ -401,8 +422,26 @@
       .sort((a, b) => b.tmr - a.tmr);
   }
 
+  // Igual rankingPor('identificador'), mas sempre mostra todos os tipos
+  // conhecidos (sugestões + os que já apareceram nos tickets), mesmo sem
+  // nenhum ticket fechado ainda — pra dar visão completa por tipo, não só
+  // dos que já têm dado.
+  function rankingPorIdentificador() {
+    const visiveis = visibleRecords();
+    const grupos = new Map();
+    visiveis.filter((r) => r.status === STATUS_RESOLVIDO && r.identificador).forEach((r) => {
+      if (!grupos.has(r.identificador)) grupos.set(r.identificador, []);
+      grupos.get(r.identificador).push(r);
+    });
+    const todos = Array.from(new Set([...IDENTIFICADOR_OPCOES, ...visiveis.map((r) => r.identificador).filter(Boolean)]));
+    return todos
+      .map((nome) => { const lista = grupos.get(nome) || []; return { nome, tmr: lista.length ? tmrDe(lista) : null, n: lista.length }; })
+      .sort((a, b) => (a.tmr == null ? 1 : b.tmr == null ? -1 : b.tmr - a.tmr));
+  }
+
   function renderRanking(titulo, sub, grupos) {
-    const max = grupos.length ? Math.max(...grupos.map((g) => g.tmr)) : 1;
+    const comDados = grupos.filter((g) => g.tmr != null);
+    const max = comDados.length ? Math.max(...comDados.map((g) => g.tmr)) : 1;
     return `
       <div class="tk-card">
         <h3>${titulo}</h3>
@@ -411,9 +450,9 @@
           <div class="tk-rk-row">
             <div class="tk-rk-top">
               <span class="tk-rk-name">${tkEsc(g.nome)}</span>
-              <span class="tk-rk-count">${fmtHoras(g.tmr)} · ${g.n} ticket(s)</span>
+              <span class="tk-rk-count">${g.tmr != null ? fmtHoras(g.tmr) + ' · ' + g.n + ' ticket(s)' : 'sem dados ainda'}</span>
             </div>
-            <div class="tk-rk-bar"><i style="width:${Math.max(4, g.tmr / max * 100)}%"></i></div>
+            <div class="tk-rk-bar"><i style="width:${g.tmr != null ? Math.max(4, g.tmr / max * 100) : 0}%"></i></div>
           </div>
         `).join('')}
       </div>`;
@@ -566,7 +605,7 @@
       ${renderFluxoChart()}
       <div class="tk-grid-2col">
         ${renderRanking('TMR por responsável', 'Tempo médio de resolução entre a abertura e o fechamento, só de tickets fechados.', rankingPor('responsavel'))}
-        ${renderRanking('TMR por identificador', 'Quais tipos de ticket demoram mais pra resolver.', rankingPor('identificador'))}
+        ${renderRanking('TMR por identificador', 'Quais tipos de ticket demoram mais pra resolver.', rankingPorIdentificador())}
       </div>
     `;
 
