@@ -21,11 +21,12 @@ function notificarGestoresSemResponsavel(rowIndex, idTicket, pedido) {
     });
 }
 
-// Webhook do n8n avisando de um ticket aberto em outro sistema (Octadesk) —
-// protegido por segredo compartilhado, não por sessão (o n8n não é um
-// usuário logado no hub, por isso essa rota vem ANTES do requireAuth
-// abaixo). Reaproveita o mesmo N8N_WEBHOOK_SECRET já usado em
-// registro-demandas — não é um segredo novo por integração.
+// Webhook do CRM (Lulu 2.0) avisando de um ticket aberto (ex: pedido
+// atrasado) — protegido por segredo compartilhado, não por sessão (o CRM
+// não é um usuário logado no hub, por isso essa rota vem ANTES do
+// requireAuth abaixo). Reaproveita o mesmo N8N_WEBHOOK_SECRET já usado em
+// registro-demandas — não é um segredo novo por integração. O nome da rota
+// ficou "n8n" da integração original, mas hoje é chamada direto pelo CRM.
 router.post('/webhook/n8n', async (req, res) => {
   try {
     const { segredo, pedido, idVenda, identificador, setor, link, observacao } = req.body;
@@ -41,14 +42,14 @@ router.post('/webhook/n8n', async (req, res) => {
     // e não um número de outro sistema.
     const json = await chamarAppsScript(env.ticketsAppsScriptUrl, {
       method: 'POST',
-      body: { action: 'criar', pedido, idVenda, identificador, setor, link, observacao, origem: 'n8n', usuario: 'n8n' },
+      body: { action: 'criar', pedido, idVenda, identificador, setor, link, observacao, origem: 'Lulu 2.0', usuario: 'Lulu 2.0' },
     });
     if (json.ok) {
       notificarGestoresSemResponsavel(json.rowIndex, json.idTicket, pedido);
     }
     res.json(json);
   } catch (err) {
-    res.status(502).json({ ok: false, erro: 'Falha ao processar ticket do n8n: ' + err.message });
+    res.status(502).json({ ok: false, erro: 'Falha ao processar ticket do CRM: ' + err.message });
   }
 });
 

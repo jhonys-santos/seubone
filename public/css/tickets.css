@@ -63,6 +63,18 @@
 .tk-kpi.warn .k-v { color: var(--bad-text, var(--bad)); }
 .tk-kpi.accent { border-color: var(--gold-dark); background: var(--gold-dim); }
 
+.tk-bulkbar {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  background: var(--gold-dim); border: 1px solid var(--gold-dark); border-radius: var(--radius);
+  padding: 10px 14px; margin-bottom: 12px;
+}
+.tk-bulkbar-count { font-size: 12.5px; font-weight: 700; color: var(--text); margin-right: auto; }
+.tk-bulkbar select {
+  font-size: 12.5px; padding: 7px 10px; border: 1px solid var(--border-strong); border-radius: var(--radius-sm);
+  background: var(--surface-2); color: var(--text); font-family: inherit; cursor: pointer;
+}
+.tk-selcol { text-align: center; }
+
 /* ===== Cards / stat ===== */
 .tk-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px 20px; margin-bottom: 14px; }
 .tk-card h3 { font-size: 14px; font-weight: 700; margin: 0; color: var(--text); }

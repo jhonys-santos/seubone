@@ -129,6 +129,11 @@
   let LAST_SYNC = null;
   let CASO_ATUAL = null;
   const tkState = { screen: 'lista', fStatus: 'abertos', fResponsavel: '', fIdentificador: '', fSetor: '', busca: '' };
+  // Seleção em massa da lista (só gestor) — atribuir responsável a vários
+  // tickets de uma vez. Guarda rowIndex (== r.id); limpo sempre que o
+  // recorte visível muda (filtro, busca, refresh) pra nunca reter seleção
+  // de um ticket que saiu da tela.
+  const tkSelecionados = new Set();
 
   /* ================= CARREGAMENTO ================= */
 
@@ -169,6 +174,7 @@
     try {
       RECORDS = await tkLoadRealData();
       LAST_SYNC = Date.now();
+      tkSelecionados.clear();
       tkInitFilterOptions();
       tkRender();
       tkUpdateLastSync();
@@ -318,16 +324,17 @@
     const btn = e.target.closest('button[data-view]');
     if (!btn) return;
     tkState.screen = btn.dataset.view;
+    tkSelecionados.clear();
     document.querySelectorAll('#tkNav button').forEach((b) => b.classList.toggle('active', b === btn));
     tkRender();
   });
   document.getElementById('tkBtnRefresh').addEventListener('click', () => tkRefreshData(false));
   document.getElementById('tkBtnNovo').addEventListener('click', openNovoTicket);
-  document.getElementById('tkFStatus').addEventListener('change', (e) => { tkState.fStatus = e.target.value; tkRender(); });
-  document.getElementById('tkFResponsavel').addEventListener('change', (e) => { tkState.fResponsavel = e.target.value; tkRender(); });
-  document.getElementById('tkFIdentificador').addEventListener('change', (e) => { tkState.fIdentificador = e.target.value; tkRender(); });
-  document.getElementById('tkFSetor').addEventListener('change', (e) => { tkState.fSetor = e.target.value; tkRender(); });
-  document.getElementById('tkBusca').addEventListener('input', (e) => { tkState.busca = e.target.value.trim().toLowerCase(); tkRender(); });
+  document.getElementById('tkFStatus').addEventListener('change', (e) => { tkState.fStatus = e.target.value; tkSelecionados.clear(); tkRender(); });
+  document.getElementById('tkFResponsavel').addEventListener('change', (e) => { tkState.fResponsavel = e.target.value; tkSelecionados.clear(); tkRender(); });
+  document.getElementById('tkFIdentificador').addEventListener('change', (e) => { tkState.fIdentificador = e.target.value; tkSelecionados.clear(); tkRender(); });
+  document.getElementById('tkFSetor').addEventListener('change', (e) => { tkState.fSetor = e.target.value; tkSelecionados.clear(); tkRender(); });
+  document.getElementById('tkBusca').addEventListener('input', (e) => { tkState.busca = e.target.value.trim().toLowerCase(); tkSelecionados.clear(); tkRender(); });
 
   function tkRender() {
     const main = document.getElementById('tkMain');
@@ -365,6 +372,10 @@
     const abertos = visiveis.filter((r) => r.status !== STATUS_RESOLVIDO);
     const semResponsavel = abertos.filter((r) => !r.responsavel).length;
     const rows = rowsFiltradas();
+    const podeSelecionar = podeAtribuir();
+    const nCols = 10 + (podeSelecionar ? 1 : 0);
+    const idsVisiveis = rows.map((r) => r.id);
+    const todosSelecionados = podeSelecionar && idsVisiveis.length > 0 && idsVisiveis.every((id) => tkSelecionados.has(id));
 
     main.innerHTML = `
       <div class="tk-kpis">
@@ -372,18 +383,21 @@
         ${papel === 'gestor' ? `<div class="tk-kpi ${semResponsavel ? 'warn' : ''}"><div class="k-l">Sem responsável</div><div class="k-v">${semResponsavel}</div></div>` : ''}
         <div class="tk-kpi"><div class="k-l">Fechados</div><div class="k-v">${visiveis.length - abertos.length}</div></div>
       </div>
+      ${podeSelecionar && tkSelecionados.size > 0 ? renderBulkBar() : ''}
       <div class="tk-card" style="padding:0">
         <div class="tk-tbl-wrap">
           <table>
             <thead><tr>
+              ${podeSelecionar ? `<th style="width:32px"><input type="checkbox" id="tkSelAllCheck" ${todosSelecionados ? 'checked' : ''}></th>` : ''}
               <th>Ticket</th><th>Cliente</th><th>Identificador</th><th>Setor</th><th>PPE</th><th>Dias</th><th>Previsão finalização</th><th>Responsável</th><th>Status</th><th>${tkState.fStatus === 'fechados' ? 'Tempo total' : 'Aberto há'}</th>
             </tr></thead>
             <tbody>
-              ${rows.length === 0 ? `<tr><td colspan="10"><div class="tk-empty"><div class="e-title">Nenhum ticket encontrado</div><div class="e-sub">Ajuste os filtros ou clique em "+ Novo ticket".</div></div></td></tr>` : rows.map((r) => {
+              ${rows.length === 0 ? `<tr><td colspan="${nCols}"><div class="tk-empty"><div class="e-title">Nenhum ticket encontrado</div><div class="e-sub">Ajuste os filtros ou clique em "+ Novo ticket".</div></div></td></tr>` : rows.map((r) => {
                 const horas = tempoTicket(r);
                 const dPPE = diasParaPPE(r);
                 const corDias = dPPE == null ? 'var(--text-hint)' : dPPE < 0 ? 'var(--bad-text,var(--bad))' : dPPE === 0 ? 'var(--warn-text,var(--warn))' : 'var(--text)';
                 return `<tr class="tk-clickable" data-id="${r.id}">
+                  ${podeSelecionar ? `<td class="tk-selcol"><input type="checkbox" class="tk-row-check" data-id="${r.id}" ${tkSelecionados.has(r.id) ? 'checked' : ''}></td>` : ''}
                   <td>${r.idTicket ? '#' + tkEsc(r.idTicket) : '<span style="color:var(--text-hint)">—</span>'}</td>
                   <td style="font-weight:600">${tkEsc(r.pedido) || '—'} ${tkPhotoBadge(r)}</td>
                   <td>${tkEsc(r.identificador) || '—'}</td>
@@ -402,8 +416,77 @@
       </div>
     `;
     main.querySelectorAll('tbody tr.tk-clickable').forEach((tr) => {
-      tr.addEventListener('click', () => openTicket(Number(tr.dataset.id)));
+      tr.addEventListener('click', (e) => {
+        if (e.target.closest('.tk-selcol')) return;
+        openTicket(Number(tr.dataset.id));
+      });
     });
+    if (podeSelecionar) wireSelecaoLista(main, idsVisiveis);
+  }
+
+  // Barra de ação em massa — só aparece com pelo menos 1 ticket selecionado,
+  // e só pra gestor (mesma trava de podeAtribuir() usada no drawer).
+  function renderBulkBar() {
+    const respOptions = USUARIOS_HUB.map((u) => `<option value="${tkEsc(u.slug)}|${tkEsc(u.nome)}">${tkEsc(u.nome)}</option>`).join('');
+    return `
+      <div class="tk-bulkbar" id="tkBulkBar">
+        <span class="tk-bulkbar-count">${tkSelecionados.size} ticket(s) selecionado(s)</span>
+        <select id="tkBulkResponsavel">
+          <option value="" selected disabled>Selecione um responsável…</option>
+          ${respOptions}
+        </select>
+        <button class="tk-btn tk-btn-accent" id="tkBulkAtribuirBtn" type="button">Atribuir aos selecionados</button>
+        <button class="tk-btn tk-btn-ghost" id="tkBulkCancelarBtn" type="button">Cancelar seleção</button>
+      </div>`;
+  }
+
+  function wireSelecaoLista(main, idsVisiveis) {
+    const selAll = document.getElementById('tkSelAllCheck');
+    if (selAll) {
+      selAll.addEventListener('change', () => {
+        if (selAll.checked) idsVisiveis.forEach((id) => tkSelecionados.add(id));
+        else idsVisiveis.forEach((id) => tkSelecionados.delete(id));
+        tkRender();
+      });
+    }
+    main.querySelectorAll('.tk-row-check').forEach((chk) => {
+      chk.addEventListener('change', () => {
+        const id = Number(chk.dataset.id);
+        if (chk.checked) tkSelecionados.add(id); else tkSelecionados.delete(id);
+        tkRender();
+      });
+    });
+    const btnCancelar = document.getElementById('tkBulkCancelarBtn');
+    if (btnCancelar) btnCancelar.addEventListener('click', () => { tkSelecionados.clear(); tkRender(); });
+
+    const btnAtribuir = document.getElementById('tkBulkAtribuirBtn');
+    if (btnAtribuir) {
+      btnAtribuir.addEventListener('click', async () => {
+        const sel = document.getElementById('tkBulkResponsavel');
+        if (!sel.value) { toast('Selecione um responsável.', false); return; }
+        const [slug, nome] = sel.value.split('|');
+        const ids = Array.from(tkSelecionados);
+        btnAtribuir.disabled = true;
+        btnAtribuir.textContent = 'Atribuindo…';
+        try {
+          for (const id of ids) {
+            const res = await fetch('/tickets/api/atribuir', {
+              method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ rowIndex: id, responsavel: nome, responsavelSlug: slug }),
+            });
+            const json = await res.json();
+            if (!json.ok) throw new Error(json.erro || json.error || 'Erro desconhecido');
+          }
+          tkSelecionados.clear();
+          await tkRefreshData(true);
+          toast(`Responsável atribuído a ${ids.length} ticket(s).`, true);
+        } catch (err) {
+          toast('Falha ao atribuir: ' + (err && err.message || err), false);
+          btnAtribuir.disabled = false;
+          btnAtribuir.textContent = 'Atribuir aos selecionados';
+        }
+      });
+    }
   }
 
   /* ================= DASHBOARD ================= */
