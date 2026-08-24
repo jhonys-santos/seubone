@@ -37,8 +37,12 @@ async function checarAtrasos() {
     const json = await chamarAppsScript(env.ticketsAppsScriptUrl);
     if (!json.ok || !Array.isArray(json.tickets)) return;
 
-    for (const t of json.tickets) {
-      if (t.status === STATUS_RESOLVIDO || !t.responsavelSlug) continue;
+    // Em paralelo — cada chamada ao Apps Script custa ~2-3s de latência
+    // própria (independente do que faz); rodando uma por vez o tempo total
+    // cresce com a quantidade de tickets e prende o lock da planilha por
+    // mais tempo (disputando com ações de usuário nesse intervalo).
+    await Promise.allSettled(json.tickets.map(async (t) => {
+      if (t.status === STATUS_RESOLVIDO || !t.responsavelSlug) return;
       const dias = diasParaPrazo(t.dataAbertura, t.identificador);
       const atrasado = dias != null && dias < 0;
 
@@ -55,7 +59,7 @@ async function checarAtrasos() {
           body: { action: 'marcarAtrasoNotificado', rowIndex: t.rowIndex, notificado: false },
         });
       }
-    }
+    }));
   } catch (err) {
     console.error('[tickets] falha ao checar atrasos:', err.message);
   }

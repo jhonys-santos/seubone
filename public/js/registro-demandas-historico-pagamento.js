@@ -3,6 +3,8 @@
 // aqui aparecem os dois juntos. Endpoint: /registro-demandas/api/list-pagamento.
 
 let pagamentos = [];
+let paginaAtual = 1;
+const ITENS_POR_PAGINA = 15;
 
 function formatarData(iso) {
   if (!iso) return '';
@@ -73,17 +75,25 @@ function renderizar() {
 
   const tbody = document.getElementById('tbody');
   const empty = document.getElementById('empty');
+  const paginacao = document.getElementById('paginacao');
 
   lista = lista.slice().sort((a, b) => new Date(b.InseridoEm) - new Date(a.InseridoEm));
 
   if (lista.length === 0) {
     tbody.innerHTML = '';
     empty.style.display = 'block';
+    paginacao.innerHTML = '';
     return;
   }
   empty.style.display = 'none';
 
-  tbody.innerHTML = lista.map((p) => `
+  const totalPaginas = Math.max(1, Math.ceil(lista.length / ITENS_POR_PAGINA));
+  if (paginaAtual > totalPaginas) paginaAtual = totalPaginas;
+  if (paginaAtual < 1) paginaAtual = 1;
+  const inicio = (paginaAtual - 1) * ITENS_POR_PAGINA;
+  const paginaLista = lista.slice(inicio, inicio + ITENS_POR_PAGINA);
+
+  tbody.innerHTML = paginaLista.map((p) => `
     <tr>
       <td>${formatarData(p.DataVencimento) || '—'}</td>
       <td>${escapeHtml(p.Solicitante)}</td>
@@ -101,12 +111,33 @@ function renderizar() {
       <td>${escapeHtml(p.FeitoPor) || '—'}</td>
     </tr>
   `).join('');
+
+  renderizarPaginacao(paginacao, lista.length, totalPaginas);
 }
 
-document.getElementById('btn-filtrar').addEventListener('click', renderizar);
-document.getElementById('ft-status').addEventListener('change', renderizar);
-document.getElementById('ft-banco').addEventListener('change', renderizar);
-document.getElementById('ft-busca').addEventListener('input', renderizar);
+function renderizarPaginacao(el, total, totalPaginas) {
+  if (totalPaginas <= 1) {
+    el.innerHTML = `<span class="pg-info">${total} registro(s)</span>`;
+    return;
+  }
+  el.innerHTML = `
+    <button id="pg-anterior" ${paginaAtual === 1 ? 'disabled' : ''}>‹ Anterior</button>
+    <span class="pg-info">Página ${paginaAtual} de ${totalPaginas} · ${total} registro(s)</span>
+    <button id="pg-proxima" ${paginaAtual === totalPaginas ? 'disabled' : ''}>Próxima ›</button>
+  `;
+  document.getElementById('pg-anterior').addEventListener('click', () => { paginaAtual--; renderizar(); });
+  document.getElementById('pg-proxima').addEventListener('click', () => { paginaAtual++; renderizar(); });
+}
+
+function aplicarFiltros() {
+  paginaAtual = 1;
+  renderizar();
+}
+
+document.getElementById('btn-filtrar').addEventListener('click', aplicarFiltros);
+document.getElementById('ft-status').addEventListener('change', aplicarFiltros);
+document.getElementById('ft-banco').addEventListener('change', aplicarFiltros);
+document.getElementById('ft-busca').addEventListener('input', aplicarFiltros);
 
 carregar();
 setInterval(carregar, 20000);

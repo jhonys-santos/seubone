@@ -468,22 +468,25 @@
         const ids = Array.from(tkSelecionados);
         btnAtribuir.disabled = true;
         btnAtribuir.textContent = 'Atribuindo…';
-        try {
-          for (const id of ids) {
-            const res = await fetch('/tickets/api/atribuir', {
-              method: 'POST', headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ rowIndex: id, responsavel: nome, responsavelSlug: slug }),
-            });
-            const json = await res.json();
+        // Em paralelo — cada chamada ao Apps Script já leva ~2-3s por conta
+        // própria (latência normal do Google), então em sequência N tickets
+        // custaria N vezes isso. A própria planilha serializa as escritas
+        // com LockService, então não há risco de corrida ao disparar junto.
+        const resultados = await Promise.allSettled(ids.map((id) =>
+          fetch('/tickets/api/atribuir', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ rowIndex: id, responsavel: nome, responsavelSlug: slug }),
+          }).then((res) => res.json()).then((json) => {
             if (!json.ok) throw new Error(json.erro || json.error || 'Erro desconhecido');
-          }
-          tkSelecionados.clear();
-          await tkRefreshData(true);
+          })
+        ));
+        const falhas = resultados.filter((r) => r.status === 'rejected').length;
+        tkSelecionados.clear();
+        await tkRefreshData(true);
+        if (falhas === 0) {
           toast(`Responsável atribuído a ${ids.length} ticket(s).`, true);
-        } catch (err) {
-          toast('Falha ao atribuir: ' + (err && err.message || err), false);
-          btnAtribuir.disabled = false;
-          btnAtribuir.textContent = 'Atribuir aos selecionados';
+        } else {
+          toast(`${ids.length - falhas} de ${ids.length} atribuído(s) — ${falhas} falhou(aram).`, false);
         }
       });
     }

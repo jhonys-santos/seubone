@@ -4,6 +4,8 @@
 // (o Apps Script devolve a lista inteira via action=list).
 
 let solicitacoes = [];
+let paginaAtual = 1;
+const ITENS_POR_PAGINA = 15;
 
 function formatarData(iso) {
   if (!iso) return '';
@@ -70,17 +72,25 @@ function renderizar() {
 
   const tbody = document.getElementById('tbody');
   const empty = document.getElementById('empty');
+  const paginacao = document.getElementById('paginacao');
 
   lista = lista.slice().sort((a, b) => new Date(b.InseridoEm) - new Date(a.InseridoEm));
 
   if (lista.length === 0) {
     tbody.innerHTML = '';
     empty.style.display = 'block';
+    paginacao.innerHTML = '';
     return;
   }
   empty.style.display = 'none';
 
-  tbody.innerHTML = lista.map((s) => `
+  const totalPaginas = Math.max(1, Math.ceil(lista.length / ITENS_POR_PAGINA));
+  if (paginaAtual > totalPaginas) paginaAtual = totalPaginas;
+  if (paginaAtual < 1) paginaAtual = 1;
+  const inicio = (paginaAtual - 1) * ITENS_POR_PAGINA;
+  const paginaLista = lista.slice(inicio, inicio + ITENS_POR_PAGINA);
+
+  tbody.innerHTML = paginaLista.map((s) => `
     <tr>
       <td>${formatarData(s.Data)}</td>
       <td>${escapeHtml(s.IDCompra)}</td>
@@ -93,13 +103,39 @@ function renderizar() {
       <td>${escapeHtml(s.FeitoPor) || '—'}</td>
     </tr>
   `).join('');
+
+  renderizarPaginacao(paginacao, lista.length, totalPaginas);
 }
 
-document.getElementById('btn-filtrar').addEventListener('click', renderizar);
-document.getElementById('ft-status').addEventListener('change', renderizar);
-document.getElementById('ft-empresa').addEventListener('change', renderizar);
-document.getElementById('ft-demanda').addEventListener('change', renderizar);
-document.getElementById('ft-busca').addEventListener('input', renderizar);
+// Botões Anterior/Próxima — só troca a página exibida, nunca refiltra (o
+// filtro já foi aplicado antes de chegar em "lista"). Mostra o total mesmo
+// com 1 página só, pra sempre dar a noção de quantos registros existem.
+function renderizarPaginacao(el, total, totalPaginas) {
+  if (totalPaginas <= 1) {
+    el.innerHTML = `<span class="pg-info">${total} registro(s)</span>`;
+    return;
+  }
+  el.innerHTML = `
+    <button id="pg-anterior" ${paginaAtual === 1 ? 'disabled' : ''}>‹ Anterior</button>
+    <span class="pg-info">Página ${paginaAtual} de ${totalPaginas} · ${total} registro(s)</span>
+    <button id="pg-proxima" ${paginaAtual === totalPaginas ? 'disabled' : ''}>Próxima ›</button>
+  `;
+  document.getElementById('pg-anterior').addEventListener('click', () => { paginaAtual--; renderizar(); });
+  document.getElementById('pg-proxima').addEventListener('click', () => { paginaAtual++; renderizar(); });
+}
+
+// Mudar filtro sempre volta pra página 1 — senão o usuário pode ficar "preso"
+// numa página 6 que não existe mais no recorte filtrado.
+function aplicarFiltros() {
+  paginaAtual = 1;
+  renderizar();
+}
+
+document.getElementById('btn-filtrar').addEventListener('click', aplicarFiltros);
+document.getElementById('ft-status').addEventListener('change', aplicarFiltros);
+document.getElementById('ft-empresa').addEventListener('change', aplicarFiltros);
+document.getElementById('ft-demanda').addEventListener('change', aplicarFiltros);
+document.getElementById('ft-busca').addEventListener('input', aplicarFiltros);
 
 carregar();
 setInterval(carregar, 20000);
