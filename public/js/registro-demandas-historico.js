@@ -36,15 +36,31 @@ function renderizarAnexos(anexosJson) {
   return `<div style="display:flex;flex-direction:column;align-items:flex-start;gap:4px;">${botoes}</div>`;
 }
 
+// Texto original do estado vazio (guardado uma vez, no boot) — precisa ser
+// restaurado depois de um erro, senão a mensagem de erro fica presa ali
+// mesmo depois que a lista volta a carregar normalmente.
+const textoVazioPadrao = document.getElementById('empty').innerHTML;
+
 async function carregar() {
   try {
     const resp = await fetch('/registro-demandas/api/list');
     const data = await resp.json();
     if (data.erro) throw new Error(data.erro);
     solicitacoes = Array.isArray(data) ? data : [];
+    document.getElementById('empty').innerHTML = textoVazioPadrao;
     renderizar();
   } catch (err) {
     console.error(err);
+    // Antes isso ficava em branco pra sempre, sem nenhum aviso — a
+    // Apps Script do Google às vezes tem picos de lentidão/erro
+    // pontuais, e sem essa mensagem o usuário não tinha como saber se
+    // travou ou se é só demora.
+    document.getElementById('tbody').innerHTML = '';
+    document.getElementById('paginacao').innerHTML = '';
+    const empty = document.getElementById('empty');
+    empty.innerHTML = `Não consegui carregar os dados agora (${escapeHtml(err.message || 'erro desconhecido')}).<br><button id="btn-tentar-de-novo" class="btn-primary" style="width:auto;display:inline-flex;margin:14px auto 0;">Tentar de novo</button>`;
+    empty.style.display = 'block';
+    document.getElementById('btn-tentar-de-novo').addEventListener('click', carregar);
   }
 }
 
@@ -138,4 +154,4 @@ document.getElementById('ft-demanda').addEventListener('change', aplicarFiltros)
 document.getElementById('ft-busca').addEventListener('input', aplicarFiltros);
 
 carregar();
-setInterval(carregar, 20000);
+setInterval(carregar, 60000);
