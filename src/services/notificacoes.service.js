@@ -21,8 +21,13 @@ const env = require('../config/env');
 // si, sem afetar o que os outros veem.
 
 async function listarTodas() {
+  // cache: true — chamado a cada 25s pelo sininho em TODA aba aberta do hub,
+  // além de depois de cada notificação criada/lida; qualquer escrita nesse
+  // mesmo Apps Script (criar/excluir/marcar lida) já invalida esse cache
+  // automaticamente (ver appsScriptClient), então nunca fica com dado velho.
   const json = await chamarAppsScript(env.registroDemandasAppsScriptUrl, {
     params: { action: 'listarNotificacoes' },
+    cache: true,
   });
   return Array.isArray(json) ? json : [];
 }

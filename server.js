@@ -4,6 +4,7 @@ const express = require('express');
 const session = require('express-session');
 const FileStore = require('session-file-store')(session);
 const helmet = require('helmet');
+const compression = require('compression');
 
 const env = require('./src/config/env');
 const usuariosService = require('./src/services/usuarios.service');
@@ -52,6 +53,12 @@ app.use(
     contentSecurityPolicy: false,
   })
 );
+
+// Comprime toda resposta (HTML/JSON/CSS/JS) antes de enviar — reduz o
+// tamanho transferido sem trocar nada do conteúdo (ao contrário de cache de
+// arquivo estático, não corre risco de servir versão velha depois de um
+// deploy).
+app.use(compression());
 
 // 30mb: o Novo Caso do Painel de Erros agora aceita áudio/vídeo (não só foto
 // comprimida) — 20MB de arquivos crus vira ~27MB em base64, então 15mb não

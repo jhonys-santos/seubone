@@ -105,7 +105,7 @@ router.get('/historico-pagamento', (req, res) => {
 
 router.get('/api/list', async (req, res) => {
   try {
-    const json = await chamarAppsScript(env.registroDemandasAppsScriptUrl, { params: { action: 'list' } });
+    const json = await chamarAppsScript(env.registroDemandasAppsScriptUrl, { params: { action: 'list' }, cache: true });
     res.json(json);
   } catch (err) {
     res.status(502).json({ erro: 'Falha ao buscar demandas: ' + err.message });
@@ -114,7 +114,7 @@ router.get('/api/list', async (req, res) => {
 
 router.get('/api/list-reembolso', async (req, res) => {
   try {
-    const json = await chamarAppsScript(env.registroDemandasAppsScriptUrl, { params: { action: 'listReembolso' } });
+    const json = await chamarAppsScript(env.registroDemandasAppsScriptUrl, { params: { action: 'listReembolso' }, cache: true });
     res.json(json);
   } catch (err) {
     res.status(502).json({ erro: 'Falha ao buscar reembolsos: ' + err.message });
@@ -123,7 +123,7 @@ router.get('/api/list-reembolso', async (req, res) => {
 
 router.get('/api/list-pagamento', async (req, res) => {
   try {
-    const json = await chamarAppsScript(env.corridasPagamentosAppsScriptUrl, { params: { action: 'list' } });
+    const json = await chamarAppsScript(env.corridasPagamentosAppsScriptUrl, { params: { action: 'list' }, cache: true });
     res.json(json);
   } catch (err) {
     res.status(502).json({ erro: 'Falha ao buscar pagamentos: ' + err.message });

@@ -12,6 +12,7 @@ router.get('/api/dados', async (req, res) => {
   try {
     const json = await chamarAppsScript(env.agendaSemanaAppsScriptUrl, {
       params: { action: 'ler' },
+      cache: true,
     });
     res.json(json);
   } catch (err) {

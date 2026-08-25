@@ -27,6 +27,7 @@ router.get('/api/list', async (req, res) => {
     const { status, desde, ate } = req.query;
     const json = await chamarAppsScript(env.pedidosUrgentesAppsScriptUrl, {
       params: { action: 'list', status, desde, ate },
+      cache: true,
     });
     res.json(json);
   } catch (err) {

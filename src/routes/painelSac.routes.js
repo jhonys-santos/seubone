@@ -57,7 +57,7 @@ async function buscarAuditoriaSac(slugAlvo, periodo, mes, ano, semIni, semFim) {
   const agente = SAC_AGENTE_POR_SLUG[slugAlvo];
   if (!agente) return null;
 
-  const json = await chamarAppsScript(env.auditoriaAppsScriptUrl);
+  const json = await chamarAppsScript(env.auditoriaAppsScriptUrl, { cache: true });
   if (!json || !json.ok) return null;
 
   const doPeriodo = (json.data || [])
@@ -83,7 +83,7 @@ async function contarAuditoriasFeitas(slugAlvo, periodo, mes, ano, semIni, semFi
   const nome = AUDITOR_POR_SLUG[slugAlvo];
   if (!nome) return null;
 
-  const json = await chamarAppsScript(env.auditoriaAppsScriptUrl);
+  const json = await chamarAppsScript(env.auditoriaAppsScriptUrl, { cache: true });
   if (!json || !json.ok) return null;
 
   const alvo = nome.toLowerCase();
@@ -127,6 +127,7 @@ router.get('/api/aviso', async (req, res) => {
   try {
     const json = await chamarAppsScript(env.painelSacAppsScriptUrl, {
       params: { action: 'dados', usuario: req.session.user.slug },
+      cache: true,
     });
     res.json({ aviso: json.aviso || null });
   } catch (err) {
@@ -140,6 +141,7 @@ router.get('/api/dados', resolveSlug, async (req, res) => {
     const { periodo, mes, ano, sem_ini, sem_fim } = req.query;
     const json = await chamarAppsScript(env.painelSacAppsScriptUrl, {
       params: { action: 'dados', usuario: req.slugAlvo, periodo, mes, ano, sem_ini, sem_fim },
+      cache: true,
     });
 
     if (SAC_AGENTE_POR_SLUG[req.slugAlvo] && json.indicadores) {
@@ -174,6 +176,7 @@ router.get('/api/escala', resolveSlug, async (req, res) => {
     const { mes, ano } = req.query;
     const json = await chamarAppsScript(env.painelSacAppsScriptUrl, {
       params: { action: 'escala', usuario: req.slugAlvo, mes, ano },
+      cache: true,
     });
     res.json(json);
   } catch (err) {
@@ -188,6 +191,7 @@ router.get('/api/escala-equipe', requireRole('gestor'), async (req, res) => {
     const { mes, ano } = req.query;
     const json = await chamarAppsScript(env.painelSacAppsScriptUrl, {
       params: { action: 'escalaEquipe', mes, ano },
+      cache: true,
     });
     res.json(json);
   } catch (err) {
@@ -233,6 +237,7 @@ router.get('/api/consultores', async (req, res) => {
   try {
     const json = await chamarAppsScript(env.painelSacAppsScriptUrl, {
       params: { action: 'consultores', usuario: req.session.user.slug },
+      cache: true,
     });
     res.json(json);
   } catch (err) {
@@ -245,6 +250,7 @@ router.get('/api/sabados-consultor', async (req, res) => {
     const { alvo, mes, ano } = req.query;
     const json = await chamarAppsScript(env.painelSacAppsScriptUrl, {
       params: { action: 'sabadosConsultor', usuario: req.session.user.slug, alvo, mes, ano },
+      cache: true,
     });
     res.json(json);
   } catch (err) {

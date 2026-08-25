@@ -72,7 +72,7 @@ router.get('/', (req, res) => {
 
 router.get('/api/tickets', async (req, res) => {
   try {
-    const json = await chamarAppsScript(env.ticketsAppsScriptUrl);
+    const json = await chamarAppsScript(env.ticketsAppsScriptUrl, { cache: true });
     res.json(json);
   } catch (err) {
     res.status(502).json({ ok: false, erro: 'Falha ao buscar tickets: ' + err.message });
@@ -82,7 +82,7 @@ router.get('/api/tickets', async (req, res) => {
 router.get('/api/historico', async (req, res) => {
   try {
     const { rowIndex } = req.query;
-    const json = await chamarAppsScript(env.ticketsAppsScriptUrl, { params: { action: 'historico', rowIndex } });
+    const json = await chamarAppsScript(env.ticketsAppsScriptUrl, { params: { action: 'historico', rowIndex }, cache: true });
     res.json(json);
   } catch (err) {
     res.status(502).json({ ok: false, erro: 'Falha ao buscar histórico: ' + err.message });

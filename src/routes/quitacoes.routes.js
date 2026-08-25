@@ -31,7 +31,7 @@ router.post('/api/cadastrar', async (req, res) => {
 
 router.get('/api/lista', async (req, res) => {
   try {
-    const json = await chamarAppsScript(env.quitacoesAppsScriptUrl, { params: { action: 'lista', status: 'pendente' } });
+    const json = await chamarAppsScript(env.quitacoesAppsScriptUrl, { params: { action: 'lista', status: 'pendente' }, cache: true });
     if (!json.ok) return res.json(json);
     res.json({ ok: true, itens: (json.itens || []).filter((i) => podeVer(req.session.user, i)) });
   } catch (err) {
@@ -42,7 +42,7 @@ router.get('/api/lista', async (req, res) => {
 router.get('/api/historico', async (req, res) => {
   try {
     const { desde, ate } = req.query;
-    const json = await chamarAppsScript(env.quitacoesAppsScriptUrl, { params: { action: 'lista', status: 'pago', desde, ate } });
+    const json = await chamarAppsScript(env.quitacoesAppsScriptUrl, { params: { action: 'lista', status: 'pago', desde, ate }, cache: true });
     if (!json.ok) return res.json(json);
     res.json({ ok: true, itens: (json.itens || []).filter((i) => podeVer(req.session.user, i)) });
   } catch (err) {

@@ -96,7 +96,7 @@ router.post('/api/cadastrar', async (req, res) => {
 router.get('/api/lista', async (req, res) => {
   try {
     const { desde, ate } = req.query;
-    const json = await chamarAppsScript(env.corridasAvulsasAppsScriptUrl, { params: { action: 'lista', desde, ate } });
+    const json = await chamarAppsScript(env.corridasAvulsasAppsScriptUrl, { params: { action: 'lista', desde, ate }, cache: true });
     res.json(json);
   } catch (err) {
     res.status(502).json({ ok: false, erro: 'Falha ao buscar corridas: ' + err.message });

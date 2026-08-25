@@ -21,7 +21,7 @@ router.get('/api/csv/:chave', async (req, res) => {
     return res.status(400).send('chave inválida');
   }
   try {
-    const csv = await chamarAppsScript(env.rankingSacCsvUrls[chave]);
+    const csv = await chamarAppsScript(env.rankingSacCsvUrls[chave], { cache: true });
     res.type('text/csv').send(typeof csv === 'string' ? csv : '');
   } catch (err) {
     res.status(502).send('erro ao buscar planilha: ' + err.message);

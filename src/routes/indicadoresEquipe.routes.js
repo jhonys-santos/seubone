@@ -23,6 +23,7 @@ router.get('/api/dados', async (req, res) => {
     const { time, desde, ate } = req.query;
     const json = await chamarAppsScript(env.indicadoresEquipeAppsScriptUrl, {
       params: { action: 'dados', time, desde, ate },
+      cache: true,
     });
     res.json(json);
   } catch (err) {

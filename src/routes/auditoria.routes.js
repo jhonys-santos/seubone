@@ -15,7 +15,7 @@ router.get('/', (req, res) => {
 
 router.get('/api/list', async (req, res) => {
   try {
-    const json = await chamarAppsScript(env.auditoriaAppsScriptUrl);
+    const json = await chamarAppsScript(env.auditoriaAppsScriptUrl, { cache: true });
     res.json(json);
   } catch (err) {
     res.status(502).json({ ok: false, error: 'Falha ao buscar auditorias: ' + err.message });

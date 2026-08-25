@@ -19,7 +19,7 @@ router.get('/historico', requireAuth, requirePainel('wallac'), (req, res) => {
 
 router.get('/api/cards', requireAuth, requirePainel('wallac'), async (req, res) => {
   try {
-    const json = await chamarAppsScript(env.wallacAppsScriptUrl);
+    const json = await chamarAppsScript(env.wallacAppsScriptUrl, { cache: true });
     res.json(json);
   } catch (err) {
     res.status(502).json({ ok: false, erro: 'Falha ao buscar cards: ' + err.message });
@@ -46,7 +46,7 @@ router.get('/estoque', requireAuth, requireSlug('wallac'), (req, res) => {
 
 router.get('/api/estoque-admin', requireAuth, requireSlug('wallac'), async (req, res) => {
   try {
-    const json = await chamarAppsScript(env.wallacAppsScriptUrl, { params: { acao: 'estoque_admin' } });
+    const json = await chamarAppsScript(env.wallacAppsScriptUrl, { params: { acao: 'estoque_admin' }, cache: true });
     res.json(json);
   } catch (err) {
     res.status(502).json({ ok: false, erro: 'Falha ao buscar estoque: ' + err.message });
@@ -99,7 +99,7 @@ router.get('/premiacao', requireAuth, requireSlugOuRole('wallac', 'gestor'), (re
 
 router.get('/api/premiacao-historico', requireAuth, requireSlugOuRole('wallac', 'gestor'), async (req, res) => {
   try {
-    const json = await chamarAppsScript(env.wallacAppsScriptUrl, { params: { acao: 'premiacao_historico' } });
+    const json = await chamarAppsScript(env.wallacAppsScriptUrl, { params: { acao: 'premiacao_historico' }, cache: true });
     res.json(json);
   } catch (err) {
     res.status(502).json({ ok: false, erro: 'Falha ao buscar histórico de premiação: ' + err.message });
@@ -110,7 +110,7 @@ router.get('/api/premiacao-historico', requireAuth, requireSlugOuRole('wallac', 
 // fechamento oficial de sexta-feira (que só grava no histórico).
 router.get('/api/premiacao-semana-atual', requireAuth, requireSlugOuRole('wallac', 'gestor'), async (req, res) => {
   try {
-    const json = await chamarAppsScript(env.wallacAppsScriptUrl, { params: { acao: 'premiacao_semana_atual' } });
+    const json = await chamarAppsScript(env.wallacAppsScriptUrl, { params: { acao: 'premiacao_semana_atual' }, cache: true });
     res.json(json);
   } catch (err) {
     res.status(502).json({ ok: false, erro: 'Falha ao buscar semana atual: ' + err.message });
@@ -127,7 +127,7 @@ router.get('/solicitar', (req, res) => {
 
 router.get('/api/estoque-publico', async (req, res) => {
   try {
-    const json = await chamarAppsScript(env.wallacAppsScriptUrl, { params: { acao: 'estoque' } });
+    const json = await chamarAppsScript(env.wallacAppsScriptUrl, { params: { acao: 'estoque' }, cache: true });
     res.json(json);
   } catch (err) {
     res.status(502).json({ ok: false, erro: 'Falha ao buscar estoque: ' + err.message });
