@@ -355,13 +355,23 @@ function adRenderRegistro() {
   `).join("");
 }
 
+// Mesma receita do Painel de Erros: separador ";" em vez de "," — no Excel
+// em português, "," é o separador decimal, então um CSV com vírgula abre
+// tudo numa coluna só em vez de quebrar por coluna. Sempre entre aspas +
+// neutraliza injeção de fórmula (célula começando com = + - @ ganha um
+// apóstrofo na frente, senão Excel/Sheets tenta executar como fórmula).
+function adEscCsv(v) {
+  let s = String(v == null ? "" : v);
+  if (/^[=+\-@\t\r]/.test(s)) s = "'" + s;
+  return '"' + s.replace(/"/g, '""') + '"';
+}
+
 document.getElementById("ad-export-csv-btn").addEventListener("click", () => {
   const rows = adGetFilteredRecords();
   const header = ["Data","Semana","Agente","Tipo de Ocorrência","Canal","S1","S2","S3","Total","Classificação","Falha Grave","Auditor","ID Conversa","Observações"];
-  const esc = (v) => { v = String(v ?? ""); return /[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v; };
-  const lines = [header.join(",")];
+  const lines = [header.map(adEscCsv).join(";")];
   rows.forEach(r => {
-    lines.push([adFmtDate(r.Data), r.Semana, r.Agente, r.TipoOcorrencia, r.Canal, r.S1, r.S2, r.S3, r.Total, r.Classificacao, r.FalhaGrave, r.AuditadoPor, r.ConversationId, r.Observacoes].map(esc).join(","));
+    lines.push([adFmtDate(r.Data), r.Semana, r.Agente, r.TipoOcorrencia, r.Canal, r.S1, r.S2, r.S3, r.Total, r.Classificacao, r.FalhaGrave, r.AuditadoPor, r.ConversationId, r.Observacoes].map(adEscCsv).join(";"));
   });
   const blob = new Blob(["﻿" + lines.join("\r\n")], { type: "text/csv;charset=utf-8" });
   const a = document.createElement("a");
@@ -452,11 +462,10 @@ function adRenderSectionAverages(records) {
 }
 
 document.getElementById("ad-export-section-avg-btn").addEventListener("click", () => {
-  const esc = (v) => { v = String(v ?? ""); return /[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v; };
   const header = ["Agente", "Nº Auditorias", `Média ${AD_SECTION_META[0].label} (S1)`, `Média ${AD_SECTION_META[1].label} (S2)`, `Média ${AD_SECTION_META[2].label} (S3)`, "Média Total"];
-  const lines = [header.join(",")];
+  const lines = [header.map(adEscCsv).join(";")];
   adSectionAvgData.forEach(d => {
-    lines.push([d.agent, d.count, adRound1(d.avgS1), adRound1(d.avgS2), adRound1(d.avgS3), adRound1(d.avgTotal)].map(esc).join(","));
+    lines.push([d.agent, d.count, adRound1(d.avgS1), adRound1(d.avgS2), adRound1(d.avgS3), adRound1(d.avgTotal)].map(adEscCsv).join(";"));
   });
   const blob = new Blob(["﻿" + lines.join("\r\n")], { type: "text/csv;charset=utf-8" });
   const a = document.createElement("a");
@@ -465,8 +474,32 @@ document.getElementById("ad-export-section-avg-btn").addEventListener("click", (
   a.click();
 });
 
+// Filtra por "Data" (não Timestamp — é a data do atendimento, não de quando
+// a auditoria foi registrada) comparando só os 10 primeiros caracteres
+// (YYYY-MM-DD), igual o histórico de Registro de Demandas já faz — evita
+// bug de fuso horário que um new Date() completo traria.
+function adFilterByPeriod(records) {
+  const de = document.getElementById("ad-dash-de").value;
+  const ate = document.getElementById("ad-dash-ate").value;
+  if (!de && !ate) return records;
+  return records.filter(r => {
+    const d = String(r.Data || "").slice(0, 10);
+    if (de && d < de) return false;
+    if (ate && d > ate) return false;
+    return true;
+  });
+}
+
+document.getElementById("ad-dash-de").addEventListener("change", adRenderDashboard);
+document.getElementById("ad-dash-ate").addEventListener("change", adRenderDashboard);
+document.getElementById("ad-dash-periodo-clear").addEventListener("click", () => {
+  document.getElementById("ad-dash-de").value = "";
+  document.getElementById("ad-dash-ate").value = "";
+  adRenderDashboard();
+});
+
 function adRenderDashboard() {
-  const records = adState.records;
+  const records = adFilterByPeriod(adState.records);
   const total = records.length;
   const avgTotal = total ? Math.round((records.reduce((s, r) => s + Number(r.Total), 0) / total) * 10) / 10 : 0;
   const criticalRecords = records.filter(r => r.FalhaGrave === "Sim");

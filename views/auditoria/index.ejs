@@ -138,6 +138,18 @@
   <section id="ad-view-dashboard" class="ad-view">
     <p class="subtitle" style="color:var(--text-muted);margin:0 0 20px;">Visão geral das auditorias de qualidade</p>
 
+    <div class="ad-card ad-filters">
+      <div>
+        <label>De</label>
+        <input type="date" id="ad-dash-de">
+      </div>
+      <div>
+        <label>Até</label>
+        <input type="date" id="ad-dash-ate">
+      </div>
+      <button class="ad-btn-secondary" id="ad-dash-periodo-clear" style="width:fit-content;align-self:end;">Limpar período</button>
+    </div>
+
     <div id="ad-dash-alert"></div>
 
     <div class="ad-kpis" id="ad-dash-kpis"></div>
