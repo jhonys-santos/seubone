@@ -144,6 +144,22 @@
 
     <div class="ad-card" id="ad-dash-week-compare" style="display:none;"></div>
 
+    <div class="ad-card ad-chart-card">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
+        <h3 style="margin:0;">Média por seção, por agente</h3>
+        <button class="ad-btn-secondary" id="ad-export-section-avg-btn">Exportar CSV</button>
+      </div>
+      <div class="ad-chart-wrap"><canvas id="ad-chart-section-avg"></canvas></div>
+      <div class="ad-table-wrap" style="margin-top:16px;">
+        <table>
+          <thead>
+            <tr><th>Agente</th><th>Auditorias</th><th>Comunicação</th><th>Seguimento de Processo</th><th>Resultado do Atendimento</th><th>Total</th></tr>
+          </thead>
+          <tbody id="ad-section-avg-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
     <div class="ad-charts-grid">
       <div class="ad-card ad-chart-card"><h3>Score médio por agente</h3><div class="ad-chart-wrap"><canvas id="ad-chart-agent"></canvas></div></div>
       <div class="ad-card ad-chart-card"><h3>Evolução semanal do score médio</h3><div class="ad-chart-wrap"><canvas id="ad-chart-week"></canvas></div></div>

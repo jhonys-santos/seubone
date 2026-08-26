@@ -55,6 +55,11 @@ const AD_AGENT_SUGGESTIONS = ["Iasmin", "Francis", "Nathalia"];
 
 const AD_CRITERION_KEYS = AD_SECTIONS.flatMap(s => s.criteria.map(c => c.key));
 
+// Metadados das 3 seções pra exibir médias (S1/S2/S3 já vêm calculados por
+// registro do Apps Script) — reaproveita o mesmo peso/título já definido em
+// AD_SECTIONS, pra nunca ficar um "25/40/35" desatualizado em outro lugar.
+const AD_SECTION_META = AD_SECTIONS.map((s, i) => ({ key: "S" + (i + 1), label: s.title, max: s.weight }));
+
 // ============================================================
 // Lógica de score (idêntica ao sistema original)
 // ============================================================
@@ -369,6 +374,97 @@ document.getElementById("ad-export-csv-btn").addEventListener("click", () => {
 // Dashboard
 // ============================================================
 let adCharts = {};
+let adSectionAvgData = []; // guardado pra reaproveitar no export CSV, sem recalcular
+
+// Agrupa por agente e calcula a média (não a soma) de cada seção — usado no
+// dashboard (todos os agentes) e no detalhe individual (um agente só, com
+// "records" já filtrado antes de chamar).
+function adComputeSectionAveragesByAgent(records) {
+  const byAgent = new Map();
+  records.forEach(r => {
+    const cur = byAgent.get(r.Agente) || { count: 0, sumS1: 0, sumS2: 0, sumS3: 0, sumTotal: 0 };
+    cur.count += 1;
+    cur.sumS1 += Number(r.S1) || 0;
+    cur.sumS2 += Number(r.S2) || 0;
+    cur.sumS3 += Number(r.S3) || 0;
+    cur.sumTotal += Number(r.Total) || 0;
+    byAgent.set(r.Agente, cur);
+  });
+  return Array.from(byAgent.entries())
+    .map(([agent, v]) => ({
+      agent,
+      count: v.count,
+      avgS1: v.sumS1 / v.count,
+      avgS2: v.sumS2 / v.count,
+      avgS3: v.sumS3 / v.count,
+      avgTotal: v.sumTotal / v.count,
+    }))
+    .sort((a, b) => b.avgTotal - a.avgTotal);
+}
+
+const adRound1 = (n) => Math.round(n * 10) / 10;
+
+// Tabela + gráfico de "média por seção, por agente" no dashboard — usa %
+// do máximo de cada seção no gráfico (S1/25, S2/40, S3/35 têm pesos
+// diferentes; comparar em pontos crus faria a seção de maior peso parecer
+// sempre "melhor" sem ser, de fato, o ponto fraco do agente).
+function adRenderSectionAverages(records) {
+  adSectionAvgData = adComputeSectionAveragesByAgent(records);
+
+  const tbody = document.getElementById("ad-section-avg-tbody");
+  tbody.innerHTML = adSectionAvgData.length === 0
+    ? `<tr><td colspan="6" class="ad-empty">Nenhuma auditoria registrada ainda.</td></tr>`
+    : adSectionAvgData.map(d => `
+      <tr>
+        <td style="font-weight:500">${d.agent}</td>
+        <td>${d.count}</td>
+        <td>${adRound1(d.avgS1)}/${AD_SECTION_META[0].max}</td>
+        <td>${adRound1(d.avgS2)}/${AD_SECTION_META[1].max}</td>
+        <td>${adRound1(d.avgS3)}/${AD_SECTION_META[2].max}</td>
+        <td style="font-weight:600">${adRound1(d.avgTotal)}/100</td>
+      </tr>
+    `).join("");
+
+  // Não precisa destruir adCharts.sectionAvg aqui — adDrawCharts() já
+  // destrói TODOS os charts guardados em adCharts (inclusive este, de um
+  // render anterior) antes desta função ser chamada, na mesma passada de
+  // adRenderDashboard(). Destruir de novo aqui destruiria duas vezes a
+  // mesma instância.
+  const c = adGetChartColors();
+  adCharts.sectionAvg = new Chart(document.getElementById("ad-chart-section-avg"), {
+    type: "bar",
+    data: {
+      labels: adSectionAvgData.map(d => d.agent),
+      datasets: [
+        { label: AD_SECTION_META[0].label, data: adSectionAvgData.map(d => adRound1(d.avgS1 / AD_SECTION_META[0].max * 100)), backgroundColor: "#F2B90C", borderRadius: 4 },
+        { label: AD_SECTION_META[1].label, data: adSectionAvgData.map(d => adRound1(d.avgS2 / AD_SECTION_META[1].max * 100)), backgroundColor: "#3B82F6", borderRadius: 4 },
+        { label: AD_SECTION_META[2].label, data: adSectionAvgData.map(d => adRound1(d.avgS3 / AD_SECTION_META[2].max * 100)), backgroundColor: "#EF4444", borderRadius: 4 },
+      ],
+    },
+    options: {
+      plugins: { legend: { labels: { color: c.textMuted } } },
+      scales: {
+        x: { ticks: { color: c.textMuted }, grid: { color: c.border } },
+        y: { min: 0, max: 100, ticks: { color: c.textMuted }, grid: { color: c.border } },
+      },
+    },
+  });
+}
+
+document.getElementById("ad-export-section-avg-btn").addEventListener("click", () => {
+  const esc = (v) => { v = String(v ?? ""); return /[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v; };
+  const header = ["Agente", "Nº Auditorias", `Média ${AD_SECTION_META[0].label} (S1)`, `Média ${AD_SECTION_META[1].label} (S2)`, `Média ${AD_SECTION_META[2].label} (S3)`, "Média Total"];
+  const lines = [header.join(",")];
+  adSectionAvgData.forEach(d => {
+    lines.push([d.agent, d.count, adRound1(d.avgS1), adRound1(d.avgS2), adRound1(d.avgS3), adRound1(d.avgTotal)].map(esc).join(","));
+  });
+  const blob = new Blob(["﻿" + lines.join("\r\n")], { type: "text/csv;charset=utf-8" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `auditoria-media-por-secao-${Date.now()}.csv`;
+  a.click();
+});
+
 function adRenderDashboard() {
   const records = adState.records;
   const total = records.length;
@@ -433,6 +529,7 @@ function adRenderDashboard() {
   }
 
   adDrawCharts(avgScoreByAgent, weeklyEvolution, occurrenceDist, criticalRanking);
+  adRenderSectionAverages(records);
 }
 
 function adGetChartColors() {
@@ -516,12 +613,20 @@ function adRenderAgentDetail() {
   const total = records.length;
   const avgTotal = total ? Math.round((records.reduce((s, r) => s + Number(r.Total), 0) / total) * 10) / 10 : 0;
   const criticalCount = records.filter(r => r.FalhaGrave === "Sim").length;
+  const avgS1 = total ? records.reduce((s, r) => s + (Number(r.S1) || 0), 0) / total : 0;
+  const avgS2 = total ? records.reduce((s, r) => s + (Number(r.S2) || 0), 0) / total : 0;
+  const avgS3 = total ? records.reduce((s, r) => s + (Number(r.S3) || 0), 0) / total : 0;
 
   container.innerHTML = `
     <div class="ad-kpis">
       <div class="ad-kpi"><p class="label">Total de auditorias</p><p class="value">${total}</p></div>
       <div class="ad-kpi"><p class="label">Score médio</p><p class="value">${avgTotal}</p></div>
       <div class="ad-kpi danger"><p class="label">Falhas graves</p><p class="value" style="color:var(--bad-text, var(--bad))">${criticalCount}</p></div>
+    </div>
+    <div class="ad-kpis">
+      <div class="ad-kpi"><p class="label">${AD_SECTION_META[0].label} (méd)</p><p class="value">${adRound1(avgS1)}/${AD_SECTION_META[0].max}</p></div>
+      <div class="ad-kpi"><p class="label">${AD_SECTION_META[1].label} (méd)</p><p class="value">${adRound1(avgS2)}/${AD_SECTION_META[1].max}</p></div>
+      <div class="ad-kpi"><p class="label">${AD_SECTION_META[2].label} (méd)</p><p class="value">${adRound1(avgS3)}/${AD_SECTION_META[2].max}</p></div>
     </div>
     <div class="ad-card ad-chart-card"><h3>Evolução do score · ${adState.selectedAgent}</h3><div class="ad-chart-wrap"><canvas id="ad-chart-agent-detail"></canvas></div></div>
     <div class="ad-card ad-table-wrap" style="padding:0;">
