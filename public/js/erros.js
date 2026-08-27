@@ -1952,7 +1952,7 @@
                 <div class="er-field"><label>Link do pedido *</label><input type="url" name="linkPedido" placeholder="https://..."></div>
               </div>
               <div class="er-field" style="margin-bottom:14px">
-                <label>Fotos, áudios ou vídeos do erro (opcional)</label>
+                <label>Fotos, áudios ou vídeos do erro *</label>
                 <div class="er-foto-drop" id="erFotoDrop"><b>Clique para adicionar arquivos</b> ou arraste aqui</div>
                 <input type="file" id="erFotoInput" accept="image/*,video/*,audio/*" multiple style="display:none">
                 <div class="er-foto-prev" id="erFotoPrev"></div>
@@ -2059,7 +2059,9 @@
       ];
       let primeiroErro = null;
       obrigatorios.forEach(([n, txt]) => { const el = formNovo.querySelector('[name="' + n + '"]'); if (el && !el.value.trim()) { markFieldErr(el, txt); if (!primeiroErro) primeiroErro = el; } });
-      if (primeiroErro) { primeiroErro.focus(); msg.textContent = 'Preencha os campos obrigatórios (*).'; return; }
+      // Precisa de pelo menos 1 mídia mostrando o erro — não é mais opcional.
+      if (!FOTOS.length) { markFieldErr(fotoInput, 'Anexe ao menos 1 foto, áudio ou vídeo mostrando o erro'); if (!primeiroErro) primeiroErro = fotoDrop; }
+      if (primeiroErro) { primeiroErro.focus(); primeiroErro.scrollIntoView({ behavior: 'smooth', block: 'center' }); msg.textContent = 'Preencha os campos obrigatórios (*).'; return; }
 
       // Quantidade não pode ser negativa.
       const qtdNum = g('qtd') ? Number(g('qtd')) : '';
