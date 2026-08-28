@@ -128,6 +128,24 @@
     }
     return u;
   }
+  // Áudio/vídeo não tem preview visual (o endpoint de thumbnail do Drive só
+  // gera imagem pra formato de imagem/alguns vídeos) — quando a miniatura
+  // falha ao carregar, troca por um link "abrir anexo" pro arquivo original
+  // no Drive, em vez de deixar um ícone de imagem quebrada sem forma de abrir.
+  function wireAnexoFallback(container) {
+    container.querySelectorAll('.er-lb-thumb').forEach((img) => {
+      img.addEventListener('error', () => {
+        const a = document.createElement('a');
+        a.className = 'er-thumb er-thumb-file';
+        a.href = img.dataset.url || img.src;
+        a.target = '_blank';
+        a.rel = 'noopener';
+        a.title = 'Abrir anexo';
+        a.textContent = '📎 Abrir anexo ' + (Number(img.dataset.idx) + 1);
+        img.replaceWith(a);
+      }, { once: true });
+    });
+  }
   /* Selo de "tem anexo" (foto, áudio ou vídeo) reaproveitado nos cards de Casos/Auditoria e de Refabricação. */
   function photoBadge(r) {
     const n = parseFotos(r.foto).length;
@@ -1252,9 +1270,10 @@
             <div class="er-field-grid" style="margin-bottom:14px">
               <div class="er-field"><label>Setor</label><div class="er-readonly-block">${erEsc(r.setor) || '—'}</div></div>
               <div class="er-field"><label>Responsável</label><div class="er-readonly-block">${erEsc(r.responsavel) || '—'}</div></div>
+              <div class="er-field"><label>Registrado por</label><div class="er-readonly-block">${erEsc(r.quemCadastrou) || '—'}</div></div>
             </div>
             <div class="er-field" style="margin-bottom:14px"><label>Descrição</label><div class="er-readonly-block" style="white-space:pre-wrap">${erEsc(r.descricao) || '—'}</div></div>
-            ${(() => { const fs = parseFotos(r.foto); return fs.length ? `<div class="er-field" style="margin-bottom:14px"><label>Anexos (${fs.length})</label><div style="display:flex;flex-wrap:wrap;gap:9px">${fs.map((u, i) => `<img class="er-thumb er-lb-thumb" data-idx="${i}" src="${erEsc(fotoSrc(u))}" alt="Anexo #${erEsc(r.idVenda)} · ${erEsc(r.nomeCard)}" title="Ampliar" loading="lazy">`).join('')}</div></div>` : ''; })()}
+            ${(() => { const fs = parseFotos(r.foto); return fs.length ? `<div class="er-field" style="margin-bottom:14px"><label>Anexos (${fs.length})</label><div style="display:flex;flex-wrap:wrap;gap:9px">${fs.map((u, i) => `<img class="er-thumb er-lb-thumb" data-idx="${i}" data-url="${erEsc(u)}" src="${erEsc(fotoSrc(u))}" alt="Anexo #${erEsc(r.idVenda)} · ${erEsc(r.nomeCard)}" title="Ampliar" loading="lazy">`).join('')}</div></div>` : ''; })()}
             ${podeDecidir
               ? `<div class="er-field" style="margin-bottom:6px"><label>Comentário *</label><textarea id="erRefabComentario" placeholder="Explique o motivo da decisão (obrigatório para aprovar ou reprovar)."></textarea></div>`
               : `<div class="er-field"><label>Comentário do gestor</label><div class="er-readonly-block" style="white-space:pre-wrap">${erEsc(r.comentarioAprovacao) || '—'}</div></div>`}
@@ -1279,6 +1298,7 @@
     document.getElementById('erOverlayRefab').addEventListener('click', (e) => { if (e.target.id === 'erOverlayRefab') close(); });
     const _fotosRefab = parseFotos(r.foto);
     modalRoot.querySelectorAll('.er-lb-thumb').forEach((el) => el.addEventListener('click', () => openLightbox(_fotosRefab, Number(el.dataset.idx))));
+    wireAnexoFallback(modalRoot);
 
     const decidir = async (decisao) => {
       const comentario = (document.getElementById('erRefabComentario').value || '').trim();
@@ -1727,7 +1747,7 @@
           <div class="er-field"><label>Quem cadastrou o erro</label><div class="er-readonly-block">${erEsc(r.quemCadastrou)}</div></div>
         </div>
         <div class="er-field" style="margin-bottom:20px"><label>Descrição do erro</label><div class="er-readonly-block" style="font-style:italic">${erEsc(r.descricao) || '—'}</div></div>
-        ${(() => { const fs = parseFotos(r.foto); return fs.length ? `<div class="er-field" style="margin-bottom:20px"><label>Anexos (${fs.length})</label><div style="display:flex;flex-wrap:wrap;gap:9px">${fs.map((u, i) => `<img class="er-thumb er-lb-thumb" data-idx="${i}" src="${erEsc(fotoSrc(u))}" alt="Anexo #${erEsc(r.idVenda)} · ${erEsc(r.nomeCard)}" title="Ampliar" loading="lazy">`).join('')}</div></div>` : ''; })()}
+        ${(() => { const fs = parseFotos(r.foto); return fs.length ? `<div class="er-field" style="margin-bottom:20px"><label>Anexos (${fs.length})</label><div style="display:flex;flex-wrap:wrap;gap:9px">${fs.map((u, i) => `<img class="er-thumb er-lb-thumb" data-idx="${i}" data-url="${erEsc(u)}" src="${erEsc(fotoSrc(u))}" alt="Anexo #${erEsc(r.idVenda)} · ${erEsc(r.nomeCard)}" title="Ampliar" loading="lazy">`).join('')}</div></div>` : ''; })()}
 
         <div class="er-sec-title">Auditoria ${editable ? '<span class="er-badge er-pill-warn">preencher agora</span>' : (r.auditado ? '<span class="er-badge er-pill-muted">já registrada</span>' : '<span class="er-badge er-pill-muted">somente leitura</span>')}</div>
         <form id="erFormAuditoria">
@@ -1843,6 +1863,8 @@
     carregarHistorico(r.id);
     const _fotos = parseFotos(r.foto).map(fotoSrc);
     document.querySelectorAll('.er-drawer .er-lb-thumb').forEach((el) => el.addEventListener('click', () => openLightbox(_fotos, Number(el.dataset.idx))));
+    const _drawerEl = document.querySelector('.er-drawer');
+    if (_drawerEl) wireAnexoFallback(_drawerEl);
     $('erDrwClose').addEventListener('click', () => closeDrawer(false));
     const fechar = $('erDrwFechar'); if (fechar) fechar.addEventListener('click', () => closeDrawer(false));
     const idCopy = $('erIdCopy'); if (idCopy) idCopy.addEventListener('click', () => { navigator.clipboard?.writeText(String(r.idVenda)); idCopy.textContent = 'Copiado!'; setTimeout(() => { idCopy.textContent = '#' + r.idVenda; }, 900); });

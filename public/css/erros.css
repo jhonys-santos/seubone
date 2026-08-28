@@ -311,6 +311,9 @@ th.er-sorted .er-sarrow { color: var(--text); }
 
 /* ===== Fotos do caso (miniaturas + upload) ===== */
 .er-thumb { width: 88px; height: 88px; border-radius: var(--radius-sm); object-fit: cover; border: 1px solid var(--border-strong); background: var(--surface-3); display: block; cursor: zoom-in; }
+/* Anexo sem preview visual (áudio/vídeo que o Drive não gera thumbnail) — vira um chip clicável em vez de imagem quebrada. */
+.er-thumb-file { display: flex; align-items: center; justify-content: center; text-align: center; padding: 6px; font-size: 11px; line-height: 1.3; color: var(--text-muted); text-decoration: none; cursor: pointer; }
+.er-thumb-file:hover { border-color: var(--gold-dark); color: var(--gold); }
 .er-foto-drop { border: 1.5px dashed var(--border-strong); border-radius: var(--radius); padding: 16px; text-align: center; cursor: pointer; color: var(--text-muted); font-size: 13px; background: var(--surface-2); }
 .er-foto-drop:hover { border-color: var(--gold-dark); background: var(--gold-dim); }
 .er-foto-drop b { color: var(--text); }
