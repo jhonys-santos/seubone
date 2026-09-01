@@ -2119,7 +2119,14 @@
         await erRefreshData(true);
         erState.screen = 'casos'; erState.casosView = 'pendentes';
         erRender();
-        toast('Erro registrado como Novo, vai para a auditoria', true);
+        // O caso é salvo mesmo se o anexo falhar (nunca some o registro por
+        // causa da mídia) — mas antes disso ninguém ficava sabendo que subiu
+        // sem anexo. Agora avisa direto, sem esconder atrás de um "sucesso".
+        if (json.fotosSalvas === false) {
+          toast('Caso registrado, mas o anexo NÃO foi salvo (' + (json.fotosErro || 'motivo desconhecido') + '). Abra o caso e anexe de novo.', false);
+        } else {
+          toast('Erro registrado como Novo, vai para a auditoria', true);
+        }
       } catch (err) {
         msg.textContent = 'Erro: ' + err.message + '. Confira a conexão e tente de novo.'; btnCriar.disabled = false;
       }

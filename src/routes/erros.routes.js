@@ -63,6 +63,16 @@ router.post('/api/criar', async (req, res) => {
     if (json.ok && json.entrouAprovacaoRefab) {
       notificarGestoresRefab(req.body.fields && req.body.fields.idVenda, req.body.fields && req.body.fields.nomeCard, json.rowIndex);
     }
+    // O caso é criado mesmo se o anexo falhar (nunca perde o registro por
+    // causa da mídia) — mas antes disso o alerta de "anexo não salvo" só
+    // ficava no Histórico interno do caso, que ninguém olha por padrão.
+    // Notifica direto quem cadastrou, além do toast na hora.
+    if (json.ok && json.fotosSalvas === false) {
+      const idVenda = req.body.fields && req.body.fields.idVenda;
+      notificacoesService
+        .adicionar(`Caso #${idVenda || json.rowIndex} foi registrado, mas o anexo (foto/áudio/vídeo) não foi salvo. Abra o caso e anexe de novo.`, '/erros#/casos/' + json.rowIndex, req.session.user.slug)
+        .catch((err) => console.error('[erros] falha ao notificar sobre anexo não salvo:', err.message));
+    }
     res.json(json);
   } catch (err) {
     res.status(502).json({ ok: false, error: 'Falha ao registrar caso: ' + err.message });

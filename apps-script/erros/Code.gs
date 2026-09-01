@@ -168,7 +168,7 @@ function salvarFotos_(fotos, idVenda) {
     folder = getFotosFolder_();
   } catch (e) {
     // Erro típico: o deploy não tem o escopo do Drive autorizado. Mensagem clara p/ o Histórico.
-    throw new Error('Sem acesso ao Google Drive — autorize o escopo do Drive (rode getFotosFolder_ no editor) e republique a implantação. Detalhe: ' + (e && e.message || e));
+    throw new Error('Sem acesso ao Google Drive. Autorize o escopo do Drive (rode getFotosFolder_ no editor) e republique a implantação. Detalhe: ' + (e && e.message || e));
   }
   var urls = [];
   for (var i = 0; i < fotos.length; i++) {
@@ -565,17 +565,26 @@ function criarCaso_(f, usuario, usuarioSlug) {
     setCell_(sh, novaLinha, col, 'queFim',        f.queFim);
     setCell_(sh, novaLinha, col, 'tipoResolucao', f.tipoResolucao);
 
+    // fotosErro fica pra avisar quem cadastrou (o registro em si sempre vale,
+    // mesmo se o anexo falhar) — antes disso a resposta dizia sempre "ok" e o
+    // caso subia sem anexo sem ninguém perceber.
+    var fotosErro = null;
     if (f.fotos && f.fotos.length) {
       if (col.foto == null) {
-        logHist_(novaLinha, f.idVenda, usuario || f.quemCadastrou, 'Fotos não salvas',
-          'A planilha não tem a coluna "Foto". Adicione um cabeçalho "Foto".', usuarioSlug);
+        fotosErro = 'A planilha não tem a coluna "Foto". Adicione um cabeçalho "Foto".';
+        logHist_(novaLinha, f.idVenda, usuario || f.quemCadastrou, 'Fotos não salvas', fotosErro, usuarioSlug);
       } else {
         try {
           var links = salvarFotos_(f.fotos, f.idVenda);
-          if (links) setCell_(sh, novaLinha, col, 'foto', links);
-          else logHist_(novaLinha, f.idVenda, usuario || f.quemCadastrou, 'Fotos não salvas', 'Nenhum link gerado (formato inesperado).', usuarioSlug);
+          if (links) {
+            setCell_(sh, novaLinha, col, 'foto', links);
+          } else {
+            fotosErro = 'Nenhum link gerado (formato inesperado).';
+            logHist_(novaLinha, f.idVenda, usuario || f.quemCadastrou, 'Fotos não salvas', fotosErro, usuarioSlug);
+          }
         } catch (e) {
-          logHist_(novaLinha, f.idVenda, usuario || f.quemCadastrou, 'Falha ao salvar fotos', String(e && e.message || e), usuarioSlug);
+          fotosErro = String(e && e.message || e);
+          logHist_(novaLinha, f.idVenda, usuario || f.quemCadastrou, 'Falha ao salvar fotos', fotosErro, usuarioSlug);
         }
       }
     }
@@ -588,7 +597,7 @@ function criarCaso_(f, usuario, usuarioSlug) {
       logHist_(novaLinha, f.idVenda, usuario || f.quemCadastrou, 'Entrou na fila de aprovação de Refabricação', '', usuarioSlug);
     }
 
-    return jsonOut_({ ok: true, rowIndex: novaLinha, entrouAprovacaoRefab: entrouRefab });
+    return jsonOut_({ ok: true, rowIndex: novaLinha, entrouAprovacaoRefab: entrouRefab, fotosSalvas: !fotosErro, fotosErro: fotosErro });
   } finally {
     lock.releaseLock();
   }
