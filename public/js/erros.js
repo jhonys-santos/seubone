@@ -1330,31 +1330,59 @@
   /* ================= REUNIÃO SEMANAL · VENDAS/FÁBRICA ================= */
   /** Agrega os dados da reunião de uma semana (setores da cfg).
    *  Usado tanto pela tela quanto pelo relatório de impressão. */
-  function reuniaoData(monday, setores) {
+  // Agregação genérica por intervalo de datas (dia a dia, inclusive) — usada
+  // tanto pela Reunião semanal quanto pela mensal, pra não duplicar a lógica
+  // de KPIs/causas/ranking em dois lugares.
+  function diaSemHora_(d) { const x = new Date(d); x.setHours(0, 0, 0, 0); return x.getTime(); }
+  function periodoData(inicio, fim, inicioAnt, fimAnt, setores) {
     setores = setores || SETORES_VENDAS;
-    const daSemana = (mon) => RECORDS.filter((r) => setores.includes(r.setor) && mondayOf(r.date).getTime() === mon);
-    const semanaAtual = daSemana(monday).filter((r) => r.auditado);
-    const pendentesSemana = RECORDS.filter((r) => !r.auditado && setores.includes(r.setor) && mondayOf(r.date).getTime() === monday).length;
-    const semanaAnterior = daSemana(monday - 7 * 86400000).filter((r) => r.auditado);
+    const iniTs = diaSemHora_(inicio), fimTs = diaSemHora_(fim);
+    const iniAntTs = diaSemHora_(inicioAnt), fimAntTs = diaSemHora_(fimAnt);
+    const doIntervalo = (iTs, fTs) => RECORDS.filter((r) => setores.includes(r.setor) && diaSemHora_(r.date) >= iTs && diaSemHora_(r.date) <= fTs);
 
-    const n = semanaAtual.length;
-    const custoTotal = semanaAtual.reduce((a, r) => a + (r.custo || 0), 0);
-    const nAnt = semanaAnterior.length;
-    const custoAnt = semanaAnterior.reduce((a, r) => a + (r.custo || 0), 0);
+    const atual = doIntervalo(iniTs, fimTs).filter((r) => r.auditado);
+    const pendentesPeriodo = doIntervalo(iniTs, fimTs).filter((r) => !r.auditado).length;
+    const anterior = doIntervalo(iniAntTs, fimAntTs).filter((r) => r.auditado);
+
+    const n = atual.length;
+    const custoTotal = atual.reduce((a, r) => a + (r.custo || 0), 0);
+    const nAnt = anterior.length;
+    const custoAnt = anterior.reduce((a, r) => a + (r.custo || 0), 0);
     const deltaN = nAnt ? Math.round((n - nAnt) / nAnt * 100) : null;
     const deltaCusto = custoAnt ? Math.round((custoTotal - custoAnt) / custoAnt * 100) : null;
 
     const causaMap = {};
-    semanaAtual.forEach((r) => { const k = r.subproblema || 'Não classificado'; if (!causaMap[k]) causaMap[k] = { nome: k, n: 0, custo: 0 }; causaMap[k].n++; causaMap[k].custo += (r.custo || 0); });
+    atual.forEach((r) => { const k = r.subproblema || 'Não classificado'; if (!causaMap[k]) causaMap[k] = { nome: k, n: 0, custo: 0 }; causaMap[k].n++; causaMap[k].custo += (r.custo || 0); });
     const causasTop = Object.values(causaMap).sort((a, b) => b.custo - a.custo);
 
     const respMap = {};
-    semanaAtual.forEach((r) => { const k = r.responsavel || 'Não informado'; if (!respMap[k]) respMap[k] = { nome: k, n: 0, custo: 0 }; respMap[k].n++; respMap[k].custo += (r.custo || 0); });
+    atual.forEach((r) => { const k = r.responsavel || 'Não informado'; if (!respMap[k]) respMap[k] = { nome: k, n: 0, custo: 0 }; respMap[k].n++; respMap[k].custo += (r.custo || 0); });
     const respTop = Object.values(respMap).sort((a, b) => b.custo - a.custo);
 
-    const casosOrdenados = semanaAtual.slice().sort((a, b) => b.custo - a.custo);
+    const casosOrdenados = atual.slice().sort((a, b) => b.custo - a.custo);
 
-    return { monday, sunday: sundayOf(monday), semanaAtual, pendentesSemana, n, custoTotal, deltaN, deltaCusto, causasTop, respTop, casosOrdenados };
+    return { inicio, fim, n, custoTotal, deltaN, deltaCusto, causasTop, respTop, casosOrdenados, pendentesPeriodo };
+  }
+
+  function reuniaoData(monday, setores) {
+    const dom = sundayOf(monday);
+    const d = periodoData(new Date(monday), dom, new Date(monday - 7 * 86400000), sundayOf(monday - 7 * 86400000), setores);
+    // mantém os nomes usados pelo resto da tela (monday/sunday/pendentesSemana)
+    return { ...d, monday, sunday: dom, pendentesSemana: d.pendentesPeriodo };
+  }
+
+  function primeiroDiaMes_(d) { const x = new Date(d); x.setDate(1); x.setHours(0, 0, 0, 0); return x; }
+  function ultimoDiaMes_(d) { const x = new Date(d); x.setMonth(x.getMonth() + 1, 0); x.setHours(0, 0, 0, 0); return x; }
+  function mesAnterior_(d) { const x = new Date(d); x.setMonth(x.getMonth() - 1); return x; }
+
+  // Mesma ideia de reuniaoData, só que agregando o mês inteiro (qualquer data
+  // dentro do mês serve de âncora) em vez de uma semana específica.
+  function reuniaoDataMensal(dataDoMes, setores) {
+    const ini = primeiroDiaMes_(dataDoMes);
+    const fim = ultimoDiaMes_(dataDoMes);
+    const anterior = mesAnterior_(dataDoMes);
+    const d = periodoData(ini, fim, primeiroDiaMes_(anterior), ultimoDiaMes_(anterior), setores);
+    return { ...d, inicioMes: ini, fimMes: fim, pendentesMes: d.pendentesPeriodo };
   }
 
   /* ================= DADOS INCOMPLETOS (backfill de setor) ================= */
@@ -1418,6 +1446,10 @@
     cfg = cfg || REUNIOES.vendas;
     const d = reuniaoData(erState[cfg.stateKey], cfg.setores);
     const { monday, sunday, n, custoTotal, deltaN, deltaCusto, causasTop, respTop, casosOrdenados, pendentesSemana } = d;
+    // Mês que contém a semana selecionada — só pra decidir se o botão mensal
+    // fica habilitado (o mês pode ter dado mesmo com a semana atual vazia).
+    const nMes = reuniaoDataMensal(new Date(erState[cfg.stateKey]), cfg.setores).n;
+    const nomeMesAtual = new Date(erState[cfg.stateKey]).toLocaleDateString('pt-BR', { month: 'long' });
 
     const nav = `
       <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:22px;flex-wrap:wrap">
@@ -1429,7 +1461,10 @@
           </div>
           <button class="er-iconbtn" id="erSemanaNext" title="Próxima semana">→</button>
         </div>
-        <button class="er-btn er-btn-primary" id="erBtnPdf" ${n === 0 ? 'disabled style="opacity:.5"' : ''}>⤓ Exportar PDF</button>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <button class="er-btn er-btn-ghost" id="erBtnPdfMes" title="Exporta o mês de ${erEsc(nomeMesAtual)} inteiro" ${nMes === 0 ? 'disabled style="opacity:.5"' : ''}>⤓ Exportar PDF (mês)</button>
+          <button class="er-btn er-btn-primary" id="erBtnPdf" ${n === 0 ? 'disabled style="opacity:.5"' : ''}>⤓ Exportar PDF (semana)</button>
+        </div>
       </div>
     `;
 
@@ -1437,6 +1472,7 @@
       document.getElementById('erSemanaPrev').addEventListener('click', () => { erState[cfg.stateKey] -= 7 * 86400000; erRender(); });
       document.getElementById('erSemanaNext').addEventListener('click', () => { erState[cfg.stateKey] += 7 * 86400000; erRender(); });
       const bap = document.getElementById('erBtnPdf'); if (bap && n > 0) bap.addEventListener('click', () => exportarPDF(erState[cfg.stateKey], cfg));
+      const bapMes = document.getElementById('erBtnPdfMes'); if (bapMes && nMes > 0) bapMes.addEventListener('click', () => exportarPDFMensal(erState[cfg.stateKey], cfg));
     };
 
     if (n === 0) {
@@ -1507,31 +1543,38 @@
      Monta um relatório imprimível em #erPrintRoot e dispara o print-to-PDF
      nativo do navegador (o usuário escolhe "Salvar como PDF" no diálogo de
      impressão). Fica sempre em paleta clara — ver @media print no erros.css. */
-  function prArrow(delta) {
-    if (delta === null) return '<span style="color:#8A9099">sem base da semana anterior</span>';
-    if (delta > 0) return `<span style="color:#A62A23">▲ ${delta}% vs semana anterior</span>`;
-    if (delta < 0) return `<span style="color:#15703D">▼ ${Math.abs(delta)}% vs semana anterior</span>`;
-    return '<span style="color:#8A9099">igual à semana anterior</span>';
+  function prArrow(delta, compTexto) {
+    compTexto = compTexto || 'vs semana anterior';
+    if (delta === null) return '<span style="color:#8A9099">sem base de comparação</span>';
+    if (delta > 0) return `<span style="color:#A62A23">▲ ${delta}% ${compTexto}</span>`;
+    if (delta < 0) return `<span style="color:#15703D">▼ ${Math.abs(delta)}% ${compTexto}</span>`;
+    return '<span style="color:#8A9099">igual ao período anterior</span>';
   }
 
-  function buildPrintReport(d, cfg) {
+  function buildPrintReport(d, cfg, opts) {
     cfg = cfg || REUNIOES.vendas;
-    const periodo = `${fmtDM(new Date(d.monday))} a ${fmtDM(d.sunday)}`;
+    opts = opts || {};
+    const tipoPeriodo = opts.tipoPeriodo === 'mes' ? 'mes' : 'semana';
+    const periodo = opts.periodoLabel || `${fmtDM(new Date(d.monday))} a ${fmtDM(d.sunday)}`;
+    const compTexto = tipoPeriodo === 'mes' ? 'vs mês anterior' : 'vs semana anterior';
+    const naPeriodoTxt = tipoPeriodo === 'mes' ? 'no mês' : 'na semana';
+    const daPeriodoTxt = tipoPeriodo === 'mes' ? 'do mês' : 'da semana';
+    const tituloRelatorio = tipoPeriodo === 'mes' ? 'Erros do Mês' : 'Erros da Semana';
     const comFoto = d.casosOrdenados.filter((r) => parseFotos(r.foto).length).length;
     const causa = d.causasTop[0] || { nome: '—', n: 0, custo: 0 };
     const maxResp = d.respTop.length ? (d.respTop[0].custo || 1) : 1;
 
     const kpis = `
       <div class="er-pr-kpis">
-        <div class="er-pr-kpi accent"><div class="kl">Erros auditados</div><div class="kv">${d.n}</div><div class="kf">${prArrow(d.deltaN)}</div></div>
-        <div class="er-pr-kpi accent"><div class="kl">Custo total</div><div class="kv">${brl(d.custoTotal)}</div><div class="kf">${prArrow(d.deltaCusto)}</div></div>
+        <div class="er-pr-kpi accent"><div class="kl">Erros auditados</div><div class="kv">${d.n}</div><div class="kf">${prArrow(d.deltaN, compTexto)}</div></div>
+        <div class="er-pr-kpi accent"><div class="kl">Custo total</div><div class="kv">${brl(d.custoTotal)}</div><div class="kf">${prArrow(d.deltaCusto, compTexto)}</div></div>
         <div class="er-pr-kpi"><div class="kl">Causa em destaque</div><div class="kv sm">${erEsc(causa.nome)}</div><div class="kf">${causa.n} caso(s) · ${brl(causa.custo)}</div></div>
         <div class="er-pr-kpi"><div class="kl">Casos com foto</div><div class="kv">${comFoto} / ${d.n}</div><div class="kf">imagens incluídas neste PDF</div></div>
       </div>`;
 
     const causas = `
       <div>
-        <div class="er-pr-sec">Top causas da semana</div>
+        <div class="er-pr-sec">Top causas ${daPeriodoTxt}</div>
         <div class="er-pr-secsub">Ordenado por custo, onde uma ação de processo rende mais.</div>
         ${d.causasTop.slice(0, 6).map((c, i) => `<div class="er-pr-row"><span class="er-pr-rk ${i === 0 ? 'top' : ''}">${i + 1}</span><span class="er-pr-name">${erEsc(c.nome)}</span><span class="er-pr-cnt">${c.n} caso(s)</span><span class="er-pr-val">${brl(c.custo)}</span></div>`).join('')}
       </div>`;
@@ -1539,7 +1582,7 @@
     const ranking = `
       <div>
         <div class="er-pr-sec">${erEsc(cfg.respLabel)}</div>
-        <div class="er-pr-secsub">Quem concentra o custo da semana. Mapa, não julgamento isolado.</div>
+        <div class="er-pr-secsub">Quem concentra o custo ${naPeriodoTxt}. Mapa, não julgamento isolado.</div>
         ${d.respTop.slice(0, 7).map((c, i) => `<div class="er-pr-row"><span class="er-pr-rk ${i === 0 ? 'top' : ''}">${i + 1}</span><span class="er-pr-name">${erEsc(c.nome)}</span><span class="er-pr-bar"><i style="width:${Math.max(4, c.custo / maxResp * 100)}%;background:${i === 0 ? '#E0A400' : '#2A6FDB'}"></i></span><span class="er-pr-val">${brl(c.custo)}</span></div>`).join('')}
       </div>`;
 
@@ -1574,26 +1617,27 @@
           <span class="er-pr-bname">SeuBoné <span>· ${erEsc(cfg.nome)}</span></span>
           <span class="er-pr-period">${periodo}</span>
         </div>
-        <h1 class="er-pr-title">Erros da Semana</h1>
-        <div class="er-pr-sub">${d.n} caso(s) auditado(s) · ${brl(d.custoTotal)} em custo · foco em aprendizado, não em culpa.${d.pendentesSemana > 0 ? ` <b style="color:#A62A23">${d.pendentesSemana} caso(s) ainda pendente(s) (fora destes números).</b>` : ''}</div>
+        <h1 class="er-pr-title">${tituloRelatorio}</h1>
+        <div class="er-pr-sub">${d.n} caso(s) auditado(s) · ${brl(d.custoTotal)} em custo · foco em aprendizado, não em culpa.${d.pendentesPeriodo > 0 ? ` <b style="color:#A62A23">${d.pendentesPeriodo} caso(s) ainda pendente(s) (fora destes números).</b>` : ''}</div>
         ${kpis}
         <div class="er-pr-two">${causas}${ranking}</div>
-        <div class="er-pr-cases-h">Casos da semana · ${erEsc(cfg.short)} (${d.casosOrdenados.length})</div>
+        <div class="er-pr-cases-h">Casos ${daPeriodoTxt} · ${erEsc(cfg.short)} (${d.casosOrdenados.length})</div>
         ${cases}
-        <div class="er-pr-foot"><b>${d.n} erro(s) · ${brl(d.custoTotal)}</b> na semana ${periodo}.<br>${erEsc(cfg.foco)}</div>
+        <div class="er-pr-foot"><b>${d.n} erro(s) · ${brl(d.custoTotal)}</b> ${naPeriodoTxt} ${periodo}.<br>${erEsc(cfg.foco)}</div>
       </div>`;
   }
 
-  function exportarPDF(monday, cfg) {
-    cfg = cfg || REUNIOES.vendas;
-    const d = reuniaoData(monday, cfg.setores);
-    if (d.n === 0) { toast('Sem casos de ' + cfg.short + ' auditados nesta semana para exportar.', false); return; }
+  // Injeta o relatório em #erPrintRoot e dispara o print-to-PDF nativo do
+  // navegador, só depois que as miniaturas terminarem de carregar (ou 3s,
+  // pra não travar se o Drive demorar a responder). Reaproveitado pelo
+  // export semanal e pelo mensal — só muda o HTML montado e o botão a reabilitar.
+  function dispararImpressao(html, btnId, textoOriginalBtn) {
     const root = document.getElementById('erPrintRoot');
-    root.innerHTML = buildPrintReport(d, cfg);
-    const btn = document.getElementById('erBtnPdf');
+    root.innerHTML = html;
+    const btn = document.getElementById(btnId);
     const imgs = Array.from(root.querySelectorAll('img'));
     let pending = imgs.filter((im) => !im.complete).length;
-    const go = () => { if (btn) { btn.textContent = '⤓ Exportar PDF'; btn.disabled = false; } setTimeout(() => window.print(), 50); };
+    const go = () => { if (btn) { btn.textContent = textoOriginalBtn; btn.disabled = false; } setTimeout(() => window.print(), 50); };
     if (btn) { btn.textContent = 'Preparando…'; btn.disabled = true; }
     if (pending === 0) { go(); return; }
     let done = false; const finish = () => { if (done) return; done = true; go(); };
@@ -1601,7 +1645,27 @@
       im.addEventListener('load', () => { if (--pending <= 0) finish(); });
       im.addEventListener('error', () => { if (--pending <= 0) finish(); });
     });
-    setTimeout(finish, 3000); // não travar se o Drive demorar a responder
+    setTimeout(finish, 3000);
+  }
+
+  function exportarPDF(monday, cfg) {
+    cfg = cfg || REUNIOES.vendas;
+    const d = reuniaoData(monday, cfg.setores);
+    if (d.n === 0) { toast('Sem casos de ' + cfg.short + ' auditados nesta semana para exportar.', false); return; }
+    dispararImpressao(buildPrintReport(d, cfg, { tipoPeriodo: 'semana' }), 'erBtnPdf', '⤓ Exportar PDF (semana)');
+  }
+
+  // Exporta o MÊS que contém a semana atualmente selecionada na tela — não
+  // precisa de uma navegação própria: usa as mesmas setas de semana como
+  // âncora pra "qual mês", e agrega o mês inteiro (não só a semana visível).
+  function exportarPDFMensal(monday, cfg) {
+    cfg = cfg || REUNIOES.vendas;
+    const dataAncora = new Date(monday);
+    const d = reuniaoDataMensal(dataAncora, cfg.setores);
+    if (d.n === 0) { toast('Sem casos de ' + cfg.short + ' auditados neste mês para exportar.', false); return; }
+    const nomeMes = dataAncora.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+    const periodoLabel = nomeMes.charAt(0).toUpperCase() + nomeMes.slice(1);
+    dispararImpressao(buildPrintReport(d, cfg, { tipoPeriodo: 'mes', periodoLabel }), 'erBtnPdfMes', '⤓ Exportar PDF (mês)');
   }
 
   // limpa o relatório depois de imprimir/cancelar
