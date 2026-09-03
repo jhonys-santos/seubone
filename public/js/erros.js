@@ -1334,11 +1334,11 @@
   // tanto pela Reunião semanal quanto pela mensal, pra não duplicar a lógica
   // de KPIs/causas/ranking em dois lugares.
   function diaSemHora_(d) { const x = new Date(d); x.setHours(0, 0, 0, 0); return x.getTime(); }
-  function periodoData(inicio, fim, inicioAnt, fimAnt, setores) {
+  function periodoData(inicio, fim, inicioAnt, fimAnt, setores, responsavelFiltro) {
     setores = setores || SETORES_VENDAS;
     const iniTs = diaSemHora_(inicio), fimTs = diaSemHora_(fim);
     const iniAntTs = diaSemHora_(inicioAnt), fimAntTs = diaSemHora_(fimAnt);
-    const doIntervalo = (iTs, fTs) => RECORDS.filter((r) => setores.includes(r.setor) && diaSemHora_(r.date) >= iTs && diaSemHora_(r.date) <= fTs);
+    const doIntervalo = (iTs, fTs) => RECORDS.filter((r) => setores.includes(r.setor) && (!responsavelFiltro || r.responsavel === responsavelFiltro) && diaSemHora_(r.date) >= iTs && diaSemHora_(r.date) <= fTs);
 
     const atual = doIntervalo(iniTs, fimTs).filter((r) => r.auditado);
     const pendentesPeriodo = doIntervalo(iniTs, fimTs).filter((r) => !r.auditado).length;
@@ -1364,9 +1364,9 @@
     return { inicio, fim, n, custoTotal, deltaN, deltaCusto, causasTop, respTop, casosOrdenados, pendentesPeriodo };
   }
 
-  function reuniaoData(monday, setores) {
+  function reuniaoData(monday, setores, responsavelFiltro) {
     const dom = sundayOf(monday);
-    const d = periodoData(new Date(monday), dom, new Date(monday - 7 * 86400000), sundayOf(monday - 7 * 86400000), setores);
+    const d = periodoData(new Date(monday), dom, new Date(monday - 7 * 86400000), sundayOf(monday - 7 * 86400000), setores, responsavelFiltro);
     // mantém os nomes usados pelo resto da tela (monday/sunday/pendentesSemana)
     return { ...d, monday, sunday: dom, pendentesSemana: d.pendentesPeriodo };
   }
@@ -1374,14 +1374,17 @@
   function primeiroDiaMes_(d) { const x = new Date(d); x.setDate(1); x.setHours(0, 0, 0, 0); return x; }
   function ultimoDiaMes_(d) { const x = new Date(d); x.setMonth(x.getMonth() + 1, 0); x.setHours(0, 0, 0, 0); return x; }
   function mesAnterior_(d) { const x = new Date(d); x.setMonth(x.getMonth() - 1); return x; }
+  // "YYYY-MM" <-> Date — formato nativo do <input type="month">.
+  function ymMes_(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); }
+  function dataDoYm_(ym) { const [y, m] = ym.split('-').map(Number); return new Date(y, m - 1, 1); }
 
   // Mesma ideia de reuniaoData, só que agregando o mês inteiro (qualquer data
   // dentro do mês serve de âncora) em vez de uma semana específica.
-  function reuniaoDataMensal(dataDoMes, setores) {
+  function reuniaoDataMensal(dataDoMes, setores, responsavelFiltro) {
     const ini = primeiroDiaMes_(dataDoMes);
     const fim = ultimoDiaMes_(dataDoMes);
     const anterior = mesAnterior_(dataDoMes);
-    const d = periodoData(ini, fim, primeiroDiaMes_(anterior), ultimoDiaMes_(anterior), setores);
+    const d = periodoData(ini, fim, primeiroDiaMes_(anterior), ultimoDiaMes_(anterior), setores, responsavelFiltro);
     return { ...d, inicioMes: ini, fimMes: fim, pendentesMes: d.pendentesPeriodo };
   }
 
@@ -1444,14 +1447,34 @@
 
   function renderReuniao(main, cfg) {
     cfg = cfg || REUNIOES.vendas;
-    const d = reuniaoData(erState[cfg.stateKey], cfg.setores);
-    const { monday, sunday, n, custoTotal, deltaN, deltaCusto, causasTop, respTop, casosOrdenados, pendentesSemana } = d;
-    // Mês que contém a semana selecionada — só pra decidir se o botão mensal
-    // fica habilitado (o mês pode ter dado mesmo com a semana atual vazia).
-    const nMes = reuniaoDataMensal(new Date(erState[cfg.stateKey]), cfg.setores).n;
-    const nomeMesAtual = new Date(erState[cfg.stateKey]).toLocaleDateString('pt-BR', { month: 'long' });
+    // Filtro por responsável — útil sobretudo na Reunião de Fábrica, onde
+    // "responsável" é a fábrica/produção específica (temos várias). Lista só
+    // os responsáveis que já tiveram caso no(s) setor(es) dessa reunião.
+    const respKey = cfg.stateKey + 'Resp';
+    if (erState[respKey] === undefined) erState[respKey] = '';
+    const responsaveisDisponiveis = Array.from(new Set(RECORDS.filter((r) => cfg.setores.includes(r.setor) && r.responsavel).map((r) => r.responsavel))).sort((a, b) => a.localeCompare(b, 'pt-BR'));
 
-    const nav = `
+    const d = reuniaoData(erState[cfg.stateKey], cfg.setores, erState[respKey]);
+    const { monday, sunday, n, custoTotal, deltaN, deltaCusto, causasTop, respTop, casosOrdenados, pendentesSemana } = d;
+    // Mês do PDF mensal — seletor próprio, independente da semana navegada
+    // (só usa a semana atual como sugestão inicial, na primeira vez que a
+    // tela abre; depois disso fica na mão de quem está usando).
+    const mesKey = cfg.stateKey + 'MesPdf';
+    if (!erState[mesKey]) erState[mesKey] = ymMes_(new Date(erState[cfg.stateKey]));
+    const dataMesEscolhido = dataDoYm_(erState[mesKey]);
+    const dMes = reuniaoDataMensal(dataMesEscolhido, cfg.setores, erState[respKey]);
+    const nomeMesEscolhido = dataMesEscolhido.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+
+    const filtroResp = `
+      <div class="er-filters" style="margin-bottom:14px">
+        <select id="erRespFiltro">
+          <option value="">Todos os responsáveis</option>
+          ${responsaveisDisponiveis.map((r) => `<option value="${erEsc(r)}" ${erState[respKey] === r ? 'selected' : ''}>${erEsc(r)}</option>`).join('')}
+        </select>
+      </div>
+    `;
+
+    const nav = filtroResp + `
       <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:22px;flex-wrap:wrap">
         <div style="display:flex;align-items:center;gap:14px">
           <button class="er-iconbtn" id="erSemanaPrev" title="Semana anterior">←</button>
@@ -1461,22 +1484,30 @@
           </div>
           <button class="er-iconbtn" id="erSemanaNext" title="Próxima semana">→</button>
         </div>
-        <div style="display:flex;gap:10px;flex-wrap:wrap">
-          <button class="er-btn er-btn-ghost" id="erBtnPdfMes" title="Exporta o mês de ${erEsc(nomeMesAtual)} inteiro" ${nMes === 0 ? 'disabled style="opacity:.5"' : ''}>⤓ Exportar PDF (mês)</button>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <input type="month" id="erMesPdfInput" value="${erState[mesKey]}" title="Escolher mês do PDF" class="er-mes-input">
+          <button class="er-btn er-btn-ghost" id="erBtnPdfMes" title="Exporta ${erEsc(nomeMesEscolhido)} inteiro" ${dMes.n === 0 ? 'disabled style="opacity:.5"' : ''}>⤓ Exportar PDF (mês)</button>
           <button class="er-btn er-btn-primary" id="erBtnPdf" ${n === 0 ? 'disabled style="opacity:.5"' : ''}>⤓ Exportar PDF (semana)</button>
         </div>
       </div>
     `;
 
     const bindNav = () => {
+      document.getElementById('erRespFiltro').addEventListener('change', (e) => { erState[respKey] = e.target.value; erRender(); });
       document.getElementById('erSemanaPrev').addEventListener('click', () => { erState[cfg.stateKey] -= 7 * 86400000; erRender(); });
       document.getElementById('erSemanaNext').addEventListener('click', () => { erState[cfg.stateKey] += 7 * 86400000; erRender(); });
-      const bap = document.getElementById('erBtnPdf'); if (bap && n > 0) bap.addEventListener('click', () => exportarPDF(erState[cfg.stateKey], cfg));
-      const bapMes = document.getElementById('erBtnPdfMes'); if (bapMes && nMes > 0) bapMes.addEventListener('click', () => exportarPDFMensal(erState[cfg.stateKey], cfg));
+      const bap = document.getElementById('erBtnPdf'); if (bap && n > 0) bap.addEventListener('click', () => exportarPDF(erState[cfg.stateKey], cfg, erState[respKey]));
+      const bapMes = document.getElementById('erBtnPdfMes'); if (bapMes && dMes.n > 0) bapMes.addEventListener('click', () => exportarPDFMensal(dataMesEscolhido.getTime(), cfg, erState[respKey]));
+      document.getElementById('erMesPdfInput').addEventListener('change', (e) => {
+        if (!e.target.value) return;
+        erState[mesKey] = e.target.value;
+        erRender();
+      });
     };
 
     if (n === 0) {
-      main.innerHTML = nav + `<div class="er-card er-empty"><div class="e-title">Nenhum erro de ${erEsc(cfg.short)} auditado nesta semana</div><div class="e-sub">${pendentesSemana > 0 ? pendentesSemana + ' caso(s) ainda pendente(s) de auditoria nesta semana.' : 'Use as setas pra navegar até uma semana com dado, ou é uma boa notícia mesmo.'}</div></div>`;
+      const filtroAtivo = erState[respKey] ? ` (filtrado por "${erEsc(erState[respKey])}")` : '';
+      main.innerHTML = nav + `<div class="er-card er-empty"><div class="e-title">Nenhum erro de ${erEsc(cfg.short)} auditado nesta semana${filtroAtivo}</div><div class="e-sub">${pendentesSemana > 0 ? pendentesSemana + ' caso(s) ainda pendente(s) de auditoria nesta semana.' : 'Use as setas pra navegar até uma semana com dado, ou é uma boa notícia mesmo.'}</div></div>`;
       bindNav();
       return;
     }
@@ -1560,6 +1591,7 @@
     const naPeriodoTxt = tipoPeriodo === 'mes' ? 'no mês' : 'na semana';
     const daPeriodoTxt = tipoPeriodo === 'mes' ? 'do mês' : 'da semana';
     const tituloRelatorio = tipoPeriodo === 'mes' ? 'Erros do Mês' : 'Erros da Semana';
+    const filtroTxt = opts.responsavelFiltro ? ` · Responsável: ${erEsc(opts.responsavelFiltro)}` : '';
     const comFoto = d.casosOrdenados.filter((r) => parseFotos(r.foto).length).length;
     const causa = d.causasTop[0] || { nome: '—', n: 0, custo: 0 };
     const maxResp = d.respTop.length ? (d.respTop[0].custo || 1) : 1;
@@ -1615,7 +1647,7 @@
         <div class="er-pr-brand">
           <span class="er-pr-badge">E</span>
           <span class="er-pr-bname">SeuBoné <span>· ${erEsc(cfg.nome)}</span></span>
-          <span class="er-pr-period">${periodo}</span>
+          <span class="er-pr-period">${periodo}${filtroTxt}</span>
         </div>
         <h1 class="er-pr-title">${tituloRelatorio}</h1>
         <div class="er-pr-sub">${d.n} caso(s) auditado(s) · ${brl(d.custoTotal)} em custo · foco em aprendizado, não em culpa.${d.pendentesPeriodo > 0 ? ` <b style="color:#A62A23">${d.pendentesPeriodo} caso(s) ainda pendente(s) (fora destes números).</b>` : ''}</div>
@@ -1648,24 +1680,24 @@
     setTimeout(finish, 3000);
   }
 
-  function exportarPDF(monday, cfg) {
+  function exportarPDF(monday, cfg, responsavelFiltro) {
     cfg = cfg || REUNIOES.vendas;
-    const d = reuniaoData(monday, cfg.setores);
+    const d = reuniaoData(monday, cfg.setores, responsavelFiltro);
     if (d.n === 0) { toast('Sem casos de ' + cfg.short + ' auditados nesta semana para exportar.', false); return; }
-    dispararImpressao(buildPrintReport(d, cfg, { tipoPeriodo: 'semana' }), 'erBtnPdf', '⤓ Exportar PDF (semana)');
+    dispararImpressao(buildPrintReport(d, cfg, { tipoPeriodo: 'semana', responsavelFiltro }), 'erBtnPdf', '⤓ Exportar PDF (semana)');
   }
 
   // Exporta o MÊS que contém a semana atualmente selecionada na tela — não
   // precisa de uma navegação própria: usa as mesmas setas de semana como
   // âncora pra "qual mês", e agrega o mês inteiro (não só a semana visível).
-  function exportarPDFMensal(monday, cfg) {
+  function exportarPDFMensal(monday, cfg, responsavelFiltro) {
     cfg = cfg || REUNIOES.vendas;
     const dataAncora = new Date(monday);
-    const d = reuniaoDataMensal(dataAncora, cfg.setores);
+    const d = reuniaoDataMensal(dataAncora, cfg.setores, responsavelFiltro);
     if (d.n === 0) { toast('Sem casos de ' + cfg.short + ' auditados neste mês para exportar.', false); return; }
     const nomeMes = dataAncora.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
     const periodoLabel = nomeMes.charAt(0).toUpperCase() + nomeMes.slice(1);
-    dispararImpressao(buildPrintReport(d, cfg, { tipoPeriodo: 'mes', periodoLabel }), 'erBtnPdfMes', '⤓ Exportar PDF (mês)');
+    dispararImpressao(buildPrintReport(d, cfg, { tipoPeriodo: 'mes', periodoLabel, responsavelFiltro }), 'erBtnPdfMes', '⤓ Exportar PDF (mês)');
   }
 
   // limpa o relatório depois de imprimir/cancelar
