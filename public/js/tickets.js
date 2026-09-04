@@ -768,7 +768,14 @@
         <div class="tk-sec-title">Dados do ticket</div>
         <div class="tk-field-grid" style="margin-bottom:16px">
           <div class="tk-field"><label>Identificador</label><div class="tk-readonly-block">${tkEsc(r.identificador) || '—'}</div></div>
-          <div class="tk-field"><label>Setor</label><div class="tk-readonly-block" id="tkSetorTopo">${tkEsc(r.setor) || '—'}</div></div>
+          <div class="tk-field">
+            <label>Setor</label>
+            <div style="display:flex;gap:8px">
+              <input type="text" id="tkInpSetorTopo" list="tkSetorTopoList" value="${tkEsc(r.setor)}" placeholder="Digite ou selecione" style="flex:1">
+              <button class="tk-btn tk-btn-ghost" type="button" id="tkBtnSalvarSetor">Salvar</button>
+            </div>
+            <datalist id="tkSetorTopoList">${SETOR_ACOMPANHAMENTO_OPCOES.map((o) => `<option value="${tkEsc(o)}">`).join('')}</datalist>
+          </div>
           <div class="tk-field"><label>ID da venda</label>${r.idVenda ? `<div><span class="tk-idchip tk-idchip-click" id="tkIdVendaCopy" data-copy="${tkEsc(r.idVenda)}" title="Clique para copiar">#${tkEsc(r.idVenda)}</span></div>` : `<div class="tk-readonly-block">—</div>`}</div>
           <div class="tk-field"><label>Origem</label><div class="tk-readonly-block">${r.origem === 'manual' || !r.origem ? 'Manual' : 'Automático (' + tkEsc(r.origem) + ')'}</div></div>
           <div class="tk-field"><label>Aberto em</label><div class="tk-readonly-block">${fmtDataHora(r.dataAbertura)}</div></div>
@@ -807,11 +814,6 @@
 
         <div class="tk-sec-title" style="margin-top:20px">Acompanhamento</div>
         <div style="font-size:12.5px;color:var(--text-muted);margin:-6px 0 12px;line-height:1.45">Informações de quem está tratando o ticket, não afeta prazo de SLA nem status.</div>
-        <div class="tk-field" style="margin-bottom:14px">
-          <label>Setor (etapa de produção atual)</label>
-          <input type="text" id="tkInpSetorAcomp" list="tkSetorAcompList" value="${tkEsc(r.setor)}" placeholder="Digite ou selecione">
-          <datalist id="tkSetorAcompList">${SETOR_ACOMPANHAMENTO_OPCOES.map((o) => `<option value="${tkEsc(o)}">`).join('')}</datalist>
-        </div>
         <div class="tk-field-grid" style="margin-bottom:14px">
           <div class="tk-field"><label>PPE (prazo previsto de entrega)</label><input type="date" id="tkInpPpe" value="${tkEsc((r.ppe || '').slice(0, 10))}"></div>
           <div class="tk-field"><label>Previsão de finalização</label><input type="date" id="tkInpPrevisao" value="${tkEsc((r.previsaoFinalizacao || '').slice(0, 10))}"></div>
@@ -995,6 +997,27 @@
       });
     }
 
+    const btnSalvarSetor = $('tkBtnSalvarSetor');
+    if (btnSalvarSetor) {
+      btnSalvarSetor.addEventListener('click', async () => {
+        const inp = $('tkInpSetorTopo');
+        const setor = inp.value.trim();
+        btnSalvarSetor.disabled = true;
+        try {
+          const res = await fetch('/tickets/api/setor', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rowIndex: r.id, setor }) });
+          const json = await res.json();
+          if (!json.ok) throw new Error(json.erro || json.error || 'Erro desconhecido');
+          r.setor = setor;
+          await tkRefreshData(true);
+          toast('Setor salvo', true);
+        } catch (err) {
+          toast('Erro: ' + err.message, false);
+        } finally {
+          btnSalvarSetor.disabled = false;
+        }
+      });
+    }
+
     // --- Acompanhamento: evento do cliente + entrega ---
     const chkEvento = $('tkChkEvento');
     const grupoDataEvento = $('tkGrupoDataEvento');
@@ -1012,14 +1035,12 @@
       const ppe = $('tkInpPpe').value;
       const previsaoFinalizacao = $('tkInpPrevisao').value;
       const pFolha = $('tkInpPFolha').value;
-      const setor = $('tkInpSetorAcomp').value.trim();
       btn.disabled = true; msg.textContent = 'Gravando…';
       try {
-        const res = await fetch('/tickets/api/acompanhamento', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rowIndex: r.id, temEvento, dataEvento, entrega, aeroporto, ppe, previsaoFinalizacao, pFolha, setor }) });
+        const res = await fetch('/tickets/api/acompanhamento', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rowIndex: r.id, temEvento, dataEvento, entrega, aeroporto, ppe, previsaoFinalizacao, pFolha }) });
         const json = await res.json();
         if (!json.ok) throw new Error(json.erro || json.error || 'Erro desconhecido');
-        Object.assign(r, { temEvento, dataEvento, entrega, aeroporto, ppe, previsaoFinalizacao, pFolha, setor });
-        const setorTopo = $('tkSetorTopo'); if (setorTopo) setorTopo.textContent = setor || '—';
+        Object.assign(r, { temEvento, dataEvento, entrega, aeroporto, ppe, previsaoFinalizacao, pFolha });
         await tkRefreshData(true);
         msg.textContent = '';
         toast('Acompanhamento salvo', true);

@@ -215,6 +215,23 @@ router.post('/api/anexos/remover', async (req, res) => {
   }
 });
 
+// Setor (etapa de produção atual) — editável a qualquer momento por quem
+// está tratando o ticket, sem trava de role. Ação própria (não faz parte do
+// Acompanhamento) pra não arriscar sobrescrever os outros campos dele com
+// valores vazios quando só o Setor muda.
+router.post('/api/setor', async (req, res) => {
+  try {
+    const { rowIndex, setor } = req.body;
+    const json = await chamarAppsScript(env.ticketsAppsScriptUrl, {
+      method: 'POST',
+      body: { action: 'atualizarSetor', rowIndex, setor, usuario: req.session.user.nome, usuarioSlug: req.session.user.slug },
+    });
+    res.json(json);
+  } catch (err) {
+    res.status(502).json({ ok: false, erro: 'Falha ao salvar setor: ' + err.message });
+  }
+});
+
 // Acompanhamento (evento do cliente, entrega, prazos) — anotação de quem
 // está tratando o ticket, sem trava extra de role (mesma ideia de comentar).
 router.post('/api/acompanhamento', async (req, res) => {

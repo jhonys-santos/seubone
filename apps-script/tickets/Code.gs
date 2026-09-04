@@ -17,6 +17,8 @@
  *    - doPost action:adicionarAnexos → anexa imagem(ns) a um ticket já existente
  *    - doPost action:removerAnexo → remove um anexo já enviado (só da coluna
  *      Anexos; o arquivo em si continua no Drive)
+ *    - doPost action:atualizarSetor → muda o Setor (etapa de produção atual),
+ *      editável a qualquer momento por quem trata o ticket
  *    - doPost action:atualizarAcompanhamento → evento/entrega/prazos, editado por quem trata o ticket
  *    - doPost action:definirLink → preenche o link do card quando criado sem ele
  *    - doPost action:marcarAtrasoNotificado → controla se já foi avisado o
@@ -260,6 +262,7 @@ function doPost(e) {
     if (action === 'comentarTicket') return comentarTicket_(body);
     if (action === 'adicionarAnexos') return adicionarAnexos_(body);
     if (action === 'removerAnexo') return removerAnexo_(body);
+    if (action === 'atualizarSetor') return atualizarSetor_(body);
     if (action === 'atualizarAcompanhamento') return atualizarAcompanhamento_(body);
     if (action === 'definirLink') return definirLink_(body);
     if (action === 'marcarAtrasoNotificado') return marcarAtrasoNotificado_(body);
@@ -372,6 +375,32 @@ function definirLink_(f) {
     logHist_(f.rowIndex, idTicket, f.usuario, 'Link adicionado', texto, f.usuarioSlug);
 
     return jsonOut_({ ok: true, rowIndex: f.rowIndex, idTicket: String(idTicket || ''), link: texto });
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/**
+ * Setor (etapa de produção atual) — ação própria, separada do
+ * Acompanhamento, pra poder ser salva sozinha sem correr risco de
+ * sobrescrever evento/entrega/prazos com valores vazios.
+ */
+function atualizarSetor_(f) {
+  if (!f.rowIndex) return jsonOut_({ ok: false, error: 'rowIndex ausente' });
+  var lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    var sh = getSheet_();
+    var col = buildColMap_(sh.getDataRange().getValues()[0]);
+    if (col.setor == null) return jsonOut_({ ok: false, error: 'Coluna "Setor" não existe na planilha.' });
+
+    var texto = String(f.setor || '').trim();
+    sh.getRange(f.rowIndex, col.setor + 1).setValue(texto);
+
+    var idTicket = (col.idTicket != null) ? sh.getRange(f.rowIndex, col.idTicket + 1).getValue() : '';
+    logHist_(f.rowIndex, idTicket, f.usuario, 'Setor atualizado', texto || '(vazio)', f.usuarioSlug);
+
+    return jsonOut_({ ok: true, rowIndex: f.rowIndex, idTicket: String(idTicket || ''), setor: texto });
   } finally {
     lock.releaseLock();
   }
