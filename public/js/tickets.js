@@ -233,6 +233,22 @@
     return dias + 'd' + (resto ? ' ' + resto + 'h' : '');
   }
 
+  // Precisão até o segundo — usado nos rankings de TMR, pra servir de
+  // critério de desempate quando dois grupos arredondam pro mesmo valor
+  // em fmtHoras (ex: "2h" pra ambos, mas um resolve mais rápido que o outro).
+  function fmtHorasPrecisas(h) {
+    if (h == null) return '—';
+    const totalSegundos = Math.round(h * 3600);
+    const hh = Math.floor(totalSegundos / 3600);
+    const mm = Math.floor((totalSegundos % 3600) / 60);
+    const ss = totalSegundos % 60;
+    const partes = [];
+    if (hh) partes.push(hh + 'h');
+    if (hh || mm) partes.push(mm + 'min');
+    partes.push(ss + 's');
+    return partes.join(' ');
+  }
+
   // Ticket aberto: tempo decorrido até agora. Ticket fechado: tempo total
   // até o fechamento (não continua correndo).
   function tempoTicket(r) {
@@ -562,7 +578,7 @@
           <div class="tk-rk-row">
             <div class="tk-rk-top">
               <span class="tk-rk-name">${tkEsc(g.nome)}</span>
-              <span class="tk-rk-count">${g.tmr != null ? fmtHoras(g.tmr) + ' · ' + g.n + ' ticket(s)' : 'sem dados ainda'}</span>
+              <span class="tk-rk-count">${g.tmr != null ? fmtHorasPrecisas(g.tmr) + ' · ' + g.n + ' ticket(s)' : 'sem dados ainda'}</span>
             </div>
             <div class="tk-rk-bar"><i style="width:${g.tmr != null ? Math.max(4, g.tmr / max * 100) : 0}%"></i></div>
           </div>
