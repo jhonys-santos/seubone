@@ -29,6 +29,12 @@ const env = require('../config/env');
 const CACHE_TTL_MS = 5000;
 const cache = new Map(); // chave: URL completa -> { promise } | { resultado, quando }
 
+// Sem isso, um travamento do lado do Google (raro, mas já vimos acontecer)
+// deixava a chamada pendurada indefinidamente — e com `cache: true`, todo
+// mundo que abrisse a mesma tela ficava esperando a MESMA promise travada.
+// Preferível falhar rápido com um erro claro do que "carregando" pra sempre.
+const TIMEOUT_MS = 20000;
+
 function baseDoScript(urlBase) {
   try {
     const u = new URL(urlBase);
@@ -81,13 +87,24 @@ async function chamarAppsScript(urlBase, { method = 'GET', params = {}, body = n
   }
 
   const executar = async () => {
-    const resp = await fetch(url, init);
-    const texto = await resp.text();
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
     try {
-      return JSON.parse(texto);
-    } catch {
-      // Alguns endpoints (ex: CSV publicado do Sheets) não devolvem JSON.
-      return texto;
+      const resp = await fetch(url, { ...init, signal: controller.signal });
+      const texto = await resp.text();
+      try {
+        return JSON.parse(texto);
+      } catch {
+        // Alguns endpoints (ex: CSV publicado do Sheets) não devolvem JSON.
+        return texto;
+      }
+    } catch (err) {
+      if (err.name === 'AbortError') {
+        throw new Error(`Apps Script não respondeu em ${TIMEOUT_MS / 1000}s (tempo limite excedido).`);
+      }
+      throw err;
+    } finally {
+      clearTimeout(timeoutId);
     }
   };
 
