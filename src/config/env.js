@@ -65,4 +65,11 @@ module.exports = {
   // Reaproveita o mesmo N8N_WEBHOOK_SECRET acima pro webhook de criação
   // automática (n8n → hub), sem precisar de um segredo novo por integração.
   ticketsAppsScriptUrl: required('TICKETS_APPS_SCRIPT_URL', ''),
+
+  // Endpoint interno da Lulu (CRM) que lista pedidos com PPF vencido — o hub
+  // consulta periodicamente (ver ticketsImportLulu.service.js) e abre um
+  // Ticket "Pedido atrasado" pra cada negócio ainda sem ticket aberto. Sem
+  // autenticação própria (rota interna, protegida só por rede) — confirmado
+  // em teste direto.
+  luluPedidosPpfVencidoUrl: required('LULU_PEDIDOS_PPF_VENCIDO_URL', 'https://intranet.seubone.com/integracoes/sucesso-cliente/pedidos-ppf-vencido'),
 };

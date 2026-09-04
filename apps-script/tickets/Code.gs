@@ -69,6 +69,10 @@ var COLUNAS = {
   previsaoFinalizacao: ['previsao de finalizacao', 'previsão de finalização'],
   pFolha:         ['p folha', 'prazo de producao', 'prazo de produção'],
   atrasoNotificado: ['atraso notificado', 'notificado atraso', 'aviso atraso enviado'],
+  // Chave estável do "negócio" no sistema de origem (Lulu) — idVenda pode vir
+  // nulo de lá, então é essa coluna que garante que o mesmo pedido atrasado
+  // nunca gera dois tickets em checagens diferentes.
+  negocioId:      ['negocio id', 'negocioid', 'id do negocio'],
 };
 
 var STATUS_ABERTO = 'Aberto';
@@ -231,6 +235,7 @@ function doGet(e) {
         previsaoFinalizacao: fmtDate_(get(row, 'previsaoFinalizacao')),
         pFolha:              fmtDate_(get(row, 'pFolha')),
         atrasoNotificado:    parseBool_(get(row, 'atrasoNotificado')),
+        negocioId:           String(get(row, 'negocioId') || '').trim(),
       });
     }
     return jsonOut_({ ok: true, tickets: tickets });
@@ -297,6 +302,13 @@ function criarTicket_(f) {
     setCell_(sh, novaLinha, col, 'origem', f.origem || 'manual');
     setCell_(sh, novaLinha, col, 'link', f.link);
     setCell_(sh, novaLinha, col, 'observacao', f.observacao);
+    setCell_(sh, novaLinha, col, 'negocioId', f.negocioId);
+    // Prazos já conhecidos no momento da criação (ex: importação do sistema
+    // de origem) — opcional, quem cria manualmente/via n8n simples não manda
+    // isso e preenche depois em Acompanhamento.
+    setCell_(sh, novaLinha, col, 'ppe', f.ppe);
+    setCell_(sh, novaLinha, col, 'previsaoFinalizacao', f.previsaoFinalizacao);
+    setCell_(sh, novaLinha, col, 'pFolha', f.pFolha);
 
     if (f.fotos && f.fotos.length) {
       try {

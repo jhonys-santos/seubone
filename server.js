@@ -9,6 +9,7 @@ const compression = require('compression');
 const env = require('./src/config/env');
 const usuariosService = require('./src/services/usuarios.service');
 const { iniciarChecagemAtrasos } = require('./src/services/ticketsAtraso.service');
+const { iniciarImportacaoLulu } = require('./src/services/ticketsImportLulu.service');
 const catalogoPaineis = require('./src/config/paineis');
 const catalogoAtalhos = require('./src/config/atalhos');
 
@@ -138,6 +139,7 @@ usuariosService
       console.log(`SeuBoné Hub rodando em http://localhost:${env.port}`);
     });
     iniciarChecagemAtrasos();
+    iniciarImportacaoLulu();
   })
   .catch((err) => {
     // Sem a lista de usuários carregada, ninguém consegue logar — melhor
