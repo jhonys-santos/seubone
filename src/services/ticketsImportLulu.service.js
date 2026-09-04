@@ -1,7 +1,5 @@
 const env = require('./../config/env');
 const { chamarAppsScript } = require('./appsScriptClient');
-const notificacoesService = require('./notificacoes.service');
-const usuariosService = require('./usuarios.service');
 
 // Importa pedidos com PPF vencido do sistema Lulu e abre um Ticket "Pedido
 // atrasado" pra cada negócio que ainda não tem um — mesmo espírito do
@@ -58,19 +56,6 @@ async function buscarPedidosAtrasados() {
     }
   }
   return Array.from(porNegocio.values());
-}
-
-// Mesmo aviso usado no webhook manual/n8n — ticket importado nunca nasce
-// com responsável (a atribuição continua manual, decidida pelo gestor).
-function notificarGestoresSemResponsavel(rowIndex, idTicket, pedido) {
-  const link = '/tickets#/t/' + rowIndex;
-  const mensagem = `Ticket ${idTicket ? '#' + idTicket : '#' + rowIndex} (${pedido || 'sem pedido'}) aberto sem responsável.`;
-  usuariosService
-    .listarUsuarios()
-    .filter((u) => u.role === 'gestor')
-    .forEach((u) => {
-      notificacoesService.adicionar(mensagem, link, u.slug).catch((err) => console.error('[tickets-lulu] falha ao notificar gestor:', err.message));
-    });
 }
 
 // "link_card" costuma vir nulo da Lulu, mas o padrão da URL é sempre
@@ -135,9 +120,7 @@ async function importarAtrasosLulu() {
       if (negociosComTicket.has(pedido.negocio_id)) continue;
       try {
         const json = await criarTicketComRetry_(pedido);
-        if (json.ok) {
-          notificarGestoresSemResponsavel(json.rowIndex, json.idTicket, pedido.cliente);
-        } else {
+        if (!json.ok) {
           console.error('[tickets-lulu] falha ao criar ticket pro negocio ' + pedido.negocio_id + ':', json.error);
         }
       } catch (err) {

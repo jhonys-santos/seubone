@@ -7,20 +7,6 @@ const env = require('../config/env');
 
 const router = express.Router();
 
-// Avisa todo gestor quando um ticket precisa de alguém pra assumir (recém
-// aberto sem responsável) — não deixa uma falha aqui derrubar a resposta
-// do create, só loga (o ticket já foi salvo, essa é só a notificação).
-function notificarGestoresSemResponsavel(rowIndex, idTicket, pedido) {
-  const link = '/tickets#/t/' + rowIndex;
-  const mensagem = `Ticket ${idTicket ? '#' + idTicket : '#' + rowIndex} (${pedido || 'sem pedido'}) aberto sem responsável.`;
-  usuariosService
-    .listarUsuarios()
-    .filter((u) => u.role === 'gestor')
-    .forEach((u) => {
-      notificacoesService.adicionar(mensagem, link, u.slug).catch((err) => console.error('[tickets] falha ao notificar gestor:', err.message));
-    });
-}
-
 // Webhook do CRM (Lulu 2.0) avisando de um ticket aberto (ex: pedido
 // atrasado) — protegido por segredo compartilhado, não por sessão (o CRM
 // não é um usuário logado no hub, por isso essa rota vem ANTES do
@@ -44,9 +30,6 @@ router.post('/webhook/n8n', async (req, res) => {
       method: 'POST',
       body: { action: 'criar', pedido, idVenda, identificador, setor, link, observacao, origem: 'Lulu 2.0', usuario: 'Lulu 2.0' },
     });
-    if (json.ok) {
-      notificarGestoresSemResponsavel(json.rowIndex, json.idTicket, pedido);
-    }
     res.json(json);
   } catch (err) {
     res.status(502).json({ ok: false, erro: 'Falha ao processar ticket do CRM: ' + err.message });
@@ -101,9 +84,6 @@ router.post('/api/criar', async (req, res) => {
         fotos: fotos || [], origem: 'manual', usuario: req.session.user.nome, usuarioSlug: req.session.user.slug,
       },
     });
-    if (json.ok && !responsavel) {
-      notificarGestoresSemResponsavel(json.rowIndex, json.idTicket, pedido);
-    }
     res.json(json);
   } catch (err) {
     res.status(502).json({ ok: false, erro: 'Falha ao criar ticket: ' + err.message });
@@ -152,7 +132,7 @@ router.post('/api/status', async (req, res) => {
 });
 
 // Comentário de acompanhamento — mesmo padrão do Painel de Erros: qualquer
-// colaborador com acesso ao painel pode comentar, todo gestor é notificado.
+// colaborador com acesso ao painel pode comentar.
 router.post('/api/comentar', async (req, res) => {
   try {
     const { rowIndex, comentario } = req.body;
@@ -163,15 +143,6 @@ router.post('/api/comentar', async (req, res) => {
       method: 'POST',
       body: { action: 'comentarTicket', rowIndex, comentario, usuario: req.session.user.nome, usuarioSlug: req.session.user.slug },
     });
-    if (json.ok) {
-      const mensagem = `${req.session.user.nome} comentou no ticket ${json.idTicket ? '#' + json.idTicket : '#' + rowIndex}.`;
-      usuariosService
-        .listarUsuarios()
-        .filter((u) => u.role === 'gestor' && u.slug !== req.session.user.slug)
-        .forEach((u) => {
-          notificacoesService.adicionar(mensagem, '/tickets#/t/' + rowIndex, u.slug).catch((err) => console.error('[tickets] falha ao notificar gestor sobre comentário:', err.message));
-        });
-    }
     res.json(json);
   } catch (err) {
     res.status(502).json({ ok: false, erro: 'Falha ao comentar: ' + err.message });
