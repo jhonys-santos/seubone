@@ -190,17 +190,22 @@
     if (el && LAST_SYNC) el.textContent = 'atualizado há pouco';
   }
 
+  // Valor especial (não é um nome de responsável de verdade) pra filtrar só
+  // os tickets sem ninguém atribuído — junto com "Todos", fica no topo do
+  // select de Responsável.
+  const TK_FILTRO_SEM_RESPONSAVEL = '__sem_responsavel__';
+
   function tkInitFilterOptions() {
-    const fillSelect = (id, values, placeholder) => {
+    const fillSelect = (id, values, placeholder, extraOptionsHtml) => {
       const el = document.getElementById(id);
       const current = el.value;
-      el.innerHTML = `<option value="">${placeholder}</option>` + values.map((v) => `<option value="${tkEsc(v)}">${tkEsc(v)}</option>`).join('');
+      el.innerHTML = `<option value="">${placeholder}</option>` + (extraOptionsHtml || '') + values.map((v) => `<option value="${tkEsc(v)}">${tkEsc(v)}</option>`).join('');
       el.value = current;
     };
     const responsaveis = Array.from(new Set(visibleRecords().map((r) => r.responsavel).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'pt-BR'));
     const identificadores = Array.from(new Set([...IDENTIFICADOR_OPCOES, ...visibleRecords().map((r) => r.identificador).filter(Boolean)]));
     const setores = Array.from(new Set([...SETOR_OPCOES, ...visibleRecords().map((r) => r.setor).filter(Boolean)]));
-    fillSelect('tkFResponsavel', responsaveis, 'Todos os responsáveis');
+    fillSelect('tkFResponsavel', responsaveis, 'Todos os responsáveis', `<option value="${TK_FILTRO_SEM_RESPONSAVEL}">— Sem responsável —</option>`);
     fillSelect('tkFIdentificador', identificadores, 'Todos os identificadores');
     fillSelect('tkFSetor', setores, 'Todos os setores');
   }
@@ -350,7 +355,8 @@
     return visibleRecords().filter((r) => {
       if (tkState.fStatus === 'abertos' && r.status === STATUS_RESOLVIDO) return false;
       if (tkState.fStatus === 'fechados' && r.status !== STATUS_RESOLVIDO) return false;
-      if (tkState.fResponsavel && r.responsavel !== tkState.fResponsavel) return false;
+      if (tkState.fResponsavel === TK_FILTRO_SEM_RESPONSAVEL) { if (r.responsavel) return false; }
+      else if (tkState.fResponsavel && r.responsavel !== tkState.fResponsavel) return false;
       if (tkState.fIdentificador && r.identificador !== tkState.fIdentificador) return false;
       if (tkState.fSetor && r.setor !== tkState.fSetor) return false;
       if (tkState.busca) {
@@ -380,7 +386,7 @@
     main.innerHTML = `
       <div class="tk-kpis">
         <div class="tk-kpi"><div class="k-l">Abertos</div><div class="k-v">${abertos.length}</div></div>
-        ${papel === 'gestor' ? `<div class="tk-kpi ${semResponsavel ? 'warn' : ''}"><div class="k-l">Sem responsável</div><div class="k-v">${semResponsavel}</div></div>` : ''}
+        ${papel === 'gestor' ? `<div class="tk-kpi tk-kpi-clicavel ${semResponsavel ? 'warn' : ''}" id="tkKpiSemResp" title="Filtrar só os sem responsável"><div class="k-l">Sem responsável</div><div class="k-v">${semResponsavel}</div></div>` : ''}
         <div class="tk-kpi"><div class="k-l">Fechados</div><div class="k-v">${visiveis.length - abertos.length}</div></div>
       </div>
       ${podeSelecionar && tkSelecionados.size > 0 ? renderBulkBar() : ''}
@@ -422,6 +428,15 @@
       });
     });
     if (podeSelecionar) wireSelecaoLista(main, idsVisiveis);
+    const kpiSemResp = document.getElementById('tkKpiSemResp');
+    if (kpiSemResp) {
+      kpiSemResp.addEventListener('click', () => {
+        tkState.fResponsavel = TK_FILTRO_SEM_RESPONSAVEL;
+        const sel = document.getElementById('tkFResponsavel');
+        if (sel) sel.value = TK_FILTRO_SEM_RESPONSAVEL;
+        tkRender();
+      });
+    }
   }
 
   // Barra de ação em massa — só aparece com pelo menos 1 ticket selecionado,

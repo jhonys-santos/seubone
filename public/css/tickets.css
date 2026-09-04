@@ -62,6 +62,8 @@
 .tk-kpi.warn .k-foot { color: var(--bad-text, var(--bad)); }
 .tk-kpi.warn .k-v { color: var(--bad-text, var(--bad)); }
 .tk-kpi.accent { border-color: var(--gold-dark); background: var(--gold-dim); }
+.tk-kpi-clicavel { cursor: pointer; transition: filter .12s; }
+.tk-kpi-clicavel:hover { filter: brightness(1.12); }
 
 .tk-bulkbar {
   display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
