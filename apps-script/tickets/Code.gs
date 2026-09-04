@@ -15,6 +15,8 @@
  *    - doPost action:mudarStatus  → Aberto/Em acompanhamento/Urgência/Resolvido (Resolvido = fecha)
  *    - doPost action:comentarTicket → comentário de acompanhamento (Histórico)
  *    - doPost action:adicionarAnexos → anexa imagem(ns) a um ticket já existente
+ *    - doPost action:removerAnexo → remove um anexo já enviado (só da coluna
+ *      Anexos; o arquivo em si continua no Drive)
  *    - doPost action:atualizarAcompanhamento → evento/entrega/prazos, editado por quem trata o ticket
  *    - doPost action:definirLink → preenche o link do card quando criado sem ele
  *    - doPost action:marcarAtrasoNotificado → controla se já foi avisado o
@@ -257,6 +259,7 @@ function doPost(e) {
     if (action === 'mudarStatus')    return mudarStatus_(body);
     if (action === 'comentarTicket') return comentarTicket_(body);
     if (action === 'adicionarAnexos') return adicionarAnexos_(body);
+    if (action === 'removerAnexo') return removerAnexo_(body);
     if (action === 'atualizarAcompanhamento') return atualizarAcompanhamento_(body);
     if (action === 'definirLink') return definirLink_(body);
     if (action === 'marcarAtrasoNotificado') return marcarAtrasoNotificado_(body);
@@ -274,7 +277,7 @@ function doPost(e) {
  */
 function criarTicket_(f) {
   var lock = LockService.getScriptLock();
-  try { lock.waitLock(20000); } catch (e) { return jsonOut_({ ok: false, error: 'Sistema ocupado, tente novamente em alguns segundos.' }); }
+  try { lock.waitLock(30000); } catch (e) { return jsonOut_({ ok: false, error: 'Sistema ocupado, tente novamente em alguns segundos.' }); }
   try {
     if (!f.identificador) {
       return jsonOut_({ ok: false, error: 'Identificador é obrigatório.' });
@@ -331,7 +334,7 @@ function criarTicket_(f) {
 function atribuirResponsavel_(f) {
   if (!f.rowIndex) return jsonOut_({ ok: false, error: 'rowIndex ausente' });
   var lock = LockService.getScriptLock();
-  lock.waitLock(20000);
+  lock.waitLock(30000);
   try {
     var sh = getSheet_();
     var col = buildColMap_(sh.getDataRange().getValues()[0]);
@@ -358,7 +361,7 @@ function definirLink_(f) {
   if (!texto) return jsonOut_({ ok: false, error: 'Link vazio.' });
 
   var lock = LockService.getScriptLock();
-  lock.waitLock(20000);
+  lock.waitLock(30000);
   try {
     var sh = getSheet_();
     var col = buildColMap_(sh.getDataRange().getValues()[0]);
@@ -382,7 +385,7 @@ function definirLink_(f) {
 function atualizarAcompanhamento_(f) {
   if (!f.rowIndex) return jsonOut_({ ok: false, error: 'rowIndex ausente' });
   var lock = LockService.getScriptLock();
-  lock.waitLock(20000);
+  lock.waitLock(30000);
   try {
     var sh = getSheet_();
     var col = buildColMap_(sh.getDataRange().getValues()[0]);
@@ -395,9 +398,13 @@ function atualizarAcompanhamento_(f) {
     if (col.ppe != null) sh.getRange(f.rowIndex, col.ppe + 1).setValue(f.ppe || '');
     if (col.previsaoFinalizacao != null) sh.getRange(f.rowIndex, col.previsaoFinalizacao + 1).setValue(f.previsaoFinalizacao || '');
     if (col.pFolha != null) sh.getRange(f.rowIndex, col.pFolha + 1).setValue(f.pFolha || '');
+    // Setor aqui é a etapa de produção atual (quem trata o ticket atualiza
+    // durante o acompanhamento) — igual valorizado direto (não com setCell_),
+    // pra dar pra "limpar" de volta pro vazio se precisar.
+    if (col.setor != null && f.setor !== undefined) sh.getRange(f.rowIndex, col.setor + 1).setValue(f.setor || '');
 
     var idTicket = (col.idTicket != null) ? sh.getRange(f.rowIndex, col.idTicket + 1).getValue() : '';
-    var detalhe = [temEvento ? 'evento em ' + (f.dataEvento || '?') : '', f.entrega].filter(String).join(' · ');
+    var detalhe = [temEvento ? 'evento em ' + (f.dataEvento || '?') : '', f.entrega, f.setor ? 'setor: ' + f.setor : ''].filter(String).join(' · ');
     logHist_(f.rowIndex, idTicket, f.usuario, 'Acompanhamento atualizado', detalhe, f.usuarioSlug);
 
     return jsonOut_({ ok: true, rowIndex: f.rowIndex, idTicket: String(idTicket || '') });
@@ -415,7 +422,7 @@ function atualizarAcompanhamento_(f) {
 function mudarStatus_(f) {
   if (!f.rowIndex || !f.status) return jsonOut_({ ok: false, error: 'rowIndex/status ausente' });
   var lock = LockService.getScriptLock();
-  lock.waitLock(20000);
+  lock.waitLock(30000);
   try {
     var sh = getSheet_();
     var col = buildColMap_(sh.getDataRange().getValues()[0]);
@@ -468,7 +475,7 @@ function comentarTicket_(f) {
 function marcarAtrasoNotificado_(f) {
   if (!f.rowIndex) return jsonOut_({ ok: false, error: 'rowIndex ausente' });
   var lock = LockService.getScriptLock();
-  lock.waitLock(20000);
+  lock.waitLock(30000);
   try {
     var sh = getSheet_();
     var col = buildColMap_(sh.getDataRange().getValues()[0]);
@@ -531,7 +538,7 @@ function adicionarAnexos_(f) {
   if (!f.fotos || !f.fotos.length) return jsonOut_({ ok: false, error: 'Nenhum arquivo enviado.' });
 
   var lock = LockService.getScriptLock();
-  try { lock.waitLock(20000); } catch (e) { return jsonOut_({ ok: false, error: 'Sistema ocupado, tente novamente em alguns segundos.' }); }
+  try { lock.waitLock(30000); } catch (e) { return jsonOut_({ ok: false, error: 'Sistema ocupado, tente novamente em alguns segundos.' }); }
   try {
     var sh = getSheet_();
     var col = buildColMap_(sh.getDataRange().getValues()[0]);
@@ -546,6 +553,36 @@ function adicionarAnexos_(f) {
     sh.getRange(f.rowIndex, col.anexos + 1).setValue(combinado);
 
     logHist_(f.rowIndex, idTicket, f.usuario, 'Anexo(s) adicionado(s)', f.fotos.length + ' arquivo(s)', f.usuarioSlug);
+
+    return jsonOut_({ ok: true, rowIndex: f.rowIndex, idTicket: String(idTicket || ''), anexos: combinado });
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/**
+ * Remove um anexo já enviado — só tira o link da coluna Anexos (não apaga
+ * o arquivo do Drive, pra não correr risco de apagar algo por engano; o
+ * arquivo fica órfão na pasta, sem custo real de manter).
+ */
+function removerAnexo_(f) {
+  if (!f.rowIndex) return jsonOut_({ ok: false, error: 'rowIndex ausente' });
+  if (!f.url) return jsonOut_({ ok: false, error: 'Anexo não informado.' });
+
+  var lock = LockService.getScriptLock();
+  try { lock.waitLock(30000); } catch (e) { return jsonOut_({ ok: false, error: 'Sistema ocupado, tente novamente em alguns segundos.' }); }
+  try {
+    var sh = getSheet_();
+    var col = buildColMap_(sh.getDataRange().getValues()[0]);
+    if (col.anexos == null) return jsonOut_({ ok: false, error: 'Coluna "Anexos" não existe na planilha.' });
+
+    var atual = String(sh.getRange(f.rowIndex, col.anexos + 1).getValue() || '').trim();
+    var restantes = atual.split(',').map(function (s) { return s.trim(); }).filter(function (s) { return s && s !== f.url; });
+    var combinado = restantes.join(',');
+    sh.getRange(f.rowIndex, col.anexos + 1).setValue(combinado);
+
+    var idTicket = (col.idTicket != null) ? sh.getRange(f.rowIndex, col.idTicket + 1).getValue() : '';
+    logHist_(f.rowIndex, idTicket, f.usuario, 'Anexo removido', '', f.usuarioSlug);
 
     return jsonOut_({ ok: true, rowIndex: f.rowIndex, idTicket: String(idTicket || ''), anexos: combinado });
   } finally {

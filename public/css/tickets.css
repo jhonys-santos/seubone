@@ -127,6 +127,8 @@
 .tk-age-mid { background: var(--warn-bg); color: var(--warn-text, var(--warn)); }
 .tk-age-ok { background: var(--surface-3); color: var(--text-muted); }
 .tk-idchip { font-family: ui-monospace, "JetBrains Mono", monospace; font-size: 12px; background: var(--surface-2); border: 1px solid var(--border-strong); border-radius: 6px; padding: 2px 8px; color: var(--text); }
+.tk-idchip-click { cursor: pointer; }
+.tk-idchip-click:hover { border-color: var(--gold-dark); color: var(--gold); }
 
 /* ===== Tabela ===== */
 .tk-scope table { width: 100%; border-collapse: collapse; font-size: 13px; }

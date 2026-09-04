@@ -106,6 +106,11 @@
   // Sugestões do campo "Setor" — texto livre com datalist (igual o campo
   // "Responsável" do Painel de Erros), não uma lista fechada.
   const SETOR_OPCOES = ['Fábrica Cacinho', 'Fábrica Bonés Brasil', 'Fábrica CIA Bruto', '88 Brindes', 'Fábrica Neidinha', 'Fábrica LaserTools', 'Fábrica SLC', 'Fábrica (Outro)', 'Transportadora'];
+  // Mesmo campo "Setor", mas com outra lista de sugestão — usada dentro do
+  // Acompanhamento, pra quem está tratando o ticket indicar em que etapa de
+  // produção ele está agora (diferente da lista de fábrica/transportadora
+  // usada na criação do ticket).
+  const SETOR_ACOMPANHAMENTO_OPCOES = ['Design', 'Separação', 'Bordado', 'Pintura', 'Sublimação', 'Revelação', 'Laser', 'Costura', 'Acabamento'];
 
   // SLA fixo por identificador (dias corridos a partir da abertura) — define
   // o prazo usado nos contadores de Vencidos/Vence hoje/Vence amanhã do
@@ -763,9 +768,9 @@
         <div class="tk-sec-title">Dados do ticket</div>
         <div class="tk-field-grid" style="margin-bottom:16px">
           <div class="tk-field"><label>Identificador</label><div class="tk-readonly-block">${tkEsc(r.identificador) || '—'}</div></div>
-          <div class="tk-field"><label>Setor</label><div class="tk-readonly-block">${tkEsc(r.setor) || '—'}</div></div>
-          <div class="tk-field"><label>ID da venda</label><div class="tk-readonly-block">${tkEsc(r.idVenda) || '—'}</div></div>
-          <div class="tk-field"><label>Origem</label><div class="tk-readonly-block">${r.origem === 'n8n' ? 'Automático (n8n)' : 'Manual'}</div></div>
+          <div class="tk-field"><label>Setor</label><div class="tk-readonly-block" id="tkSetorTopo">${tkEsc(r.setor) || '—'}</div></div>
+          <div class="tk-field"><label>ID da venda</label>${r.idVenda ? `<div><span class="tk-idchip tk-idchip-click" id="tkIdVendaCopy" data-copy="${tkEsc(r.idVenda)}" title="Clique para copiar">#${tkEsc(r.idVenda)}</span></div>` : `<div class="tk-readonly-block">—</div>`}</div>
+          <div class="tk-field"><label>Origem</label><div class="tk-readonly-block">${r.origem === 'manual' || !r.origem ? 'Manual' : 'Automático (' + tkEsc(r.origem) + ')'}</div></div>
           <div class="tk-field"><label>Aberto em</label><div class="tk-readonly-block">${fmtDataHora(r.dataAbertura)}</div></div>
           <div class="tk-field"><label>Fechado em</label><div class="tk-readonly-block">${fmtDataHora(r.dataFechamento)}</div></div>
         </div>
@@ -783,7 +788,7 @@
         <div class="tk-sec-title" style="margin-top:20px">Anexos${(() => { const n = tkParseFotos(r.anexos).length; return n ? ` (${n})` : ''; })()}</div>
         ${(() => {
           const fs = tkParseFotos(r.anexos);
-          return fs.length ? `<div style="display:flex;flex-wrap:wrap;gap:9px;margin-bottom:12px">${fs.map((u, i) => `<img class="tk-thumb tk-lb-thumb" data-idx="${i}" src="${tkEsc(tkFotoSrc(u))}" alt="Anexo ${i + 1}" title="Ampliar" loading="lazy">`).join('')}</div>` : '';
+          return fs.length ? `<div class="tk-foto-prev" id="tkAnexosExistentes" style="margin-top:0;margin-bottom:12px">${fs.map((u, i) => `<div class="fp"><img class="tk-thumb tk-lb-thumb" data-idx="${i}" src="${tkEsc(tkFotoSrc(u))}" alt="Anexo ${i + 1}" title="Ampliar" loading="lazy"><button type="button" class="rm" data-url="${tkEsc(u)}" title="Remover anexo">✕</button></div>`).join('')}</div>` : '';
         })()}
         <div class="tk-foto-drop" id="tkFotoDrop"><b>Clique para adicionar imagem</b> ou arraste aqui</div>
         <input type="file" id="tkFotoInput" accept="image/*" multiple style="display:none">
@@ -802,6 +807,11 @@
 
         <div class="tk-sec-title" style="margin-top:20px">Acompanhamento</div>
         <div style="font-size:12.5px;color:var(--text-muted);margin:-6px 0 12px;line-height:1.45">Informações de quem está tratando o ticket, não afeta prazo de SLA nem status.</div>
+        <div class="tk-field" style="margin-bottom:14px">
+          <label>Setor (etapa de produção atual)</label>
+          <input type="text" id="tkInpSetorAcomp" list="tkSetorAcompList" value="${tkEsc(r.setor)}" placeholder="Digite ou selecione">
+          <datalist id="tkSetorAcompList">${SETOR_ACOMPANHAMENTO_OPCOES.map((o) => `<option value="${tkEsc(o)}">`).join('')}</datalist>
+        </div>
         <div class="tk-field-grid" style="margin-bottom:14px">
           <div class="tk-field"><label>PPE (prazo previsto de entrega)</label><input type="date" id="tkInpPpe" value="${tkEsc((r.ppe || '').slice(0, 10))}"></div>
           <div class="tk-field"><label>Previsão de finalização</label><input type="date" id="tkInpPrevisao" value="${tkEsc((r.previsaoFinalizacao || '').slice(0, 10))}"></div>
@@ -845,7 +855,7 @@
       </div>
       <div class="tk-drawer-foot">
         <span class="tk-save-msg" id="tkSaveMsg"></span>
-        <button class="tk-btn tk-btn-ghost" id="tkDrwFechar">Fechar drawer</button>
+        ${podeAlterarStatus(r) && r.status !== STATUS_RESOLVIDO ? '<button class="tk-btn tk-btn-primary" id="tkDrwResolver">Resolvido</button>' : ''}
       </div>
     `;
   }
@@ -902,9 +912,17 @@
 
   async function setTicketStatus(r, status) {
     if (!podeAlterarStatus(r) || r.status === status) return;
+    const tentarMudar = () => fetch('/tickets/api/status', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rowIndex: r.id, status }) }).then((res) => res.json());
     try {
-      const res = await fetch('/tickets/api/status', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rowIndex: r.id, status }) });
-      const json = await res.json();
+      let json = await tentarMudar();
+      if (!json.ok) {
+        // Erro comum aqui é "Lock timeout" — outra ação (checagem automática
+        // de atraso/importação, ou outra pessoa) segurando a planilha por um
+        // instante. Quase sempre resolve numa segunda tentativa, então tenta
+        // de novo uma vez antes de mostrar erro pra quem tá usando.
+        await new Promise((res) => setTimeout(res, 2500));
+        json = await tentarMudar();
+      }
       if (!json.ok) throw new Error(json.erro || json.error || 'Erro desconhecido');
       await tkRefreshData(true);
       if (CASO_ATUAL === r.id) renderDrawer(r.id);
@@ -919,13 +937,40 @@
     const $ = (i) => document.getElementById(i);
     carregarHistoricoTicket(r.id);
     $('tkDrwClose').addEventListener('click', () => closeDrawer(false));
-    const fechar = $('tkDrwFechar'); if (fechar) fechar.addEventListener('click', () => closeDrawer(false));
+    const resolver = $('tkDrwResolver'); if (resolver) resolver.addEventListener('click', () => setTicketStatus(r, STATUS_RESOLVIDO));
 
     document.querySelectorAll('.tk-drawer .tk-stbtn').forEach((b) => b.addEventListener('click', () => setTicketStatus(r, b.dataset.status)));
+
+    const idVendaCopy = $('tkIdVendaCopy');
+    if (idVendaCopy) idVendaCopy.addEventListener('click', () => {
+      navigator.clipboard?.writeText(idVendaCopy.dataset.copy).catch(() => {});
+      idVendaCopy.textContent = 'Copiado!';
+      setTimeout(() => { idVendaCopy.textContent = '#' + idVendaCopy.dataset.copy; }, 900);
+    });
 
     const anexosExistentes = tkParseFotos(r.anexos).map(tkFotoSrc);
     document.querySelectorAll('.tk-drawer .tk-lb-thumb').forEach((el) => {
       el.addEventListener('click', () => tkOpenLightbox(anexosExistentes, Number(el.dataset.idx)));
+    });
+    document.querySelectorAll('#tkAnexosExistentes .rm').forEach((btn) => {
+      btn.addEventListener('click', async (ev) => {
+        ev.stopPropagation();
+        const ok = await hubConfirm('Remover esse anexo?', { textoConfirmar: 'Remover' });
+        if (!ok) return;
+        btn.disabled = true;
+        try {
+          const res = await fetch('/tickets/api/anexos/remover', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rowIndex: r.id, url: btn.dataset.url }) });
+          const json = await res.json();
+          if (!json.ok) throw new Error(json.erro || json.error || 'Erro desconhecido');
+          r.anexos = json.anexos || '';
+          await tkRefreshData(true);
+          renderDrawer(r.id);
+          toast('Anexo removido', true);
+        } catch (err) {
+          toast('Erro: ' + err.message, false);
+          btn.disabled = false;
+        }
+      });
     });
 
     const btnSalvarLink = $('tkBtnSalvarLink');
@@ -967,12 +1012,14 @@
       const ppe = $('tkInpPpe').value;
       const previsaoFinalizacao = $('tkInpPrevisao').value;
       const pFolha = $('tkInpPFolha').value;
+      const setor = $('tkInpSetorAcomp').value.trim();
       btn.disabled = true; msg.textContent = 'Gravando…';
       try {
-        const res = await fetch('/tickets/api/acompanhamento', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rowIndex: r.id, temEvento, dataEvento, entrega, aeroporto, ppe, previsaoFinalizacao, pFolha }) });
+        const res = await fetch('/tickets/api/acompanhamento', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rowIndex: r.id, temEvento, dataEvento, entrega, aeroporto, ppe, previsaoFinalizacao, pFolha, setor }) });
         const json = await res.json();
         if (!json.ok) throw new Error(json.erro || json.error || 'Erro desconhecido');
-        Object.assign(r, { temEvento, dataEvento, entrega, aeroporto, ppe, previsaoFinalizacao, pFolha });
+        Object.assign(r, { temEvento, dataEvento, entrega, aeroporto, ppe, previsaoFinalizacao, pFolha, setor });
+        const setorTopo = $('tkSetorTopo'); if (setorTopo) setorTopo.textContent = setor || '—';
         await tkRefreshData(true);
         msg.textContent = '';
         toast('Acompanhamento salvo', true);

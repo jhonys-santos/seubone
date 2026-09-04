@@ -73,6 +73,12 @@ function notificarGestoresSemResponsavel(rowIndex, idTicket, pedido) {
     });
 }
 
+// "link_card" costuma vir nulo da Lulu, mas o padrão da URL é sempre
+// previsível a partir do negocio_id (confirmado nos exemplos reais que já
+// vimos: .../business/<negocio_id>) — então montamos o link nós mesmos em
+// vez de depender do campo, que falha na maioria dos pedidos.
+const LULU_BUSINESS_URL_BASE = 'https://lulu.seubone.com/business/?businessId=';
+
 // Uma retentativa por pedido — picos de lentidão/rede pontuais no Apps
 // Script acontecem (confirmado nesta mesma sessão, chamadas isoladas já
 // levaram 20-30s+ às vezes), e num lote de dezenas/centenas de chamadas
@@ -85,7 +91,7 @@ async function criarTicketComRetry_(pedido) {
     pedido: pedido.cliente || '',
     idVenda: pedido.id_venda != null ? String(pedido.id_venda) : '',
     negocioId: pedido.negocio_id,
-    link: pedido.link_card || '',
+    link: LULU_BUSINESS_URL_BASE + pedido.negocio_id,
     observacao: `Importado automaticamente do sistema. PPF vencido há ${pedido.dias_atraso_ppf} dia(s).`,
     pFolha: pedido.ppf || '',
     previsaoFinalizacao: pedido.ppp || '',
@@ -109,8 +115,13 @@ async function importarAtrasosLulu() {
 
     const ticketsJson = await chamarAppsScript(env.ticketsAppsScriptUrl, { cache: true });
     if (!ticketsJson.ok || !Array.isArray(ticketsJson.tickets)) return;
-    const negociosComTicketAberto = new Set(
-      ticketsJson.tickets.filter((t) => t.status !== 'Resolvido' && t.negocioId).map((t) => t.negocioId)
+    // Uma vez que já existe QUALQUER ticket pra esse negócio (mesmo já
+    // Resolvido), nunca abrimos outro — mesmo que a Lulu ainda mostre o
+    // pedido como atrasado. Resolvido aqui significa "já tratamos isso",
+    // não "a Lulu concorda que terminou"; reabrir de novo só porque a Lulu
+    // ainda não atualizou geraria os mesmos duplicados de antes.
+    const negociosComTicket = new Set(
+      ticketsJson.tickets.filter((t) => t.negocioId).map((t) => t.negocioId)
     );
 
     // Sequencial de propósito: evita disparar N chamadas simultâneas contra
@@ -121,7 +132,7 @@ async function importarAtrasosLulu() {
     // único soluço de rede no meio do caminho descarta dezenas de pedidos
     // que já estavam prontos pra virar ticket.
     for (const pedido of pedidos) {
-      if (negociosComTicketAberto.has(pedido.negocio_id)) continue;
+      if (negociosComTicket.has(pedido.negocio_id)) continue;
       try {
         const json = await criarTicketComRetry_(pedido);
         if (json.ok) {

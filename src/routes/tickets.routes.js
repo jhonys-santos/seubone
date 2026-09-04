@@ -197,14 +197,32 @@ router.post('/api/anexar', async (req, res) => {
   }
 });
 
+// Remover um anexo já enviado — mesma trava aberta de anexar (qualquer um
+// com acesso ao painel pode remover).
+router.post('/api/anexos/remover', async (req, res) => {
+  try {
+    const { rowIndex, url } = req.body;
+    if (!url) {
+      return res.status(400).json({ ok: false, erro: 'Anexo não informado.' });
+    }
+    const json = await chamarAppsScript(env.ticketsAppsScriptUrl, {
+      method: 'POST',
+      body: { action: 'removerAnexo', rowIndex, url, usuario: req.session.user.nome, usuarioSlug: req.session.user.slug },
+    });
+    res.json(json);
+  } catch (err) {
+    res.status(502).json({ ok: false, erro: 'Falha ao remover anexo: ' + err.message });
+  }
+});
+
 // Acompanhamento (evento do cliente, entrega, prazos) — anotação de quem
 // está tratando o ticket, sem trava extra de role (mesma ideia de comentar).
 router.post('/api/acompanhamento', async (req, res) => {
   try {
-    const { rowIndex, temEvento, dataEvento, entrega, aeroporto, ppe, previsaoFinalizacao, pFolha } = req.body;
+    const { rowIndex, temEvento, dataEvento, entrega, aeroporto, ppe, previsaoFinalizacao, pFolha, setor } = req.body;
     const json = await chamarAppsScript(env.ticketsAppsScriptUrl, {
       method: 'POST',
-      body: { action: 'atualizarAcompanhamento', rowIndex, temEvento, dataEvento, entrega, aeroporto, ppe, previsaoFinalizacao, pFolha, usuario: req.session.user.nome, usuarioSlug: req.session.user.slug },
+      body: { action: 'atualizarAcompanhamento', rowIndex, temEvento, dataEvento, entrega, aeroporto, ppe, previsaoFinalizacao, pFolha, setor, usuario: req.session.user.nome, usuarioSlug: req.session.user.slug },
     });
     res.json(json);
   } catch (err) {
