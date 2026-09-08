@@ -17,6 +17,7 @@
  *    - doPost action:adicionarAnexos → anexa imagem(ns) a um ticket já existente
  *    - doPost action:removerAnexo → remove um anexo já enviado (só da coluna
  *      Anexos; o arquivo em si continua no Drive)
+ *    - doPost action:atualizarFabrica → muda a Fábrica/fornecedor do ticket
  *    - doPost action:atualizarSetor → muda o Setor (etapa de produção atual),
  *      editável a qualquer momento por quem trata o ticket
  *    - doPost action:atualizarAcompanhamento → evento/entrega/prazos, editado por quem trata o ticket
@@ -55,6 +56,11 @@ var COLUNAS = {
   pedido:         ['pedido/cliente', 'pedido', 'cliente'],
   idVenda:        ['id da venda', 'id venda'],
   identificador:  ['identificador'],
+  // Fábrica/fornecedor escolhido na criação do ticket — coluna própria,
+  // separada de "setor" (que agora é só a etapa de produção durante o
+  // acompanhamento). Antes as duas coisas dividiam a mesma coluna e uma
+  // sobrescrevia a outra.
+  fabrica:        ['fabrica', 'fábrica'],
   setor:          ['setor'],
   responsavel:    ['responsavel'],
   responsavelSlug:['responsavel slug', 'slug do responsavel'],
@@ -221,6 +227,7 @@ function doGet(e) {
         pedido:          String(pedido || '').trim(),
         idVenda:         String(get(row, 'idVenda') || '').trim(),
         identificador:   String(get(row, 'identificador') || '').trim(),
+        fabrica:         String(get(row, 'fabrica') || '').trim(),
         setor:           String(get(row, 'setor') || '').trim(),
         responsavel:     String(get(row, 'responsavel') || '').trim(),
         responsavelSlug: String(get(row, 'responsavelSlug') || '').trim(),
@@ -262,6 +269,7 @@ function doPost(e) {
     if (action === 'comentarTicket') return comentarTicket_(body);
     if (action === 'adicionarAnexos') return adicionarAnexos_(body);
     if (action === 'removerAnexo') return removerAnexo_(body);
+    if (action === 'atualizarFabrica') return atualizarFabrica_(body);
     if (action === 'atualizarSetor') return atualizarSetor_(body);
     if (action === 'atualizarAcompanhamento') return atualizarAcompanhamento_(body);
     if (action === 'definirLink') return definirLink_(body);
@@ -300,7 +308,7 @@ function criarTicket_(f) {
     setCell_(sh, novaLinha, col, 'pedido', f.pedido);
     setCell_(sh, novaLinha, col, 'idVenda', f.idVenda);
     setCell_(sh, novaLinha, col, 'identificador', f.identificador);
-    setCell_(sh, novaLinha, col, 'setor', f.setor);
+    setCell_(sh, novaLinha, col, 'fabrica', f.fabrica);
     setCell_(sh, novaLinha, col, 'responsavel', f.responsavel);
     setCell_(sh, novaLinha, col, 'responsavelSlug', f.responsavelSlug);
     setCell_(sh, novaLinha, col, 'status', STATUS_ABERTO);
@@ -326,7 +334,7 @@ function criarTicket_(f) {
     }
 
     logHist_(novaLinha, idGerado, f.usuario || (f.origem === 'n8n' ? 'n8n' : ''), 'Ticket aberto',
-      [f.identificador, f.setor].filter(String).join(' · '), f.usuarioSlug);
+      [f.identificador, f.fabrica].filter(String).join(' · '), f.usuarioSlug);
 
     return jsonOut_({ ok: true, rowIndex: novaLinha, idTicket: idGerado });
   } finally {
@@ -375,6 +383,31 @@ function definirLink_(f) {
     logHist_(f.rowIndex, idTicket, f.usuario, 'Link adicionado', texto, f.usuarioSlug);
 
     return jsonOut_({ ok: true, rowIndex: f.rowIndex, idTicket: String(idTicket || ''), link: texto });
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/**
+ * Fábrica/fornecedor do ticket — coluna própria (ver comentário em
+ * COLUNAS.fabrica), editável a qualquer momento, não só na criação.
+ */
+function atualizarFabrica_(f) {
+  if (!f.rowIndex) return jsonOut_({ ok: false, error: 'rowIndex ausente' });
+  var lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    var sh = getSheet_();
+    var col = buildColMap_(sh.getDataRange().getValues()[0]);
+    if (col.fabrica == null) return jsonOut_({ ok: false, error: 'Coluna "Fabrica" não existe na planilha.' });
+
+    var texto = String(f.fabrica || '').trim();
+    sh.getRange(f.rowIndex, col.fabrica + 1).setValue(texto);
+
+    var idTicket = (col.idTicket != null) ? sh.getRange(f.rowIndex, col.idTicket + 1).getValue() : '';
+    logHist_(f.rowIndex, idTicket, f.usuario, 'Fábrica atualizada', texto || '(vazio)', f.usuarioSlug);
+
+    return jsonOut_({ ok: true, rowIndex: f.rowIndex, idTicket: String(idTicket || ''), fabrica: texto });
   } finally {
     lock.releaseLock();
   }

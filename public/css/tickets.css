@@ -130,6 +130,35 @@
 .tk-idchip-click { cursor: pointer; }
 .tk-idchip-click:hover { border-color: var(--gold-dark); color: var(--gold); }
 
+/* ===== Kanban ===== */
+.tk-kanban { display: flex; gap: 14px; align-items: flex-start; overflow-x: auto; padding-bottom: 8px; }
+.tk-kanban-col {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  flex: 0 0 290px; width: 290px; display: flex; flex-direction: column;
+  max-height: calc(100vh - 260px); transition: border-color .12s, background .12s;
+}
+.tk-kanban-col.drag-over { border-color: var(--gold-dark); background: var(--gold-dim); }
+.tk-kanban-col-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 12px 14px; border-bottom: 3px solid var(--c); font-weight: 700; font-size: 13px; color: var(--text);
+}
+.tk-kanban-col-count { background: var(--surface-3); color: var(--text-muted); font-size: 11px; font-weight: 700; padding: 2px 9px; border-radius: 999px; }
+.tk-kanban-col-body { padding: 10px; display: flex; flex-direction: column; gap: 8px; overflow-y: auto; flex: 1; min-height: 60px; }
+.tk-kanban-empty { color: var(--text-hint); font-size: 12px; text-align: center; padding: 24px 0; }
+.tk-kanban-card {
+  background: var(--surface-2); border: 1px solid var(--border-strong); border-radius: var(--radius-sm);
+  padding: 10px 12px; cursor: pointer; transition: border-color .12s, opacity .12s;
+}
+.tk-kanban-card:hover { border-color: var(--gold-dark); }
+.tk-kanban-card[draggable="true"] { cursor: grab; }
+.tk-kanban-card.dragging { opacity: .4; }
+.tk-kanban-card-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+.tk-kanban-ticket { font-family: ui-monospace, "JetBrains Mono", monospace; font-size: 11px; color: var(--text-muted); }
+.tk-kanban-dias { font-size: 11px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.tk-kanban-cliente { font-weight: 600; font-size: 13px; margin-bottom: 2px; line-height: 1.35; }
+.tk-kanban-ident { font-size: 11.5px; color: var(--text-muted); margin-bottom: 8px; }
+.tk-kanban-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 11px; color: var(--text-muted); }
+
 /* ===== Tabela ===== */
 .tk-scope table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .tk-scope thead th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--text-muted); font-weight: 700; padding: 9px 12px; border-bottom: 1px solid var(--border); white-space: nowrap; }

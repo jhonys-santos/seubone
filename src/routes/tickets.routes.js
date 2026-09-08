@@ -15,7 +15,7 @@ const router = express.Router();
 // ficou "n8n" da integração original, mas hoje é chamada direto pelo CRM.
 router.post('/webhook/n8n', async (req, res) => {
   try {
-    const { segredo, pedido, idVenda, identificador, setor, link, observacao } = req.body;
+    const { segredo, pedido, idVenda, identificador, fabrica, link, observacao } = req.body;
     if (!env.n8nWebhookSecret || segredo !== env.n8nWebhookSecret) {
       return res.status(401).json({ ok: false, erro: 'Segredo inválido.' });
     }
@@ -28,7 +28,7 @@ router.post('/webhook/n8n', async (req, res) => {
     // e não um número de outro sistema.
     const json = await chamarAppsScript(env.ticketsAppsScriptUrl, {
       method: 'POST',
-      body: { action: 'criar', pedido, idVenda, identificador, setor, link, observacao, origem: 'Lulu 2.0', usuario: 'Lulu 2.0' },
+      body: { action: 'criar', pedido, idVenda, identificador, fabrica, link, observacao, origem: 'Lulu 2.0', usuario: 'Lulu 2.0' },
     });
     res.json(json);
   } catch (err) {
@@ -76,11 +76,11 @@ router.get('/api/historico', async (req, res) => {
 // ticket (igual "registrar" no Painel de Erros).
 router.post('/api/criar', async (req, res) => {
   try {
-    const { pedido, idVenda, identificador, setor, responsavel, responsavelSlug, link, observacao, fotos } = req.body;
+    const { pedido, idVenda, identificador, fabrica, responsavel, responsavelSlug, link, observacao, fotos } = req.body;
     const json = await chamarAppsScript(env.ticketsAppsScriptUrl, {
       method: 'POST',
       body: {
-        action: 'criar', pedido, idVenda, identificador, setor, responsavel, responsavelSlug, link, observacao,
+        action: 'criar', pedido, idVenda, identificador, fabrica, responsavel, responsavelSlug, link, observacao,
         fotos: fotos || [], origem: 'manual', usuario: req.session.user.nome, usuarioSlug: req.session.user.slug,
       },
     });
@@ -183,6 +183,21 @@ router.post('/api/anexos/remover', async (req, res) => {
     res.json(json);
   } catch (err) {
     res.status(502).json({ ok: false, erro: 'Falha ao remover anexo: ' + err.message });
+  }
+});
+
+// Fábrica/fornecedor — separado do Setor (etapa de produção), coluna
+// própria, editável a qualquer momento, sem trava de role.
+router.post('/api/fabrica', async (req, res) => {
+  try {
+    const { rowIndex, fabrica } = req.body;
+    const json = await chamarAppsScript(env.ticketsAppsScriptUrl, {
+      method: 'POST',
+      body: { action: 'atualizarFabrica', rowIndex, fabrica, usuario: req.session.user.nome, usuarioSlug: req.session.user.slug },
+    });
+    res.json(json);
+  } catch (err) {
+    res.status(502).json({ ok: false, erro: 'Falha ao salvar fábrica: ' + err.message });
   }
 });
 

@@ -20,6 +20,7 @@
     </div>
     <nav class="tk-nav" id="tkNav">
       <button data-view="lista" class="active">Tickets</button>
+      <button data-view="kanban">Kanban</button>
       <button data-view="dashboard">Dashboard</button>
     </nav>
   </div>
@@ -27,12 +28,15 @@
   <div class="tk-filters" id="tkFilters">
     <button class="tk-btn tk-btn-accent" id="tkBtnNovo" title="Abrir novo ticket">+ Novo ticket</button>
     <select id="tkFStatus">
-      <option value="abertos">Abertos</option>
-      <option value="fechados">Fechados</option>
-      <option value="todos">Todos</option>
+      <option value="">Todos os status</option>
+      <option value="Aberto">Aberto</option>
+      <option value="Em acompanhamento">Em acompanhamento</option>
+      <option value="Urgência">Urgência</option>
+      <option value="Resolvido">Resolvido</option>
     </select>
     <select id="tkFResponsavel"><option value="">Todos os responsáveis</option></select>
     <select id="tkFIdentificador"><option value="">Todos os identificadores</option></select>
+    <select id="tkFFabrica"><option value="">Todas as fábricas</option></select>
     <select id="tkFSetor"><option value="">Todos os setores</option></select>
     <input type="text" class="tk-searchbar" id="tkBusca" placeholder="Buscar cliente, ticket, ID venda...">
     <button class="tk-iconbtn" id="tkBtnRefresh" title="Atualizar dados">⟳</button>

@@ -103,14 +103,13 @@
   ];
 
   const IDENTIFICADOR_OPCOES = ['Pedido atrasado', 'Refabricação', 'Erro de Envio', 'NPS', 'Reclame Aqui'];
-  // Sugestões do campo "Setor" — texto livre com datalist (igual o campo
+  // Fábrica/fornecedor/transportadora — escolhido na criação do ticket,
+  // editável depois também. Texto livre com datalist (igual o campo
   // "Responsável" do Painel de Erros), não uma lista fechada.
-  const SETOR_OPCOES = ['Fábrica Cacinho', 'Fábrica Bonés Brasil', 'Fábrica CIA Bruto', '88 Brindes', 'Fábrica Neidinha', 'Fábrica LaserTools', 'Fábrica SLC', 'Fábrica (Outro)', 'Transportadora'];
-  // Mesmo campo "Setor", mas com outra lista de sugestão — usada dentro do
-  // Acompanhamento, pra quem está tratando o ticket indicar em que etapa de
-  // produção ele está agora (diferente da lista de fábrica/transportadora
-  // usada na criação do ticket).
-  const SETOR_ACOMPANHAMENTO_OPCOES = ['Design', 'Separação', 'Bordado', 'Pintura', 'Sublimação', 'Revelação', 'Laser', 'Costura', 'Acabamento'];
+  const FABRICA_OPCOES = ['Fábrica Cacinho', 'Fábrica Bonés Brasil', 'Fábrica CIA Bruto', '88 Brindes', 'Fábrica Neidinha', 'Fábrica LaserTools', 'Fábrica SLC', 'Fábrica (Outro)', 'Transportadora'];
+  // "Setor" é a etapa de produção atual (Acompanhamento) — coluna própria,
+  // separada de Fábrica (antes as duas dividiam a mesma coluna).
+  const SETOR_OPCOES = ['Design', 'Separação', 'Bordado', 'Pintura', 'Sublimação', 'Revelação', 'Laser', 'Costura', 'Acabamento'];
 
   // SLA fixo por identificador (dias corridos a partir da abertura) — define
   // o prazo usado nos contadores de Vencidos/Vence hoje/Vence amanhã do
@@ -133,7 +132,7 @@
   let RECORDS = [];
   let LAST_SYNC = null;
   let CASO_ATUAL = null;
-  const tkState = { screen: 'lista', fStatus: 'abertos', fResponsavel: '', fIdentificador: '', fSetor: '', busca: '' };
+  const tkState = { screen: 'lista', fStatus: '', fResponsavel: '', fIdentificador: '', fFabrica: '', fSetor: '', busca: '' };
   // Seleção em massa da lista (só gestor) — atribuir responsável a vários
   // tickets de uma vez. Guarda rowIndex (== r.id); limpo sempre que o
   // recorte visível muda (filtro, busca, refresh) pra nunca reter seleção
@@ -209,9 +208,11 @@
     };
     const responsaveis = Array.from(new Set(visibleRecords().map((r) => r.responsavel).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'pt-BR'));
     const identificadores = Array.from(new Set([...IDENTIFICADOR_OPCOES, ...visibleRecords().map((r) => r.identificador).filter(Boolean)]));
+    const fabricas = Array.from(new Set([...FABRICA_OPCOES, ...visibleRecords().map((r) => r.fabrica).filter(Boolean)]));
     const setores = Array.from(new Set([...SETOR_OPCOES, ...visibleRecords().map((r) => r.setor).filter(Boolean)]));
     fillSelect('tkFResponsavel', responsaveis, 'Todos os responsáveis', `<option value="${TK_FILTRO_SEM_RESPONSAVEL}">— Sem responsável —</option>`);
     fillSelect('tkFIdentificador', identificadores, 'Todos os identificadores');
+    fillSelect('tkFFabrica', fabricas, 'Todas as fábricas');
     fillSelect('tkFSetor', setores, 'Todos os setores');
   }
 
@@ -359,6 +360,7 @@
   document.getElementById('tkFStatus').addEventListener('change', (e) => { tkState.fStatus = e.target.value; tkSelecionados.clear(); tkRender(); });
   document.getElementById('tkFResponsavel').addEventListener('change', (e) => { tkState.fResponsavel = e.target.value; tkSelecionados.clear(); tkRender(); });
   document.getElementById('tkFIdentificador').addEventListener('change', (e) => { tkState.fIdentificador = e.target.value; tkSelecionados.clear(); tkRender(); });
+  document.getElementById('tkFFabrica').addEventListener('change', (e) => { tkState.fFabrica = e.target.value; tkSelecionados.clear(); tkRender(); });
   document.getElementById('tkFSetor').addEventListener('change', (e) => { tkState.fSetor = e.target.value; tkSelecionados.clear(); tkRender(); });
   document.getElementById('tkBusca').addEventListener('input', (e) => { tkState.busca = e.target.value.trim().toLowerCase(); tkSelecionados.clear(); tkRender(); });
 
@@ -366,19 +368,24 @@
     const main = document.getElementById('tkMain');
     const filtEl = document.getElementById('tkFilters');
     filtEl.style.display = tkState.screen === 'dashboard' ? 'none' : '';
+    // No Kanban as colunas já são os status, o filtro de status não se aplica.
+    const fStatusEl = document.getElementById('tkFStatus');
+    if (fStatusEl) fStatusEl.style.display = tkState.screen === 'kanban' ? 'none' : '';
     if (tkState.screen === 'dashboard') { renderDashboard(main); return; }
+    if (tkState.screen === 'kanban') { renderKanban(main); return; }
     renderLista(main);
   }
 
   /* ================= LISTA ================= */
 
-  function rowsFiltradas() {
-    return visibleRecords().filter((r) => {
-      if (tkState.fStatus === 'abertos' && r.status === STATUS_RESOLVIDO) return false;
-      if (tkState.fStatus === 'fechados' && r.status !== STATUS_RESOLVIDO) return false;
+  // Filtros compartilhados entre a Lista e o Kanban — o Kanban não aplica o
+  // filtro de status (as colunas já SÃO os status).
+  function aplicaFiltrosComuns(lista) {
+    return lista.filter((r) => {
       if (tkState.fResponsavel === TK_FILTRO_SEM_RESPONSAVEL) { if (r.responsavel) return false; }
       else if (tkState.fResponsavel && r.responsavel !== tkState.fResponsavel) return false;
       if (tkState.fIdentificador && r.identificador !== tkState.fIdentificador) return false;
+      if (tkState.fFabrica && r.fabrica !== tkState.fFabrica) return false;
       if (tkState.fSetor && r.setor !== tkState.fSetor) return false;
       if (tkState.busca) {
         const termo = tkState.busca;
@@ -386,7 +393,13 @@
         if (!bate) return false;
       }
       return true;
-    }).sort((a, b) => new Date(b.dataAbertura) - new Date(a.dataAbertura));
+    });
+  }
+
+  function rowsFiltradas() {
+    return aplicaFiltrosComuns(visibleRecords())
+      .filter((r) => !tkState.fStatus || r.status === tkState.fStatus)
+      .sort((a, b) => new Date(b.dataAbertura) - new Date(a.dataAbertura));
   }
 
   function statusBadge(r) {
@@ -400,7 +413,7 @@
     const semResponsavel = abertos.filter((r) => !r.responsavel).length;
     const rows = rowsFiltradas();
     const podeSelecionar = podeAtribuir();
-    const nCols = 10 + (podeSelecionar ? 1 : 0);
+    const nCols = 11 + (podeSelecionar ? 1 : 0);
     const idsVisiveis = rows.map((r) => r.id);
     const todosSelecionados = podeSelecionar && idsVisiveis.length > 0 && idsVisiveis.every((id) => tkSelecionados.has(id));
 
@@ -416,7 +429,7 @@
           <table>
             <thead><tr>
               ${podeSelecionar ? `<th style="width:32px"><input type="checkbox" id="tkSelAllCheck" ${todosSelecionados ? 'checked' : ''}></th>` : ''}
-              <th>Ticket</th><th>Cliente</th><th>Identificador</th><th>Setor</th><th>PPE</th><th>Dias</th><th>Previsão finalização</th><th>Responsável</th><th>Status</th><th>${tkState.fStatus === 'fechados' ? 'Tempo total' : 'Aberto há'}</th>
+              <th>Ticket</th><th>Cliente</th><th>Identificador</th><th>Fábrica</th><th>Setor</th><th>PPE</th><th>Dias</th><th>Previsão finalização</th><th>Responsável</th><th>Status</th><th>${tkState.fStatus === STATUS_RESOLVIDO ? 'Tempo total' : 'Aberto há'}</th>
             </tr></thead>
             <tbody>
               ${rows.length === 0 ? `<tr><td colspan="${nCols}"><div class="tk-empty"><div class="e-title">Nenhum ticket encontrado</div><div class="e-sub">Ajuste os filtros ou clique em "+ Novo ticket".</div></div></td></tr>` : rows.map((r) => {
@@ -428,7 +441,8 @@
                   <td>${r.idTicket ? '#' + tkEsc(r.idTicket) : '<span style="color:var(--text-hint)">—</span>'}</td>
                   <td style="font-weight:600">${tkEsc(r.pedido) || '—'} ${tkPhotoBadge(r)}</td>
                   <td>${tkEsc(r.identificador) || '—'}</td>
-                  <td>${r.setor ? `<span class="tk-badge tk-badge-muted">${tkEsc(r.setor)}</span>` : '—'}</td>
+                  <td>${r.fabrica ? `<span class="tk-badge tk-badge-muted">${tkEsc(r.fabrica)}</span>` : '—'}</td>
+                  <td>${tkEsc(r.setor) || '—'}</td>
                   <td>${fmtDataCurta(r.ppe)}</td>
                   <td><span style="font-weight:700;font-variant-numeric:tabular-nums;color:${corDias}">${dPPE == null ? '—' : (dPPE > 0 ? '+' : '') + dPPE + 'd'}</span></td>
                   <td>${fmtDataCurta(r.previsaoFinalizacao)}</td>
@@ -526,6 +540,78 @@
         }
       });
     }
+  }
+
+  /* ================= KANBAN ================= */
+  // Mesmos filtros da Lista (responsável, identificador, fábrica, setor,
+  // busca), menos o de status — aqui as colunas JÁ SÃO os status. Arrastar
+  // um card pra outra coluna reusa o mesmo setTicketStatus da Lista/drawer
+  // (retry em lock timeout, permissão, toast — tudo incluso).
+
+  function renderKanbanCard(r) {
+    const horas = tempoTicket(r);
+    const dPPE = diasParaPPE(r);
+    const corDias = dPPE == null ? 'var(--text-hint)' : dPPE < 0 ? 'var(--bad-text,var(--bad))' : dPPE === 0 ? 'var(--warn-text,var(--warn))' : 'var(--text)';
+    const arrastavel = podeAlterarStatus(r);
+    return `<div class="tk-kanban-card" data-id="${r.id}" draggable="${arrastavel}" title="${arrastavel ? 'Arraste para mudar o status' : ''}">
+      <div class="tk-kanban-card-top">
+        <span class="tk-kanban-ticket">${r.idTicket ? '#' + tkEsc(r.idTicket) : '—'}</span>
+        ${dPPE != null ? `<span class="tk-kanban-dias" style="color:${corDias}">${(dPPE > 0 ? '+' : '') + dPPE}d</span>` : ''}
+      </div>
+      <div class="tk-kanban-cliente">${tkEsc(r.pedido) || '—'} ${tkPhotoBadge(r)}</div>
+      <div class="tk-kanban-ident">${tkEsc(r.identificador) || '—'}${r.fabrica ? ' · ' + tkEsc(r.fabrica) : ''}</div>
+      <div class="tk-kanban-foot">
+        <span>${tkEsc(r.responsavel) || 'não atribuído'}</span>
+        <span class="tk-age ${idadeClasse(horas)}">${fmtHoras(horas)}</span>
+      </div>
+    </div>`;
+  }
+
+  function renderKanban(main) {
+    const visiveis = aplicaFiltrosComuns(visibleRecords());
+    main.innerHTML = `
+      <div class="tk-kanban">
+        ${STATUS_DEF.map((sd) => {
+          const tickets = visiveis.filter((r) => r.status === sd.status).sort((a, b) => new Date(b.dataAbertura) - new Date(a.dataAbertura));
+          return `<div class="tk-kanban-col">
+            <div class="tk-kanban-col-head" style="--c:${sd.cor}">
+              <span class="tk-kanban-col-title">${tkEsc(sd.status)}</span>
+              <span class="tk-kanban-col-count">${tickets.length}</span>
+            </div>
+            <div class="tk-kanban-col-body" data-status="${tkEsc(sd.status)}">
+              ${tickets.length === 0 ? `<div class="tk-kanban-empty">Nenhum ticket</div>` : tickets.map(renderKanbanCard).join('')}
+            </div>
+          </div>`;
+        }).join('')}
+      </div>
+    `;
+    wireKanban(main);
+  }
+
+  function wireKanban(main) {
+    main.querySelectorAll('.tk-kanban-card').forEach((card) => {
+      card.addEventListener('click', () => openTicket(Number(card.dataset.id)));
+      if (card.draggable) {
+        card.addEventListener('dragstart', (e) => {
+          e.dataTransfer.setData('text/plain', card.dataset.id);
+          e.dataTransfer.effectAllowed = 'move';
+          card.classList.add('dragging');
+        });
+        card.addEventListener('dragend', () => card.classList.remove('dragging'));
+      }
+    });
+    main.querySelectorAll('.tk-kanban-col-body').forEach((colBody) => {
+      colBody.addEventListener('dragover', (e) => { e.preventDefault(); colBody.closest('.tk-kanban-col').classList.add('drag-over'); });
+      colBody.addEventListener('dragleave', () => colBody.closest('.tk-kanban-col').classList.remove('drag-over'));
+      colBody.addEventListener('drop', (e) => {
+        e.preventDefault();
+        colBody.closest('.tk-kanban-col').classList.remove('drag-over');
+        const id = Number(e.dataTransfer.getData('text/plain'));
+        const registro = RECORDS.find((r) => r.id === id);
+        const novoStatus = colBody.dataset.status;
+        if (registro && registro.status !== novoStatus) setTicketStatus(registro, novoStatus);
+      });
+    });
   }
 
   /* ================= DASHBOARD ================= */
@@ -729,7 +815,7 @@
         ${renderStatusDonut(visiveis)}
         ${renderPrazoBuckets(visiveis)}
       </div>
-      ${renderRankingContagem('Pedidos por Fábrica', papel === 'gestor' ? 'Quantidade de tickets por setor/fábrica.' : 'Quantidade dos seus tickets por setor/fábrica.', contagemPor(visiveis, 'setor'))}
+      ${renderRankingContagem('Pedidos por Fábrica', papel === 'gestor' ? 'Quantidade de tickets por fábrica.' : 'Quantidade dos seus tickets por fábrica.', contagemPor(visiveis, 'fabrica'))}
       ${renderFluxoChart()}
       <div class="tk-grid-2col">
         ${renderRanking('TMR por responsável', 'Tempo médio de resolução entre a abertura e o fechamento, só de tickets fechados.', rankingPor('responsavel'))}
@@ -785,12 +871,20 @@
         <div class="tk-field-grid" style="margin-bottom:16px">
           <div class="tk-field"><label>Identificador</label><div class="tk-readonly-block">${tkEsc(r.identificador) || '—'}</div></div>
           <div class="tk-field">
-            <label>Setor</label>
+            <label>Fábrica</label>
+            <div style="display:flex;gap:8px">
+              <input type="text" id="tkInpFabricaTopo" list="tkFabricaTopoList" value="${tkEsc(r.fabrica)}" placeholder="Digite ou selecione" style="flex:1">
+              <button class="tk-btn tk-btn-ghost" type="button" id="tkBtnSalvarFabrica">Salvar</button>
+            </div>
+            <datalist id="tkFabricaTopoList">${FABRICA_OPCOES.map((o) => `<option value="${tkEsc(o)}">`).join('')}</datalist>
+          </div>
+          <div class="tk-field">
+            <label>Setor (etapa de produção)</label>
             <div style="display:flex;gap:8px">
               <input type="text" id="tkInpSetorTopo" list="tkSetorTopoList" value="${tkEsc(r.setor)}" placeholder="Digite ou selecione" style="flex:1">
               <button class="tk-btn tk-btn-ghost" type="button" id="tkBtnSalvarSetor">Salvar</button>
             </div>
-            <datalist id="tkSetorTopoList">${SETOR_ACOMPANHAMENTO_OPCOES.map((o) => `<option value="${tkEsc(o)}">`).join('')}</datalist>
+            <datalist id="tkSetorTopoList">${SETOR_OPCOES.map((o) => `<option value="${tkEsc(o)}">`).join('')}</datalist>
           </div>
           <div class="tk-field"><label>ID da venda</label>${r.idVenda ? `<div><span class="tk-idchip tk-idchip-click" id="tkIdVendaCopy" data-copy="${tkEsc(r.idVenda)}" title="Clique para copiar">#${tkEsc(r.idVenda)}</span></div>` : `<div class="tk-readonly-block">—</div>`}</div>
           <div class="tk-field"><label>Origem</label><div class="tk-readonly-block">${r.origem === 'manual' || !r.origem ? 'Manual' : 'Automático (' + tkEsc(r.origem) + ')'}</div></div>
@@ -1013,6 +1107,27 @@
       });
     }
 
+    const btnSalvarFabrica = $('tkBtnSalvarFabrica');
+    if (btnSalvarFabrica) {
+      btnSalvarFabrica.addEventListener('click', async () => {
+        const inp = $('tkInpFabricaTopo');
+        const fabrica = inp.value.trim();
+        btnSalvarFabrica.disabled = true;
+        try {
+          const res = await fetch('/tickets/api/fabrica', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rowIndex: r.id, fabrica }) });
+          const json = await res.json();
+          if (!json.ok) throw new Error(json.erro || json.error || 'Erro desconhecido');
+          r.fabrica = fabrica;
+          await tkRefreshData(true);
+          toast('Fábrica salva', true);
+        } catch (err) {
+          toast('Erro: ' + err.message, false);
+        } finally {
+          btnSalvarFabrica.disabled = false;
+        }
+      });
+    }
+
     const btnSalvarSetor = $('tkBtnSalvarSetor');
     if (btnSalvarSetor) {
       btnSalvarSetor.addEventListener('click', async () => {
@@ -1205,7 +1320,7 @@
           <div class="tk-modal-head">
             <div style="flex:1;min-width:0">
               <div class="title">Abrir novo ticket</div>
-              <div class="sub">Preencha o que souber. O ID do ticket é gerado automaticamente. Se deixar o responsável em branco, o ticket entra como "não atribuído" e todo gestor é avisado.</div>
+              <div class="sub">Preencha o que souber. O ID do ticket é gerado automaticamente. Se deixar o responsável em branco, o ticket entra como "não atribuído".</div>
             </div>
             <button class="tk-close-btn" id="tkCloseModalNovo">✕</button>
           </div>
@@ -1217,8 +1332,8 @@
               </div>
               <div class="tk-field-grid" style="margin-bottom:14px">
                 <div class="tk-field"><label>Identificador *</label><select name="identificador">${identOptions}</select></div>
-                <div class="tk-field"><label>Setor</label><input type="text" name="setor" list="tkSetorList" placeholder="Digite ou selecione"></div>
-                <datalist id="tkSetorList">${SETOR_OPCOES.map((o) => `<option value="${tkEsc(o)}">`).join('')}</datalist>
+                <div class="tk-field"><label>Fábrica</label><input type="text" name="fabrica" list="tkFabricaList" placeholder="Digite ou selecione"></div>
+                <datalist id="tkFabricaList">${FABRICA_OPCOES.map((o) => `<option value="${tkEsc(o)}">`).join('')}</datalist>
               </div>
               <div class="tk-field-grid" style="margin-bottom:14px">
                 <div class="tk-field"><label>Responsável</label><select name="responsavelSlug">${respOptions}</select></div>
@@ -1298,7 +1413,7 @@
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             pedido: g('pedido'), idVenda: g('idVenda'),
-            identificador: g('identificador'), setor: g('setor'), responsavel, responsavelSlug,
+            identificador: g('identificador'), fabrica: g('fabrica'), responsavel, responsavelSlug,
             link: g('link'), observacao: g('observacao'), fotos: FOTOS_NOVO.map((f) => f.url),
           }),
         });
