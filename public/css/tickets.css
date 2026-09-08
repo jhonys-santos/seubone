@@ -131,7 +131,15 @@
 .tk-idchip-click:hover { border-color: var(--gold-dark); color: var(--gold); }
 
 /* ===== Kanban ===== */
-.tk-kanban { display: flex; gap: 14px; align-items: flex-start; overflow-x: auto; padding-bottom: 8px; }
+.tk-kanban {
+  display: flex; gap: 14px; align-items: flex-start; overflow-x: auto; padding-bottom: 8px;
+  scrollbar-width: thin; scrollbar-color: transparent transparent;
+}
+.tk-kanban:hover { scrollbar-color: var(--border-strong) transparent; }
+.tk-kanban::-webkit-scrollbar { height: 5px; }
+.tk-kanban::-webkit-scrollbar-track { background: transparent; }
+.tk-kanban::-webkit-scrollbar-thumb { background: transparent; border-radius: 10px; }
+.tk-kanban:hover::-webkit-scrollbar-thumb { background: var(--border-strong); }
 .tk-kanban-col {
   background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
   flex: 0 0 290px; width: 290px; display: flex; flex-direction: column;
@@ -143,7 +151,15 @@
   padding: 12px 14px; border-bottom: 3px solid var(--c); font-weight: 700; font-size: 13px; color: var(--text);
 }
 .tk-kanban-col-count { background: var(--surface-3); color: var(--text-muted); font-size: 11px; font-weight: 700; padding: 2px 9px; border-radius: 999px; }
-.tk-kanban-col-body { padding: 10px; display: flex; flex-direction: column; gap: 8px; overflow-y: auto; flex: 1; min-height: 60px; }
+.tk-kanban-col-body {
+  padding: 10px; display: flex; flex-direction: column; gap: 8px; overflow-y: auto; flex: 1; min-height: 60px;
+  scrollbar-width: thin; scrollbar-color: transparent transparent;
+}
+.tk-kanban-col-body:hover { scrollbar-color: var(--border-strong) transparent; }
+.tk-kanban-col-body::-webkit-scrollbar { width: 5px; }
+.tk-kanban-col-body::-webkit-scrollbar-track { background: transparent; }
+.tk-kanban-col-body::-webkit-scrollbar-thumb { background: transparent; border-radius: 10px; }
+.tk-kanban-col-body:hover::-webkit-scrollbar-thumb { background: var(--border-strong); }
 .tk-kanban-empty { color: var(--text-hint); font-size: 12px; text-align: center; padding: 24px 0; }
 .tk-kanban-card {
   background: var(--surface-2); border: 1px solid var(--border-strong); border-radius: var(--radius-sm);
