@@ -398,7 +398,9 @@
 
   function rowsFiltradas() {
     return aplicaFiltrosComuns(visibleRecords())
-      .filter((r) => !tkState.fStatus || r.status === tkState.fStatus)
+      // "Ativos" (fStatus vazio) = tudo, menos Resolvido. Só entra Resolvido
+      // na lista quando escolhido explicitamente no filtro.
+      .filter((r) => tkState.fStatus ? r.status === tkState.fStatus : r.status !== STATUS_RESOLVIDO)
       .sort((a, b) => new Date(b.dataAbertura) - new Date(a.dataAbertura));
   }
 
