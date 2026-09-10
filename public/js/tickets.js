@@ -166,10 +166,26 @@
     }
     LAST_SYNC = Date.now();
     tkInitFilterOptions();
+    aplicaFiltroPadraoResponsavel();
     bootEl.style.display = 'none'; mainEl.style.display = '';
     tkRender();
     tkUpdateLastSync();
     syncFromHash();
+  }
+
+  // Se o gestor logado tem ticket ativo atribuído a ele mesmo, o filtro de
+  // Responsável já abre nele em vez de "Todos os responsáveis" — ele
+  // continua podendo trocar à vontade. Sem ticket ativo pra ele, fica
+  // "Todos" (não faz sentido abrir num filtro que mostraria lista vazia).
+  // Só roda uma vez no carregamento inicial — um refresh normal não deve
+  // desfazer um filtro que a pessoa já trocou de propósito.
+  function aplicaFiltroPadraoResponsavel() {
+    if (papel !== 'gestor' || !SESSAO || !SESSAO.nome) return;
+    const temAtivoMeu = RECORDS.some((r) => r.responsavel === SESSAO.nome && r.status !== STATUS_RESOLVIDO);
+    if (!temAtivoMeu) return;
+    tkState.fResponsavel = SESSAO.nome;
+    const sel = document.getElementById('tkFResponsavel');
+    if (sel) sel.value = SESSAO.nome;
   }
 
   async function tkRefreshData(silent) {
