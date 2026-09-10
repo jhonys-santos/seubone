@@ -129,6 +129,10 @@
   </div>
 </aside>
 
+<button type="button" class="sidebar-toggle-tab" id="sidebarToggleTab" onclick="alternarSidebarDesktop()" aria-label="Ocultar ou mostrar o menu lateral" title="Ocultar/mostrar menu">
+  <i class="ti ti-chevron-left" aria-hidden="true"></i>
+</button>
+
 <% if (typeof usuario !== 'undefined' && usuario && paineisVisiveis.some(function (p) { return p.chave === 'painel-sac'; })) { %>
 <!-- MODAL ACESSOS -->
 <div class="modal-overlay" id="modal-acessos" onclick="if(event.target===this)fecharAcessos()">

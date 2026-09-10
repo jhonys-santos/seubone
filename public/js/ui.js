@@ -41,6 +41,24 @@
   document.addEventListener('DOMContentLoaded', atualizarBotoes);
 })();
 
+// Ocultar/mostrar a sidebar no desktop — mesmo truque do tema (aplica a
+// classe aqui no <head>, antes do <body> existir, pra não "piscar" aberta
+// e fechar de novo). Fica aberta por padrão; só fecha se a pessoa mesma
+// clicar no botão, e a escolha fica salva pra próxima vez.
+(function () {
+  const CHAVE_SIDEBAR = 'sb_sidebar_colapsada';
+  try {
+    if (localStorage.getItem(CHAVE_SIDEBAR) === '1') {
+      document.documentElement.classList.add('sidebar-collapsed');
+    }
+  } catch (e) {}
+
+  window.alternarSidebarDesktop = function alternarSidebarDesktop() {
+    const colapsada = document.documentElement.classList.toggle('sidebar-collapsed');
+    try { localStorage.setItem(CHAVE_SIDEBAR, colapsada ? '1' : '0'); } catch (e) {}
+  };
+})();
+
 // Menu retrátil (abaixo de 900px) — mesma sidebar de desktop, só que fora
 // da tela por padrão e trazida como camada ao tocar no botão do topo.
 function alternarSidebarMobile() {
