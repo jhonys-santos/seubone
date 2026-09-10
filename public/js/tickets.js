@@ -969,12 +969,12 @@
           <div class="tk-field"><label>PPE (prazo previsto de entrega)</label><div class="tk-readonly-block">${fmtDataCurta(r.ppe)}</div></div>
           <div class="tk-field"><label>Previsão de finalização</label><div class="tk-readonly-block">${fmtDataCurta(r.previsaoFinalizacao)}</div></div>
           <div class="tk-field"><label>P. Folha (prazo de produção)</label><div class="tk-readonly-block">${fmtDataCurta(r.pFolha)}</div></div>
-        </div>
-        <div class="tk-field" style="margin-bottom:14px">
-          <label>Novo prazo para finalizar</label>
-          <div style="display:flex;gap:8px">
-            <input type="date" id="tkInpNovoPrazo" value="${tkEsc((r.novoPrazo || '').slice(0, 10))}" style="flex:1">
-            <button class="tk-btn tk-btn-ghost" type="button" id="tkBtnSalvarNovoPrazo">Salvar</button>
+          <div class="tk-field">
+            <label>Novo prazo para finalizar</label>
+            <div style="display:flex;gap:8px">
+              <input type="date" id="tkInpNovoPrazo" value="${tkEsc((r.novoPrazo || '').slice(0, 10))}" style="flex:1">
+              <button class="tk-btn tk-btn-ghost" type="button" id="tkBtnSalvarNovoPrazo">Salvar</button>
+            </div>
           </div>
         </div>
         <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text);margin-bottom:12px;cursor:pointer">
