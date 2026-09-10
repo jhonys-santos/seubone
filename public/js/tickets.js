@@ -120,6 +120,24 @@
   let dashEscopoChart = 'todos'; // 'todos' | 'meus' — só afeta o gráfico de fluxo
   let tkStatusChart = null; // instância Chart.js do donut de status (destruída/recriada a cada render do dashboard)
 
+  // Chart.js só é usado pelo donut de status, dentro do Dashboard — carregar
+  // via <script> fixo no <head> deixava TODA visita ao painel (Lista,
+  // Kanban) esperando ~200KB de biblioteca que a maioria nem chega a usar.
+  // Carrega uma vez, sob demanda, na primeira vez que o Dashboard abre.
+  let tkChartJsPromise = null;
+  function carregarChartJs() {
+    if (window.Chart) return Promise.resolve();
+    if (tkChartJsPromise) return tkChartJsPromise;
+    tkChartJsPromise = new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = 'https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js';
+      s.onload = () => resolve();
+      s.onerror = () => { tkChartJsPromise = null; reject(new Error('Falha ao carregar biblioteca de gráfico')); };
+      document.head.appendChild(s);
+    });
+    return tkChartJsPromise;
+  }
+
   const PRAZO_BUCKETS = [
     { key: 'atrasado', label: 'Atrasado', cor: '#C63A32' },
     { key: 'hoje', label: 'Vence hoje', cor: '#E0762A' },
@@ -842,8 +860,13 @@
     `;
 
     if (tkStatusChart) { tkStatusChart.destroy(); tkStatusChart = null; }
-    const canvasStatus = document.getElementById('tkChartStatus');
-    if (canvasStatus) {
+    carregarChartJs().then(() => {
+      // Se a pessoa já saiu do Dashboard (ou trocou de novo) enquanto a
+      // biblioteca carregava, não desenha em cima de uma tela que não é
+      // mais essa — e não reaproveita um <canvas> que já não existe.
+      if (tkState.screen !== 'dashboard') return;
+      const canvasStatus = document.getElementById('tkChartStatus');
+      if (!canvasStatus) return;
       tkStatusChart = new Chart(canvasStatus, {
         type: 'doughnut',
         data: {
@@ -852,7 +875,7 @@
         },
         options: { responsive: true, maintainAspectRatio: false, cutout: '68%', plugins: { legend: { display: false }, tooltip: { enabled: true } } },
       });
-    }
+    }).catch(() => { /* dashboard continua útil sem o donut se o CDN falhar */ });
 
     const escopoBox = document.getElementById('tkFluxoEscopo');
     if (escopoBox) {
