@@ -20,6 +20,9 @@
  *    - doPost action:atualizarFabrica → muda a Fábrica/fornecedor do ticket
  *    - doPost action:atualizarSetor → muda o Setor (etapa de produção atual),
  *      editável a qualquer momento por quem trata o ticket
+ *    - doPost action:atualizarNovoPrazo → define/edita o "Novo prazo para
+ *      finalizar", à parte de PPE/Previsão/P.Folha (fixos do sistema de
+ *      origem, não editáveis)
  *    - doPost action:atualizarAcompanhamento → evento/entrega/prazos, editado por quem trata o ticket
  *    - doPost action:definirLink → preenche o link do card quando criado sem ele
  *    - doPost action:marcarAtrasoNotificado → controla se já foi avisado o
@@ -78,6 +81,11 @@ var COLUNAS = {
   ppe:            ['ppe', 'prazo previsto de entrega'],
   previsaoFinalizacao: ['previsao de finalizacao', 'previsão de finalização'],
   pFolha:         ['p folha', 'prazo de producao', 'prazo de produção'],
+  // PPE/Previsão/P.Folha vêm fixos do sistema de origem (Lulu) e não são
+  // mais editáveis pelo hub. Esse aqui é um prazo À PARTE, que o
+  // responsável pelo ticket define/ajusta manualmente durante o
+  // acompanhamento — não sobrescreve nem depende dos três de cima.
+  novoPrazo:      ['novo prazo', 'novo prazo para finalizar', 'novo prazo finalizar'],
   atrasoNotificado: ['atraso notificado', 'notificado atraso', 'aviso atraso enviado'],
   // Chave estável do "negócio" no sistema de origem (Lulu) — idVenda pode vir
   // nulo de lá, então é essa coluna que garante que o mesmo pedido atrasado
@@ -245,6 +253,7 @@ function doGet(e) {
         ppe:                 fmtDate_(get(row, 'ppe')),
         previsaoFinalizacao: fmtDate_(get(row, 'previsaoFinalizacao')),
         pFolha:              fmtDate_(get(row, 'pFolha')),
+        novoPrazo:           fmtDate_(get(row, 'novoPrazo')),
         atrasoNotificado:    parseBool_(get(row, 'atrasoNotificado')),
         negocioId:           String(get(row, 'negocioId') || '').trim(),
       });
@@ -271,6 +280,7 @@ function doPost(e) {
     if (action === 'removerAnexo') return removerAnexo_(body);
     if (action === 'atualizarFabrica') return atualizarFabrica_(body);
     if (action === 'atualizarSetor') return atualizarSetor_(body);
+    if (action === 'atualizarNovoPrazo') return atualizarNovoPrazo_(body);
     if (action === 'atualizarAcompanhamento') return atualizarAcompanhamento_(body);
     if (action === 'definirLink') return definirLink_(body);
     if (action === 'marcarAtrasoNotificado') return marcarAtrasoNotificado_(body);
@@ -440,6 +450,34 @@ function atualizarSetor_(f) {
 }
 
 /**
+ * Novo prazo para finalizar — definido manualmente pelo responsável pelo
+ * ticket, à parte de PPE/Previsão/P.Folha (que vêm fixos do sistema de
+ * origem e não são mais editáveis). Ação própria, mesma razão de Setor e
+ * Fábrica: dá pra salvar sozinho, editar de novo depois, sem mexer em
+ * mais nada do ticket.
+ */
+function atualizarNovoPrazo_(f) {
+  if (!f.rowIndex) return jsonOut_({ ok: false, error: 'rowIndex ausente' });
+  var lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    var sh = getSheet_();
+    var col = buildColMap_(sh.getDataRange().getValues()[0]);
+    if (col.novoPrazo == null) return jsonOut_({ ok: false, error: 'Coluna "Novo Prazo" não existe na planilha.' });
+
+    var valor = String(f.novoPrazo || '').trim();
+    sh.getRange(f.rowIndex, col.novoPrazo + 1).setValue(valor);
+
+    var idTicket = (col.idTicket != null) ? sh.getRange(f.rowIndex, col.idTicket + 1).getValue() : '';
+    logHist_(f.rowIndex, idTicket, f.usuario, 'Novo prazo definido', valor || '(vazio)', f.usuarioSlug);
+
+    return jsonOut_({ ok: true, rowIndex: f.rowIndex, idTicket: String(idTicket || ''), novoPrazo: valor });
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/**
  * Acompanhamento de quem está tratando o ticket (evento do cliente,
  * entrega) — não é decisão de gestão, só anotação de quem está com o
  * ticket, por isso sem trava de role (igual comentar/fechar).
@@ -457,9 +495,9 @@ function atualizarAcompanhamento_(f) {
     if (col.dataEvento != null) sh.getRange(f.rowIndex, col.dataEvento + 1).setValue(temEvento ? (f.dataEvento || '') : '');
     if (col.entrega != null) sh.getRange(f.rowIndex, col.entrega + 1).setValue(f.entrega || '');
     if (col.aeroporto != null) sh.getRange(f.rowIndex, col.aeroporto + 1).setValue(f.entrega === 'Aeroporto' ? (f.aeroporto || '') : '');
-    if (col.ppe != null) sh.getRange(f.rowIndex, col.ppe + 1).setValue(f.ppe || '');
-    if (col.previsaoFinalizacao != null) sh.getRange(f.rowIndex, col.previsaoFinalizacao + 1).setValue(f.previsaoFinalizacao || '');
-    if (col.pFolha != null) sh.getRange(f.rowIndex, col.pFolha + 1).setValue(f.pFolha || '');
+    // PPE/Previsão/P.Folha NÃO entram mais aqui — vêm fixos do sistema de
+    // origem (ver COLUNAS.ppe etc.) e só são editáveis via "Novo prazo"
+    // (atualizarNovoPrazo_), que é um campo à parte.
     // Setor aqui é a etapa de produção atual (quem trata o ticket atualiza
     // durante o acompanhamento) — igual valorizado direto (não com setCell_),
     // pra dar pra "limpar" de volta pro vazio se precisar.

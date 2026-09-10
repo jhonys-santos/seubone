@@ -218,14 +218,30 @@ router.post('/api/setor', async (req, res) => {
   }
 });
 
-// Acompanhamento (evento do cliente, entrega, prazos) — anotação de quem
-// está tratando o ticket, sem trava extra de role (mesma ideia de comentar).
-router.post('/api/acompanhamento', async (req, res) => {
+// Novo prazo para finalizar — à parte de PPE/Previsão/P.Folha (fixos do
+// sistema de origem, não editáveis), quem trata o ticket define e pode
+// reeditar quando quiser. Ação própria, mesma razão de Setor/Fábrica.
+router.post('/api/novo-prazo', async (req, res) => {
   try {
-    const { rowIndex, temEvento, dataEvento, entrega, aeroporto, ppe, previsaoFinalizacao, pFolha, setor } = req.body;
+    const { rowIndex, novoPrazo } = req.body;
     const json = await chamarAppsScript(env.ticketsAppsScriptUrl, {
       method: 'POST',
-      body: { action: 'atualizarAcompanhamento', rowIndex, temEvento, dataEvento, entrega, aeroporto, ppe, previsaoFinalizacao, pFolha, setor, usuario: req.session.user.nome, usuarioSlug: req.session.user.slug },
+      body: { action: 'atualizarNovoPrazo', rowIndex, novoPrazo, usuario: req.session.user.nome, usuarioSlug: req.session.user.slug },
+    });
+    res.json(json);
+  } catch (err) {
+    res.status(502).json({ ok: false, erro: 'Falha ao salvar novo prazo: ' + err.message });
+  }
+});
+
+// Acompanhamento (evento do cliente, entrega) — anotação de quem está
+// tratando o ticket, sem trava extra de role (mesma ideia de comentar).
+router.post('/api/acompanhamento', async (req, res) => {
+  try {
+    const { rowIndex, temEvento, dataEvento, entrega, aeroporto } = req.body;
+    const json = await chamarAppsScript(env.ticketsAppsScriptUrl, {
+      method: 'POST',
+      body: { action: 'atualizarAcompanhamento', rowIndex, temEvento, dataEvento, entrega, aeroporto, usuario: req.session.user.nome, usuarioSlug: req.session.user.slug },
     });
     res.json(json);
   } catch (err) {

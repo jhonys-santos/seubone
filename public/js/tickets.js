@@ -966,9 +966,16 @@
         <div class="tk-sec-title" style="margin-top:20px">Acompanhamento</div>
         <div style="font-size:12.5px;color:var(--text-muted);margin:-6px 0 12px;line-height:1.45">Informações de quem está tratando o ticket, não afeta prazo de SLA nem status.</div>
         <div class="tk-field-grid" style="margin-bottom:14px">
-          <div class="tk-field"><label>PPE (prazo previsto de entrega)</label><input type="date" id="tkInpPpe" value="${tkEsc((r.ppe || '').slice(0, 10))}"></div>
-          <div class="tk-field"><label>Previsão de finalização</label><input type="date" id="tkInpPrevisao" value="${tkEsc((r.previsaoFinalizacao || '').slice(0, 10))}"></div>
-          <div class="tk-field"><label>P. Folha (prazo de produção)</label><input type="date" id="tkInpPFolha" value="${tkEsc((r.pFolha || '').slice(0, 10))}"></div>
+          <div class="tk-field"><label>PPE (prazo previsto de entrega)</label><div class="tk-readonly-block">${fmtDataCurta(r.ppe)}</div></div>
+          <div class="tk-field"><label>Previsão de finalização</label><div class="tk-readonly-block">${fmtDataCurta(r.previsaoFinalizacao)}</div></div>
+          <div class="tk-field"><label>P. Folha (prazo de produção)</label><div class="tk-readonly-block">${fmtDataCurta(r.pFolha)}</div></div>
+        </div>
+        <div class="tk-field" style="margin-bottom:14px">
+          <label>Novo prazo para finalizar</label>
+          <div style="display:flex;gap:8px">
+            <input type="date" id="tkInpNovoPrazo" value="${tkEsc((r.novoPrazo || '').slice(0, 10))}" style="flex:1">
+            <button class="tk-btn tk-btn-ghost" type="button" id="tkBtnSalvarNovoPrazo">Salvar</button>
+          </div>
         </div>
         <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text);margin-bottom:12px;cursor:pointer">
           <input type="checkbox" id="tkChkEvento" ${r.temEvento ? 'checked' : ''} style="width:15px;height:15px;accent-color:var(--gold)">
@@ -1190,6 +1197,26 @@
       });
     }
 
+    const btnSalvarNovoPrazo = $('tkBtnSalvarNovoPrazo');
+    if (btnSalvarNovoPrazo) {
+      btnSalvarNovoPrazo.addEventListener('click', async () => {
+        const novoPrazo = $('tkInpNovoPrazo').value;
+        btnSalvarNovoPrazo.disabled = true;
+        try {
+          const res = await fetch('/tickets/api/novo-prazo', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rowIndex: r.id, novoPrazo }) });
+          const json = await res.json();
+          if (!json.ok) throw new Error(json.erro || json.error || 'Erro desconhecido');
+          r.novoPrazo = novoPrazo;
+          await tkRefreshData(true);
+          toast('Novo prazo salvo', true);
+        } catch (err) {
+          toast('Erro: ' + err.message, false);
+        } finally {
+          btnSalvarNovoPrazo.disabled = false;
+        }
+      });
+    }
+
     // --- Acompanhamento: evento do cliente + entrega ---
     const chkEvento = $('tkChkEvento');
     const grupoDataEvento = $('tkGrupoDataEvento');
@@ -1204,15 +1231,12 @@
       const dataEvento = temEvento ? $('tkInpDataEvento').value : '';
       const entrega = selEntrega.value;
       const aeroporto = entrega === 'Aeroporto' ? $('tkInpAeroporto').value.trim() : '';
-      const ppe = $('tkInpPpe').value;
-      const previsaoFinalizacao = $('tkInpPrevisao').value;
-      const pFolha = $('tkInpPFolha').value;
       btn.disabled = true; msg.textContent = 'Gravando…';
       try {
-        const res = await fetch('/tickets/api/acompanhamento', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rowIndex: r.id, temEvento, dataEvento, entrega, aeroporto, ppe, previsaoFinalizacao, pFolha }) });
+        const res = await fetch('/tickets/api/acompanhamento', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rowIndex: r.id, temEvento, dataEvento, entrega, aeroporto }) });
         const json = await res.json();
         if (!json.ok) throw new Error(json.erro || json.error || 'Erro desconhecido');
-        Object.assign(r, { temEvento, dataEvento, entrega, aeroporto, ppe, previsaoFinalizacao, pFolha });
+        Object.assign(r, { temEvento, dataEvento, entrega, aeroporto });
         await tkRefreshData(true);
         msg.textContent = '';
         toast('Acompanhamento salvo', true);
