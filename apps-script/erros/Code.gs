@@ -16,7 +16,9 @@
  *    - doPost action:audit     → atualiza os campos de auditoria de uma linha
  *    - doPost action:setStatus → muda o status de um caso
  *    - doPost action:setSetor  → preenche só o setor (backfill de legado)
+ *    - doPost action:setDescricao → edita a descrição do erro (só gestor)
  *    - doPost action:comentarCaso → comentário de acompanhamento (Histórico)
+ *    - doPost action:adicionarAnexos → anexa arquivo(s) a um caso já existente
  *
  *  Mapeamento de colunas por NOME DO CABEÇALHO (tolerante a acento/maiúscula).
  *
@@ -161,8 +163,18 @@ function getFotosFolder_() {
   return it.hasNext() ? it.next() : DriveApp.createFolder(FOTOS_FOLDER_NAME);
 }
 
+/**
+ * Devolve { urls: [...], falhas: N, erroExemplo: '...' } — antes essa função
+ * devolvia só a string dos links e engolia qualquer erro POR ARQUIVO em
+ * silêncio (catch vazio). Com upload de vários arquivos, se 1 de 3 falhasse
+ * os outros 2 ainda geravam link e o caso subia "com sucesso" (fotosSalvas
+ * não detectava nada errado) — só que faltando um anexo, sem log nenhum.
+ * Agora toda falha por arquivo é contada e reportada pra quem chamou decidir
+ * se avisa o usuário.
+ */
 function salvarFotos_(fotos, idVenda) {
-  if (!fotos || !fotos.length) return '';
+  var resultado = { urls: [], falhas: 0, erroExemplo: '' };
+  if (!fotos || !fotos.length) return resultado;
   var folder;
   try {
     folder = getFotosFolder_();
@@ -170,12 +182,11 @@ function salvarFotos_(fotos, idVenda) {
     // Erro típico: o deploy não tem o escopo do Drive autorizado. Mensagem clara p/ o Histórico.
     throw new Error('Sem acesso ao Google Drive. Autorize o escopo do Drive (rode getFotosFolder_ no editor) e republique a implantação. Detalhe: ' + (e && e.message || e));
   }
-  var urls = [];
   for (var i = 0; i < fotos.length; i++) {
     try {
       var dataUrl = String(fotos[i] || '');
       var m = dataUrl.match(/^data:([^;]+);base64,(.*)$/);
-      if (!m) continue;
+      if (!m) { resultado.falhas++; if (!resultado.erroExemplo) resultado.erroExemplo = 'Formato de arquivo inesperado.'; continue; }
       var mime = m[1];
       var bytes = Utilities.base64Decode(m[2]);
       var ext = (mime.split('/')[1] || 'jpg').replace('jpeg', 'jpg');
@@ -183,10 +194,13 @@ function salvarFotos_(fotos, idVenda) {
       var blob = Utilities.newBlob(bytes, mime, nome);
       var file = folder.createFile(blob);
       try { file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); } catch (e) {}
-      urls.push(file.getUrl());
-    } catch (e) {}
+      resultado.urls.push(file.getUrl());
+    } catch (e) {
+      resultado.falhas++;
+      if (!resultado.erroExemplo) resultado.erroExemplo = String(e && e.message || e);
+    }
   }
-  return urls.join(',');
+  return resultado;
 }
 
 /**
@@ -470,9 +484,11 @@ function doPost(e) {
     if (action === 'audit') return auditarCaso_(body.rowIndex, body.fields || {}, body.usuario, body.usuarioSlug);
     if (action === 'setStatus') return setStatus_(body.rowIndex, body.status, body.usuario);
     if (action === 'setSetor')  return setSetor_(body.rowIndex, body.setor, body.usuario);
+    if (action === 'setDescricao') return setDescricao_(body.rowIndex, body.descricao, body.usuario);
     if (action === 'decidirRefab')  return decidirRefab_(body.rowIndex, body.decisao, body.comentario, body.usuario, body.usuarioSlug);
     if (action === 'finalizarRefab') return finalizarRefab_(body.rowIndex, body.usuario, body.usuarioSlug);
     if (action === 'comentarCaso') return comentarCaso_(body.rowIndex, body.comentario, body.usuario, body.usuarioSlug);
+    if (action === 'adicionarAnexos') return adicionarAnexos_(body.rowIndex, body.fotos, body.usuario, body.usuarioSlug);
 
     return jsonOut_({ ok: false, error: 'Ação desconhecida: ' + action });
   } catch (err) {
@@ -575,11 +591,17 @@ function criarCaso_(f, usuario, usuarioSlug) {
         logHist_(novaLinha, f.idVenda, usuario || f.quemCadastrou, 'Fotos não salvas', fotosErro, usuarioSlug);
       } else {
         try {
-          var links = salvarFotos_(f.fotos, f.idVenda);
-          if (links) {
-            setCell_(sh, novaLinha, col, 'foto', links);
-          } else {
-            fotosErro = 'Nenhum link gerado (formato inesperado).';
+          var resultadoFotos = salvarFotos_(f.fotos, f.idVenda);
+          if (resultadoFotos.urls.length) {
+            setCell_(sh, novaLinha, col, 'foto', resultadoFotos.urls.join(','));
+          }
+          // Reporta falha tanto no "nada salvou" quanto no "salvou só ALGUNS"
+          // — antes, se 1 de 3 arquivos falhasse, os outros 2 geravam link e
+          // ninguém percebia que um ficou faltando.
+          if (resultadoFotos.falhas > 0) {
+            fotosErro = resultadoFotos.urls.length
+              ? (resultadoFotos.falhas + ' de ' + f.fotos.length + ' arquivo(s) não foram salvos (' + (resultadoFotos.erroExemplo || 'motivo desconhecido') + ').')
+              : 'Nenhum arquivo foi salvo (' + (resultadoFotos.erroExemplo || 'formato inesperado') + ').';
             logHist_(novaLinha, f.idVenda, usuario || f.quemCadastrou, 'Fotos não salvas', fotosErro, usuarioSlug);
           }
         } catch (e) {
@@ -598,6 +620,43 @@ function criarCaso_(f, usuario, usuarioSlug) {
     }
 
     return jsonOut_({ ok: true, rowIndex: novaLinha, entrouAprovacaoRefab: entrouRefab, fotosSalvas: !fotosErro, fotosErro: fotosErro });
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/**
+ * Anexa arquivo(s) a um caso já existente — cobre tanto quem quer adicionar
+ * mais mídia depois quanto o caso de recuperação quando o registro subiu sem
+ * anexo (falha no upload na hora de criar). Sem trava de role: qualquer um
+ * com acesso ao painel pode anexar (mesma ideia de comentar). Nunca troca
+ * anexos já salvos, sempre acrescenta aos que já existem na linha.
+ */
+function adicionarAnexos_(rowIndex, fotos, usuario, usuarioSlug) {
+  if (!rowIndex) return jsonOut_({ ok: false, error: 'rowIndex ausente' });
+  if (!fotos || !fotos.length) return jsonOut_({ ok: false, error: 'Nenhum arquivo enviado.' });
+
+  var lock = LockService.getScriptLock();
+  try { lock.waitLock(20000); } catch (e) { return jsonOut_({ ok: false, error: 'Sistema ocupado, tente novamente em alguns segundos.' }); }
+  try {
+    var sh = getSheet_();
+    var col = buildColMap_(sh.getDataRange().getValues()[0]);
+    if (col.foto == null) return jsonOut_({ ok: false, error: 'A planilha não tem a coluna "Foto".' });
+
+    var idVenda = (col.idVenda != null) ? sh.getRange(rowIndex, col.idVenda + 1).getValue() : '';
+    var resultado = salvarFotos_(fotos, idVenda);
+    if (!resultado.urls.length) {
+      return jsonOut_({ ok: false, error: 'Não consegui salvar os arquivos' + (resultado.erroExemplo ? ' (' + resultado.erroExemplo + ')' : '') + '.' });
+    }
+
+    var atual = String(sh.getRange(rowIndex, col.foto + 1).getValue() || '').trim();
+    var combinado = atual ? atual + ',' + resultado.urls.join(',') : resultado.urls.join(',');
+    sh.getRange(rowIndex, col.foto + 1).setValue(combinado);
+
+    var detalhe = resultado.urls.length + ' arquivo(s)' + (resultado.falhas ? (' · ' + resultado.falhas + ' falharam: ' + (resultado.erroExemplo || 'motivo desconhecido')) : '');
+    logHist_(rowIndex, idVenda, usuario, 'Anexo(s) adicionado(s)', detalhe, usuarioSlug);
+
+    return jsonOut_({ ok: true, rowIndex: rowIndex, foto: combinado, falhas: resultado.falhas, erroExemplo: resultado.falhas ? resultado.erroExemplo : '' });
   } finally {
     lock.releaseLock();
   }
@@ -736,6 +795,29 @@ function setSetor_(rowIndex, setor, usuario) {
     setCell_(sh, rowIndex, col, 'setor', setor);
     logHist_(rowIndex, idVenda, usuario, 'Setor preenchido', '→ ' + setor);
     return jsonOut_({ ok: true, rowIndex: rowIndex, setor: setor });
+  } finally { lock.releaseLock(); }
+}
+
+/**
+ * Edita a descrição do erro — pedida pelo gestor pra poder ajustar o texto
+ * que vai pro relatório (ex: corrigir algo que o colaborador escreveu
+ * errado/incompleto no registro original). Só gestor (trava reforçada no
+ * servidor do hub, em requireRole) — não depende do caso já estar auditado.
+ */
+function setDescricao_(rowIndex, descricao, usuario) {
+  if (!rowIndex) return jsonOut_({ ok: false, error: 'rowIndex ausente' });
+  var texto = String(descricao || '').trim();
+  if (!texto) return jsonOut_({ ok: false, error: 'Descrição vazia.' });
+  var lock = LockService.getScriptLock();
+  try { lock.waitLock(8000); } catch (e) { return jsonOut_({ ok: false, error: 'ocupado, tente de novo' }); }
+  try {
+    var sh = getSheet_();
+    var col = buildColMap_(sh.getDataRange().getValues()[0]);
+    if (col.descricao == null) return jsonOut_({ ok: false, error: 'Coluna de descrição não encontrada na planilha.' });
+    var idVenda = (col.idVenda != null) ? sh.getRange(rowIndex, col.idVenda + 1).getValue() : '';
+    sh.getRange(rowIndex, col.descricao + 1).setValue(texto);
+    logHist_(rowIndex, idVenda, usuario, 'Descrição editada', '', '');
+    return jsonOut_({ ok: true, rowIndex: rowIndex, descricao: texto });
   } finally { lock.releaseLock(); }
 }
 

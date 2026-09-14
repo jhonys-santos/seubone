@@ -1842,8 +1842,24 @@
           <div class="er-field"><label>Data de registro</label><div class="er-readonly-block">${fmtDate(r.date)}</div></div>
           <div class="er-field"><label>Quem cadastrou o erro</label><div class="er-readonly-block">${erEsc(r.quemCadastrou)}</div></div>
         </div>
-        <div class="er-field" style="margin-bottom:20px"><label>Descrição do erro</label><div class="er-readonly-block" style="font-style:italic">${erEsc(r.descricao) || '—'}</div></div>
-        ${(() => { const fs = parseFotos(r.foto); return fs.length ? `<div class="er-field" style="margin-bottom:20px"><label>Anexos (${fs.length})</label><div style="display:flex;flex-wrap:wrap;gap:9px">${fs.map((u, i) => `<img class="er-thumb er-lb-thumb" data-idx="${i}" data-url="${erEsc(u)}" src="${erEsc(fotoSrc(u))}" alt="Anexo #${erEsc(r.idVenda)} · ${erEsc(r.nomeCard)}" title="Ampliar" loading="lazy">`).join('')}</div></div>` : ''; })()}
+        <div class="er-field" style="margin-bottom:20px">
+          <label>Descrição do erro</label>
+          ${podeAuditar()
+            ? `<textarea id="erInpDescricao" style="min-height:80px">${erEsc(r.descricao)}</textarea>
+               <div style="display:flex;justify-content:flex-end;align-items:center;gap:10px;margin-top:8px">
+                 <span class="er-save-msg" id="erSaveMsgDescricao"></span>
+                 <button class="er-btn er-btn-ghost" type="button" id="erBtnSalvarDescricao">Salvar</button>
+               </div>`
+            : `<div class="er-readonly-block" style="font-style:italic">${erEsc(r.descricao) || '—'}</div>`}
+        </div>
+        ${(() => { const fs = parseFotos(r.foto); return fs.length ? `<div class="er-field" style="margin-bottom:14px"><label>Anexos (${fs.length})</label><div style="display:flex;flex-wrap:wrap;gap:9px">${fs.map((u, i) => `<img class="er-thumb er-lb-thumb" data-idx="${i}" data-url="${erEsc(u)}" src="${erEsc(fotoSrc(u))}" alt="Anexo #${erEsc(r.idVenda)} · ${erEsc(r.nomeCard)}" title="Ampliar" loading="lazy">`).join('')}</div></div>` : ''; })()}
+        <div class="er-foto-drop" id="erDrwFotoDrop"><b>Clique para adicionar arquivos</b> ou arraste aqui</div>
+        <input type="file" id="erDrwFotoInput" accept="image/*,video/*,audio/*" multiple style="display:none">
+        <div class="er-foto-prev" id="erDrwFotoPrev"></div>
+        <div style="display:flex;justify-content:flex-end;align-items:center;gap:10px;margin-top:8px;margin-bottom:20px">
+          <span class="er-save-msg" id="erSaveMsgAnexo"></span>
+          <button class="er-btn er-btn-ghost" type="button" id="erBtnEnviarAnexos" style="display:none">Enviar anexos</button>
+        </div>
 
         <div class="er-sec-title">Auditoria ${editable ? '<span class="er-badge er-pill-warn">preencher agora</span>' : (r.auditado ? '<span class="er-badge er-pill-muted">já registrada</span>' : '<span class="er-badge er-pill-muted">somente leitura</span>')}</div>
         <form id="erFormAuditoria">
@@ -1968,6 +1984,91 @@
     if (prev) prev.addEventListener('click', () => { if (prev.dataset.target) openCaso(Number(prev.dataset.target)); });
     if (next) next.addEventListener('click', () => { if (next.dataset.target) openCaso(Number(next.dataset.target)); });
     document.querySelectorAll('.er-drawer .er-stbtn').forEach((b) => b.addEventListener('click', () => setCaseStatus(r, b.dataset.status)));
+
+    const btnSalvarDescricao = $('erBtnSalvarDescricao');
+    if (btnSalvarDescricao) {
+      btnSalvarDescricao.addEventListener('click', async () => {
+        const ta = $('erInpDescricao');
+        const msg = $('erSaveMsgDescricao');
+        const texto = (ta.value || '').trim();
+        if (!texto) { ta.focus(); return; }
+        btnSalvarDescricao.disabled = true; msg.textContent = 'Gravando…';
+        try {
+          const res = await fetch('/erros/api/set-descricao', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rowIndex: r.id, descricao: texto }) });
+          const json = await res.json();
+          if (!json.ok) throw new Error(json.error || 'Erro desconhecido');
+          r.descricao = texto;
+          await erRefreshData(true);
+          msg.textContent = '';
+          toast('Descrição salva', true);
+        } catch (err) {
+          msg.textContent = 'Erro: ' + err.message;
+        } finally {
+          btnSalvarDescricao.disabled = false;
+        }
+      });
+    }
+
+    // --- Anexar mais arquivos a um caso já existente (mesmo padrão do Novo Caso) ---
+    const FOTOS_DRW = []; // { url: data URL, tipo: mime, nome }
+    const fotoDropDrw = $('erDrwFotoDrop');
+    const fotoInputDrw = $('erDrwFotoInput');
+    const fotoPrevDrw = $('erDrwFotoPrev');
+    const btnEnviarAnexos = $('erBtnEnviarAnexos');
+    const iconeAnexoDrw = (tipo) => (/^video\//.test(tipo) ? '🎬' : /^audio\//.test(tipo) ? '🎵' : '📄');
+    const renderPrevDrw = () => {
+      fotoPrevDrw.innerHTML = FOTOS_DRW.map((f, i) => (
+        /^image\//.test(f.tipo)
+          ? `<div class="fp"><img src="${f.url}" alt=""><button type="button" class="rm" data-i="${i}" title="Remover">✕</button></div>`
+          : `<div class="fp fp-arquivo" title="${erEsc(f.nome)}"><span class="fp-ic">${iconeAnexoDrw(f.tipo)}</span><span class="fp-nome">${erEsc(f.nome)}</span><button type="button" class="rm" data-i="${i}" title="Remover">✕</button></div>`
+      )).join('');
+      fotoPrevDrw.querySelectorAll('.rm').forEach((b) => b.addEventListener('click', () => { FOTOS_DRW.splice(Number(b.dataset.i), 1); renderPrevDrw(); }));
+      fotoDropDrw.innerHTML = FOTOS_DRW.length ? `<b>${FOTOS_DRW.length} arquivo(s) selecionado(s)</b> · clique para adicionar mais (até ${MAX_FOTOS})` : `<b>Clique para adicionar arquivos</b> ou arraste aqui`;
+      btnEnviarAnexos.style.display = FOTOS_DRW.length ? '' : 'none';
+    };
+    const addFilesDrw = async (files) => {
+      const lista = Array.from(files);
+      const tamanhoNovo = lista.reduce((soma, f) => soma + f.size, 0);
+      const tamanhoAtual = FOTOS_DRW.reduce((soma, f) => soma + (f.url.length * 0.75), 0);
+      if (tamanhoAtual + tamanhoNovo > MAX_ANEXOS_MB * 1024 * 1024) {
+        toast(`Os arquivos somados passariam de ${MAX_ANEXOS_MB} MB. Envie menos ou arquivos menores.`, false);
+        return;
+      }
+      for (const f of lista) {
+        if (FOTOS_DRW.length >= MAX_FOTOS) { toast('Máximo de ' + MAX_FOTOS + ' arquivos', false); break; }
+        try {
+          const url = /^image\//.test(f.type) ? await comprimirImagem(f) : await lerArquivoDataUrl(f);
+          FOTOS_DRW.push({ url, tipo: f.type || 'application/octet-stream', nome: f.name });
+        } catch (err) { toast('Arquivo ignorado: ' + err.message, false); }
+      }
+      renderPrevDrw();
+    };
+    fotoDropDrw.addEventListener('click', () => fotoInputDrw.click());
+    fotoInputDrw.addEventListener('change', () => { addFilesDrw(fotoInputDrw.files); fotoInputDrw.value = ''; });
+    ['dragover', 'dragenter'].forEach((ev) => fotoDropDrw.addEventListener(ev, (e) => { e.preventDefault(); fotoDropDrw.style.borderColor = 'var(--gold)'; }));
+    ['dragleave', 'drop'].forEach((ev) => fotoDropDrw.addEventListener(ev, (e) => { e.preventDefault(); fotoDropDrw.style.borderColor = ''; }));
+    fotoDropDrw.addEventListener('drop', (e) => { if (e.dataTransfer?.files?.length) addFilesDrw(e.dataTransfer.files); });
+
+    btnEnviarAnexos.addEventListener('click', async () => {
+      const msg = $('erSaveMsgAnexo');
+      btnEnviarAnexos.disabled = true; msg.textContent = 'Enviando…';
+      try {
+        const res = await fetch('/erros/api/anexar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rowIndex: r.id, fotos: FOTOS_DRW.map((f) => f.url) }) });
+        const json = await res.json();
+        if (!json.ok) throw new Error(json.error || 'Erro desconhecido');
+        r.foto = json.foto || r.foto;
+        await erRefreshData(true);
+        openCaso(r.id);
+        if (json.falhas) {
+          toast(`${FOTOS_DRW.length - json.falhas} de ${FOTOS_DRW.length} enviado(s) — ${json.falhas} falhou(aram) (${json.erroExemplo || 'motivo desconhecido'}).`, false);
+        } else {
+          toast('Anexo(s) adicionado(s)', true);
+        }
+      } catch (err) {
+        msg.textContent = 'Erro: ' + err.message;
+        btnEnviarAnexos.disabled = false;
+      }
+    });
 
     const btnComentar = $('erBtnComentar');
     if (btnComentar) {

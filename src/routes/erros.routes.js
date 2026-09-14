@@ -163,6 +163,45 @@ router.post('/api/set-setor', requireRole('gestor'), async (req, res) => {
   }
 });
 
+// Edita a descrição do erro — pedido do gestor, pra poder ajustar o texto
+// que vai pro relatório. Só gestor, mesma trava das outras ações de
+// auditoria — não depende do caso já estar auditado.
+router.post('/api/set-descricao', requireRole('gestor'), async (req, res) => {
+  try {
+    const { rowIndex, descricao } = req.body;
+    if (!descricao || !String(descricao).trim()) {
+      return res.status(400).json({ ok: false, error: 'Descrição vazia.' });
+    }
+    const json = await chamarAppsScript(env.errosAppsScriptUrl, {
+      method: 'POST',
+      body: { action: 'setDescricao', rowIndex, descricao, usuario: req.session.user.nome },
+    });
+    res.json(json);
+  } catch (err) {
+    res.status(502).json({ ok: false, error: 'Falha ao salvar descrição: ' + err.message });
+  }
+});
+
+// Anexar arquivo(s) a um caso já existente — cobre tanto adicionar mais
+// mídia depois quanto recuperar um registro que subiu sem anexo (falha no
+// upload na hora de criar). Sem trava de role, igual comentar: qualquer um
+// com acesso ao painel pode anexar.
+router.post('/api/anexar', async (req, res) => {
+  try {
+    const { rowIndex, fotos } = req.body;
+    if (!fotos || !fotos.length) {
+      return res.status(400).json({ ok: false, error: 'Nenhum arquivo enviado.' });
+    }
+    const json = await chamarAppsScript(env.errosAppsScriptUrl, {
+      method: 'POST',
+      body: { action: 'adicionarAnexos', rowIndex, fotos, usuario: req.session.user.nome, usuarioSlug: req.session.user.slug },
+    });
+    res.json(json);
+  } catch (err) {
+    res.status(502).json({ ok: false, error: 'Falha ao anexar arquivo(s): ' + err.message });
+  }
+});
+
 // Comentário de acompanhamento — sem trava de gestor de propósito: qualquer
 // colaborador com acesso ao painel pode comentar mesmo não podendo editar a
 // auditoria (ex: algo deu errado de novo depois do caso já resolvido).
