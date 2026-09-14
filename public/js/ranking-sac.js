@@ -5,7 +5,7 @@
 
 const API_BASE = '/ranking-sac/api';
 const REFRESH_INTERVAL = 300000;
-const SHEET_KEYS = { atd: 'atd', rsl: 'rsl', agenda: 'agenda' };
+const SHEET_KEYS = { atd: 'atd', agenda: 'agenda' };
 
 // ── UTILS
 function timeStrToMin(s){
@@ -103,28 +103,6 @@ function parseATD(rows){
   });
 }
 
-function parseRSL(rows){
-  ['Gabrielle','Daniel'].forEach(nome=>{
-    const hi=rows.findIndex(r=>cleanStr(r[0])===nome);
-    if(hi===-1) return;
-    const base=hi+2;
-    const keys=['tmrppf','tickets','score'];
-    const isT=[true,false,false];
-    keys.forEach((key,ki)=>{
-      const row=rows[base+ki]; if(!row) return;
-      if(key==='score'){
-        DATA.rsl.data[nome].score=safeNum(cleanStr(row[7]));
-      } else {
-        DATA.rsl.data[nome][key]=[1,2,3,4,5].map(ci=>{
-          const v=cleanStr(row[ci]);
-          if(!v||v==='-'||v==='—') return null;
-          return isT[ki]?parseTime(v):safeNum(v);
-        });
-      }
-    });
-  });
-}
-
 function parseAgenda(rows){
   DATA.agenda=[];
   const di=rows.findIndex(r=>cleanStr(r[0]).toLowerCase()==='dia');
@@ -145,14 +123,28 @@ async function fetchSheet(key){
   return parseCSV(await resp.text());
 }
 
+// Time Resolução não vem mais de planilha manual — TMR PPF+1 e Resolvidos
+// são calculados no servidor direto dos tickets reais.
+async function fetchResolucao(){
+  const resp = await fetch(`${API_BASE}/resolucao`, {cache:'no-store'});
+  if(!resp.ok) throw new Error(`HTTP ${resp.status} for resolucao`);
+  const json = await resp.json();
+  if(!json.ok) throw new Error(json.error||'Falha ao calcular Time Resolução');
+  return json;
+}
+
 async function loadAllData(){
   const ind=document.getElementById('refresh-ind');
   ind.textContent='● atualizando...';ind.classList.add('loading');
   try{
-    const [rowsATD,rowsRSL,rowsAG]=await Promise.all([
-      fetchSheet('atd'),fetchSheet('rsl'),fetchSheet('agenda'),
+    const [rowsATD,resolucao,rowsAG]=await Promise.all([
+      fetchSheet('atd'),fetchResolucao(),fetchSheet('agenda'),
     ]);
-    parseATD(rowsATD);parseRSL(rowsRSL);parseAgenda(rowsAG);
+    parseATD(rowsATD);
+    DATA.rsl.consultores=resolucao.consultores;
+    DATA.rsl.dias=resolucao.dias;
+    DATA.rsl.data=resolucao.data;
+    parseAgenda(rowsAG);
     renderAll();
     if(window._restartRaces) window._restartRaces();
     window.dispatchEvent(new Event('dataLoaded'));
