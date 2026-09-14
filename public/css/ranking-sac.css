@@ -17,6 +17,12 @@
 .race-title { font-size: 13px; font-weight: 700; color: var(--text); }
 .race-subtitle { font-size: 10px; color: var(--text-hint); margin-top: 1px; }
 .race-badge { font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; background: var(--gold-dim); border: 1px solid var(--gold-dark); color: var(--gold); padding: 3px 9px; border-radius: 8px; }
+.race-header-right { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+.week-nav { display: flex; align-items: center; gap: 6px; }
+.week-nav-btn { background: var(--surface); border: 1px solid var(--border); color: var(--text-muted); width: 20px; height: 20px; border-radius: 5px; font-size: 13px; line-height: 1; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; }
+.week-nav-btn:hover:not(:disabled) { background: var(--surface-2); color: var(--text); border-color: var(--border-strong); }
+.week-nav-btn:disabled { opacity: .35; cursor: default; }
+.week-nav-label { font-size: 10px; font-weight: 700; color: var(--text-hint); letter-spacing: .3px; white-space: nowrap; min-width: 66px; text-align: center; font-variant-numeric: tabular-nums; }
 .race-fixed { padding: 12px 14px 4px 14px; flex-shrink: 0; }
 .race-body { padding: 4px 14px 14px 14px; display: flex; flex-direction: column; gap: 7px; overflow-y: auto; max-height: 420px; scrollbar-width: thin; scrollbar-color: transparent transparent; scroll-behavior: smooth; }
 .race-body:hover { scrollbar-color: var(--border-strong) transparent; }

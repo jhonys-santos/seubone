@@ -125,12 +125,21 @@ async function fetchSheet(key){
 
 // Time Resolução não vem mais de planilha manual — TMR PPF+1 e Resolvidos
 // são calculados no servidor direto dos tickets reais.
-async function fetchResolucao(){
-  const resp = await fetch(`${API_BASE}/resolucao`, {cache:'no-store'});
+// rslOffset: quantas semanas voltar no filtro (0 = semana atual).
+let rslOffset=0;
+async function fetchResolucao(offset){
+  const resp = await fetch(`${API_BASE}/resolucao?semana=${offset||0}`, {cache:'no-store'});
   if(!resp.ok) throw new Error(`HTTP ${resp.status} for resolucao`);
   const json = await resp.json();
   if(!json.ok) throw new Error(json.error||'Falha ao calcular Time Resolução');
   return json;
+}
+
+function updateRslWeekNav(periodo){
+  const label=document.getElementById('rsl-week-label');
+  const nextBtn=document.getElementById('rsl-week-next');
+  if(label) label.textContent = periodo ? `${periodo.inicio} → ${periodo.fim}` : '—';
+  if(nextBtn) nextBtn.disabled = rslOffset<=0;
 }
 
 async function loadAllData(){
@@ -138,16 +147,39 @@ async function loadAllData(){
   ind.textContent='● atualizando...';ind.classList.add('loading');
   try{
     const [rowsATD,resolucao,rowsAG]=await Promise.all([
-      fetchSheet('atd'),fetchResolucao(),fetchSheet('agenda'),
+      fetchSheet('atd'),fetchResolucao(rslOffset),fetchSheet('agenda'),
     ]);
     parseATD(rowsATD);
     DATA.rsl.consultores=resolucao.consultores;
     DATA.rsl.dias=resolucao.dias;
     DATA.rsl.data=resolucao.data;
+    updateRslWeekNav(resolucao.periodo);
     parseAgenda(rowsAG);
     renderAll();
     if(window._restartRaces) window._restartRaces();
     window.dispatchEvent(new Event('dataLoaded'));
+    ind.textContent=`● atualizado ${new Date().toLocaleTimeString('pt-BR')}`;
+    ind.classList.remove('loading');
+  }catch(err){
+    ind.textContent='● erro ao carregar';ind.classList.remove('loading');
+    console.error(err);
+  }
+}
+
+// Troca de semana só re-busca o Time Resolução (ATD/agenda ficam como
+// estão) — usado pelos botões ‹ › do filtro de semana.
+async function loadResolucaoOnly(){
+  const ind=document.getElementById('refresh-ind');
+  ind.textContent='● atualizando...';ind.classList.add('loading');
+  try{
+    const resolucao=await fetchResolucao(rslOffset);
+    DATA.rsl.consultores=resolucao.consultores;
+    DATA.rsl.dias=resolucao.dias;
+    DATA.rsl.data=resolucao.data;
+    updateRslWeekNav(resolucao.periodo);
+    renderTrack('rsl-track',DATA.rsl.consultores,DATA.rsl.data);
+    renderTabelaRSL(DATA.rsl.data);
+    if(window._restartRaces) window._restartRaces();
     ind.textContent=`● atualizado ${new Date().toLocaleTimeString('pt-BR')}`;
     ind.classList.remove('loading');
   }catch(err){
@@ -468,6 +500,17 @@ function renderAll(){
     }
   });
 })();
+
+// ── FILTRO DE SEMANA (Time Resolução)
+document.getElementById('rsl-week-prev')?.addEventListener('click', ()=>{
+  rslOffset++;
+  loadResolucaoOnly();
+});
+document.getElementById('rsl-week-next')?.addEventListener('click', ()=>{
+  if(rslOffset<=0) return;
+  rslOffset--;
+  loadResolucaoOnly();
+});
 
 // ── INIT
 loadAllData();

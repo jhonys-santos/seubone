@@ -28,7 +28,14 @@
     <div class="race-panel">
       <div class="race-header">
         <div><div class="race-title">🔧 Corrida do Time Resolução</div><div class="race-subtitle">Ranking por Score · Sexta → Quinta</div></div>
-        <div class="race-badge">2 Consultores</div>
+        <div class="race-header-right">
+          <div class="race-badge">2 Consultores</div>
+          <div class="week-nav">
+            <button type="button" id="rsl-week-prev" class="week-nav-btn" aria-label="Semana anterior">‹</button>
+            <span id="rsl-week-label" class="week-nav-label">—</span>
+            <button type="button" id="rsl-week-next" class="week-nav-btn" aria-label="Semana seguinte" disabled>›</button>
+          </div>
+        </div>
       </div>
       <div class="race-fixed"><div class="track-title">Ranking da Semana</div><div id="rsl-track"></div></div>
       <div class="race-body"><div><div class="track-title">Indicadores por dia</div><div id="rsl-tabela"></div></div></div>

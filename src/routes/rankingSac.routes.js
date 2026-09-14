@@ -51,14 +51,15 @@ function chaveDiaISO_(ano, mes, dia) {
 }
 
 // Semana de sexta a quinta, pulando sábado/domingo — devolve as 5 datas
-// (yyyy-mm-dd) na ordem Sex,Seg,Ter,Qua,Qui da semana que contém "hoje"
-// (Brasília). Se hoje for sexta, a semana começa hoje.
-function diasDaSemanaResolucao_() {
+// (yyyy-mm-dd) na ordem Sex,Seg,Ter,Qua,Qui. "offsetSemanas" volta N semanas
+// inteiras a partir da semana que contém "hoje" (Brasília); 0 = semana atual
+// (se hoje for sexta, a semana começa hoje).
+function diasDaSemanaResolucao_(offsetSemanas) {
   const agoraBrasilia = new Date(Date.now() + FUSO_BRASILIA_OFFSET_MS);
   const diaSemana = agoraBrasilia.getUTCDay(); // 0=Dom...5=Sex,6=Sab (já "em Brasília")
   const diffDeSexta = (diaSemana - 5 + 7) % 7;
   const sexta = new Date(agoraBrasilia);
-  sexta.setUTCDate(sexta.getUTCDate() - diffDeSexta);
+  sexta.setUTCDate(sexta.getUTCDate() - diffDeSexta - offsetSemanas * 7);
   return [0, 3, 4, 5, 6].map((offset) => {
     const d = new Date(sexta);
     d.setUTCDate(d.getUTCDate() + offset);
@@ -80,7 +81,10 @@ router.get('/api/resolucao', async (req, res) => {
       return res.status(502).json({ ok: false, error: 'Falha ao buscar tickets.' });
     }
 
-    const chavesDias = diasDaSemanaResolucao_();
+    // "semana" = quantas semanas voltar (0 = atual). Limite de 1 ano só pra
+    // não deixar uma URL mal formada pedir uma conta sem sentido.
+    const offsetSemanas = Math.min(52, Math.max(0, parseInt(req.query.semana, 10) || 0));
+    const chavesDias = diasDaSemanaResolucao_(offsetSemanas);
     const data = {};
 
     CONSULTORES_RESOLUCAO.forEach(({ nome, slug }) => {
@@ -152,6 +156,11 @@ router.get('/api/resolucao', async (req, res) => {
       ok: true,
       consultores: CONSULTORES_RESOLUCAO.map((c) => c.nome),
       dias: ['Sex', 'Seg', 'Ter', 'Qua', 'Qui'],
+      periodo: {
+        inicio: chavesDias[0].slice(8, 10) + '/' + chavesDias[0].slice(5, 7),
+        fim: chavesDias[4].slice(8, 10) + '/' + chavesDias[4].slice(5, 7),
+      },
+      offsetSemanas,
       data,
     });
   } catch (err) {
