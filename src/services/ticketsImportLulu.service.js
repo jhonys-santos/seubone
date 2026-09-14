@@ -69,6 +69,16 @@ const LULU_BUSINESS_URL_BASE = 'https://lulu.seubone.com/business/?businessId=';
 // levaram 20-30s+ às vezes), e num lote de dezenas/centenas de chamadas
 // sequenciais isso É esperado acontecer eventualmente. Sem isso, um
 // pedido que falhasse ficava de fora até a próxima checagem agendada.
+//
+// IMPORTANTE: o "falhou" do lado do cliente (ex: timeout de 20s do
+// chamarAppsScript) não significa que o Apps Script falhou — ele continua
+// rodando no servidor do Google até o fim independente da conexão HTTP
+// cair, e pode muito bem já ter criado o ticket antes da gente desistir de
+// esperar a resposta. Tentar de novo sem checar isso cria um ticket
+// duplicado pro mesmo negócio (foi exatamente o que aconteceu: pares de
+// tickets com ~22s de diferença, batendo com os 20s do timeout + 2s da
+// espera daqui). Por isso, antes de tentar de novo, confere se esse
+// negócio já ganhou um ticket nesse meio tempo.
 async function criarTicketComRetry_(pedido) {
   const body = {
     action: 'criar',
@@ -88,6 +98,15 @@ async function criarTicketComRetry_(pedido) {
     return await chamarAppsScript(env.ticketsAppsScriptUrl, { method: 'POST', body });
   } catch (err) {
     await new Promise((r) => setTimeout(r, 2000));
+    try {
+      const confere = await chamarAppsScript(env.ticketsAppsScriptUrl, { method: 'GET' });
+      if (confere.ok && Array.isArray(confere.tickets) && confere.tickets.some((t) => t.negocioId === pedido.negocio_id)) {
+        return { ok: true, jaExistia: true };
+      }
+    } catch (e2) {
+      // Nem a checagem respondeu — segue e tenta criar mesmo assim, é
+      // melhor arriscar um duplicado raro do que nunca abrir o ticket.
+    }
     return chamarAppsScript(env.ticketsAppsScriptUrl, { method: 'POST', body });
   }
 }
