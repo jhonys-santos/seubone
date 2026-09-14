@@ -30,7 +30,7 @@ function parseTime(v){
   return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0');
 }
 function avgTime(arr){
-  const v=arr.filter(x=>x!=null&&timeStrToMin(x)<9000).map(x=>timeStrToMin(x));
+  const v=arr.filter(x=>x!=null).map(x=>timeStrToMin(x));
   if(!v.length) return null;
   const a=v.reduce((a,b)=>a+b,0)/v.length;
   if(isNaN(a)) return null;
