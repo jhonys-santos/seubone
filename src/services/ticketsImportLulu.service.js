@@ -74,11 +74,15 @@ const LULU_BUSINESS_URL_BASE = 'https://lulu.seubone.com/business/?businessId=';
 // chamarAppsScript) não significa que o Apps Script falhou — ele continua
 // rodando no servidor do Google até o fim independente da conexão HTTP
 // cair, e pode muito bem já ter criado o ticket antes da gente desistir de
-// esperar a resposta. Tentar de novo sem checar isso cria um ticket
-// duplicado pro mesmo negócio (foi exatamente o que aconteceu: pares de
-// tickets com ~22s de diferença, batendo com os 20s do timeout + 2s da
-// espera daqui). Por isso, antes de tentar de novo, confere se esse
-// negócio já ganhou um ticket nesse meio tempo.
+// esperar a resposta. Já tentamos resolver isso conferindo aqui do lado do
+// Node se o negócio já tinha ticket antes de retentar, mas isso ainda dava
+// duplicado quando o Apps Script demorava mais que essa checagem pra
+// terminar de escrever (visto em produção: pares de ticket criados
+// dezenas de segundos depois um do outro, não só os ~22s do timeout).
+// Corrigido na raiz: "criar" no Code.gs agora é idempotente por negocioId
+// (confere dentro do próprio LockService antes de inserir), então pode
+// simplesmente retentar sem checar nada aqui — o pior caso agora é
+// receber de volta o ticket que já existia, nunca um duplicado.
 async function criarTicketComRetry_(pedido) {
   const body = {
     action: 'criar',
@@ -97,16 +101,6 @@ async function criarTicketComRetry_(pedido) {
   try {
     return await chamarAppsScript(env.ticketsAppsScriptUrl, { method: 'POST', body });
   } catch (err) {
-    await new Promise((r) => setTimeout(r, 2000));
-    try {
-      const confere = await chamarAppsScript(env.ticketsAppsScriptUrl, { method: 'GET' });
-      if (confere.ok && Array.isArray(confere.tickets) && confere.tickets.some((t) => t.negocioId === pedido.negocio_id)) {
-        return { ok: true, jaExistia: true };
-      }
-    } catch (e2) {
-      // Nem a checagem respondeu — segue e tenta criar mesmo assim, é
-      // melhor arriscar um duplicado raro do que nunca abrir o ticket.
-    }
     return chamarAppsScript(env.ticketsAppsScriptUrl, { method: 'POST', body });
   }
 }

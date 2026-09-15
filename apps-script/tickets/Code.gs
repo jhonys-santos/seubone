@@ -305,8 +305,29 @@ function criarTicket_(f) {
     }
 
     var sh = getSheet_();
-    var header = sh.getDataRange().getValues()[0];
+    var dados = sh.getDataRange().getValues();
+    var header = dados[0];
     var col = buildColMap_(header);
+
+    // Idempotência por negocioId, DENTRO do lock: a importação automática
+    // (Lulu) já chamou "criar" mais de uma vez pro mesmo negócio em
+    // produção (timeout do lado do cliente sem cancelar a execução aqui,
+    // duas execuções do servidor se sobrepondo num deploy, etc.), gerando
+    // tickets duplicados mesmo com uma checagem prévia do lado do Node —
+    // aquela checagem é sempre sujeita a corrida porque acontece FORA do
+    // lock. Aqui dentro é o único lugar onde dá pra garantir de verdade:
+    // se já existe um ticket com esse negocioId, devolve ele em vez de
+    // criar outro. Só se aplica a quem manda negocioId (import automática);
+    // tickets manuais não têm esse campo.
+    if (f.negocioId && col.negocioId != null) {
+      var negocioAlvo = String(f.negocioId).trim();
+      for (var i = 1; i < dados.length; i++) {
+        if (String(dados[i][col.negocioId] || '').trim() === negocioAlvo) {
+          return jsonOut_({ ok: true, rowIndex: i + 1, idTicket: String(dados[i][col.idTicket] || ''), jaExistia: true });
+        }
+      }
+    }
+
     var novaLinha = sh.getLastRow() + 1;
 
     // ID do ticket é sempre gerado por aqui (nunca aceito de quem chama) —
