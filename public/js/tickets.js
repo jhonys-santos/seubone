@@ -832,8 +832,61 @@
           ${buckets.map((b) => `
             <div class="tk-fluxo-day">
               <div class="tk-fluxo-bars">
-                <div class="tk-fluxo-bar azul" style="height:${b.abertos ? Math.max(4, b.abertos / max * 100) : 0}%" title="${b.abertos} aberto(s)"></div>
-                <div class="tk-fluxo-bar verde" style="height:${b.fechados ? Math.max(4, b.fechados / max * 100) : 0}%" title="${b.fechados} fechado(s)"></div>
+                <div class="tk-fluxo-bar azul" style="height:${b.abertos ? Math.max(4, b.abertos / max * 100) : 0}%" title="${b.abertos} aberto(s)">${b.abertos ? `<span class="tk-fluxo-val">${b.abertos}</span>` : ''}</div>
+                <div class="tk-fluxo-bar verde" style="height:${b.fechados ? Math.max(4, b.fechados / max * 100) : 0}%" title="${b.fechados} fechado(s)">${b.fechados ? `<span class="tk-fluxo-val">${b.fechados}</span>` : ''}</div>
+              </div>
+              <div class="tk-fluxo-label">${tkEsc(diaLabel(b.dia))}</div>
+            </div>
+          `).join('')}
+        </div>
+      </div>`;
+  }
+
+  // Mesmos dois consultores comparados no "Time Resolução" do Ranking SAC
+  // (ver rankingSac.routes.js) — casados com o responsavelSlug gravado no
+  // ticket, não com o nome (que pode variar).
+  const CONSULTORES_RESOLUCAO = [
+    { nome: 'Gabrielle', slug: 'gabrielle', cor: '#D4A72C' },
+    { nome: 'Daniel', slug: 'daniel', cor: '#2A6FDB' },
+  ];
+
+  function bucketsFechadosPorPessoa(lista, dias, slugs) {
+    const hoje = soData(new Date());
+    const buckets = [];
+    for (let i = dias - 1; i >= 0; i--) {
+      const dia = new Date(hoje.getTime()); dia.setDate(dia.getDate() - i);
+      const porPessoa = {};
+      slugs.forEach((s) => { porPessoa[s] = 0; });
+      buckets.push({ dia, porPessoa });
+    }
+    const idxPorDia = new Map(buckets.map((b, i) => [b.dia.getTime(), i]));
+    lista.forEach((r) => {
+      if (!slugs.includes(r.responsavelSlug)) return;
+      const fc = parseData(r.dataFechamento);
+      if (!fc) return;
+      const i = idxPorDia.get(soData(fc).getTime());
+      if (i != null) buckets[i].porPessoa[r.responsavelSlug]++;
+    });
+    return buckets;
+  }
+
+  function renderResolucaoChart() {
+    const slugs = CONSULTORES_RESOLUCAO.map((c) => c.slug);
+    const buckets = bucketsFechadosPorPessoa(visibleRecords(), 14, slugs);
+    const max = Math.max(1, ...buckets.flatMap((b) => slugs.map((s) => b.porPessoa[s])));
+    const diaLabel = (d) => d.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '') + ' ' + String(d.getDate()).padStart(2, '0') + '/' + String(d.getMonth() + 1).padStart(2, '0');
+    return `
+      <div class="tk-card">
+        <h3>Fechados por dia · Gabrielle x Daniel</h3>
+        <div class="card-sub">${CONSULTORES_RESOLUCAO.map((c) => `<span class="tk-legend-dot" style="background:${c.cor}"></span>${tkEsc(c.nome)}`).join('&nbsp;&nbsp;')}</div>
+        <div class="tk-fluxo-chart">
+          ${buckets.map((b) => `
+            <div class="tk-fluxo-day">
+              <div class="tk-fluxo-bars">
+                ${CONSULTORES_RESOLUCAO.map((c) => {
+                  const v = b.porPessoa[c.slug];
+                  return `<div class="tk-fluxo-bar" style="height:${v ? Math.max(4, v / max * 100) : 0}%;background:${c.cor}" title="${tkEsc(c.nome)}: ${v} fechado(s)">${v ? `<span class="tk-fluxo-val">${v}</span>` : ''}</div>`;
+                }).join('')}
               </div>
               <div class="tk-fluxo-label">${tkEsc(diaLabel(b.dia))}</div>
             </div>
@@ -853,6 +906,7 @@
       </div>
       ${renderRankingContagem('Pedidos por Fábrica', papel === 'gestor' ? 'Quantidade de tickets por fábrica.' : 'Quantidade dos seus tickets por fábrica.', contagemPor(visiveis, 'fabrica'))}
       ${renderFluxoChart()}
+      ${renderResolucaoChart()}
       <div class="tk-grid-2col">
         ${renderRanking('TMR por responsável', 'Tempo médio de resolução entre a abertura e o fechamento, só de tickets fechados.', rankingPor('responsavel'))}
         ${renderRanking('TMR por identificador', 'Quais tipos de ticket demoram mais pra resolver.', rankingPorIdentificador())}
