@@ -659,20 +659,52 @@
     return soma / fechados.length;
   }
 
-  function rankingPor(campo) {
-    const grupos = new Map();
-    visibleRecords().filter((r) => r.status === STATUS_RESOLVIDO && r[campo]).forEach((r) => {
-      const chave = r[campo];
-      if (!grupos.has(chave)) grupos.set(chave, []);
-      grupos.get(chave).push(r);
-    });
-    return Array.from(grupos.entries())
-      .map(([nome, lista]) => ({ nome, tmr: tmrDe(lista), n: lista.length }))
-      .filter((g) => g.tmr != null)
-      .sort((a, b) => b.tmr - a.tmr);
+  // Semana de sexta a quinta, pulando sábado/domingo — mesma regra do
+  // "Time Resolução" do Ranking SAC (ver rankingSac.routes.js). Devolve as
+  // 5 datas (sex, seg, ter, qua, qui) como Date "só data", na semana que
+  // contém hoje deslocada "offsetSemanas" semanas pra trás (0 = atual).
+  function diasDaSemanaTicket_(offsetSemanas) {
+    const hoje = soData(new Date());
+    const diaSemana = hoje.getDay(); // 0=Dom...5=Sex,6=Sab
+    const diffDeSexta = (diaSemana - 5 + 7) % 7;
+    const sexta = new Date(hoje.getTime());
+    sexta.setDate(sexta.getDate() - diffDeSexta - offsetSemanas * 7);
+    return [0, 3, 4, 5, 6].map((off) => { const d = new Date(sexta.getTime()); d.setDate(d.getDate() + off); return d; });
   }
 
-  // Igual rankingPor('identificador'), mas sempre mostra todos os tipos
+  // "semana": só os 5 dias úteis (sex-qui, sem sáb/dom) do período.
+  // "mes": mês calendário inteiro, todos os dias (sem pular fim de semana).
+  function fechadosNoPeriodo_(lista, modo, offset) {
+    if (modo === 'mes') {
+      const hoje = new Date();
+      const alvo = new Date(hoje.getFullYear(), hoje.getMonth() - offset, 1);
+      return lista.filter((r) => {
+        if (r.status !== STATUS_RESOLVIDO || !r.dataFechamento) return false;
+        const fc = parseData(r.dataFechamento);
+        return fc && fc.getFullYear() === alvo.getFullYear() && fc.getMonth() === alvo.getMonth();
+      });
+    }
+    const validos = new Set(diasDaSemanaTicket_(offset).map((d) => d.getTime()));
+    return lista.filter((r) => {
+      if (r.status !== STATUS_RESOLVIDO || !r.dataFechamento) return false;
+      const fc = parseData(r.dataFechamento);
+      return fc && validos.has(soData(fc).getTime());
+    });
+  }
+
+  function labelPeriodo_(modo, offset) {
+    if (modo === 'mes') {
+      const hoje = new Date();
+      const alvo = new Date(hoje.getFullYear(), hoje.getMonth() - offset, 1);
+      const label = alvo.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+      return label.charAt(0).toUpperCase() + label.slice(1);
+    }
+    const dias = diasDaSemanaTicket_(offset);
+    const fmt = (d) => String(d.getDate()).padStart(2, '0') + '/' + String(d.getMonth() + 1).padStart(2, '0');
+    return fmt(dias[0]) + ' → ' + fmt(dias[4]);
+  }
+
+  // Sempre mostra todos os tipos
   // conhecidos (sugestões + os que já apareceram nos tickets), mesmo sem
   // nenhum ticket fechado ainda — pra dar visão completa por tipo, não só
   // dos que já têm dado.
@@ -687,6 +719,56 @@
     return todos
       .map((nome) => { const lista = grupos.get(nome) || []; return { nome, tmr: lista.length ? tmrDe(lista) : null, n: lista.length }; })
       .sort((a, b) => (a.tmr == null ? 1 : b.tmr == null ? -1 : b.tmr - a.tmr));
+  }
+
+  function rankingPorResponsavelPeriodo_(modo, offset) {
+    const base = fechadosNoPeriodo_(visibleRecords(), modo, offset);
+    const grupos = new Map();
+    base.filter((r) => r.responsavel).forEach((r) => {
+      if (!grupos.has(r.responsavel)) grupos.set(r.responsavel, []);
+      grupos.get(r.responsavel).push(r);
+    });
+    return Array.from(grupos.entries())
+      .map(([nome, lista]) => ({ nome, tmr: tmrDe(lista), n: lista.length }))
+      .filter((g) => g.tmr != null)
+      .sort((a, b) => b.tmr - a.tmr);
+  }
+
+  // 'semana' | 'mes' e quantas semanas/meses voltar (0 = período atual).
+  let tkTmrModo = 'semana';
+  let tkTmrOffset = 0;
+
+  function renderRankingResponsavel() {
+    const grupos = rankingPorResponsavelPeriodo_(tkTmrModo, tkTmrOffset);
+    const max = grupos.length ? Math.max(...grupos.map((g) => g.tmr)) : 1;
+    const label = labelPeriodo_(tkTmrModo, tkTmrOffset);
+    return `
+      <div class="tk-card">
+        <div class="tk-card-head-row">
+          <h3>TMR por responsável</h3>
+          <div class="tk-tmr-nav">
+            <div class="tk-seg-toggle" id="tkTmrModoToggle">
+              <button class="seg ${tkTmrModo === 'semana' ? 'on' : ''}" data-modo="semana" type="button">Semana</button>
+              <button class="seg ${tkTmrModo === 'mes' ? 'on' : ''}" data-modo="mes" type="button">Mês</button>
+            </div>
+            <div class="week-nav">
+              <button type="button" id="tkTmrPrev" class="week-nav-btn" aria-label="Período anterior">‹</button>
+              <span class="week-nav-label">${tkEsc(label)}</span>
+              <button type="button" id="tkTmrNext" class="week-nav-btn" aria-label="Período seguinte" ${tkTmrOffset <= 0 ? 'disabled' : ''}>›</button>
+            </div>
+          </div>
+        </div>
+        <div class="card-sub">Tempo médio de resolução entre a abertura e o fechamento, só de tickets fechados no período (${tkTmrModo === 'semana' ? 'sexta a quinta, sem sáb/dom' : 'mês inteiro'}).</div>
+        ${grupos.length === 0 ? `<div class="tk-hist-empty">Sem tickets fechados nesse período ainda.</div>` : grupos.map((g) => `
+          <div class="tk-rk-row">
+            <div class="tk-rk-top">
+              <span class="tk-rk-name">${tkEsc(g.nome)}</span>
+              <span class="tk-rk-count">${fmtHorasPrecisas(g.tmr)} · ${g.n} ticket(s)</span>
+            </div>
+            <div class="tk-rk-bar"><i style="width:${Math.max(4, g.tmr / max * 100)}%"></i></div>
+          </div>
+        `).join('')}
+      </div>`;
   }
 
   function renderRanking(titulo, sub, grupos) {
@@ -908,7 +990,7 @@
       ${renderFluxoChart()}
       ${renderResolucaoChart()}
       <div class="tk-grid-2col">
-        ${renderRanking('TMR por responsável', 'Tempo médio de resolução entre a abertura e o fechamento, só de tickets fechados.', rankingPor('responsavel'))}
+        ${renderRankingResponsavel()}
         ${renderRanking('TMR por identificador', 'Quais tipos de ticket demoram mais pra resolver.', rankingPorIdentificador())}
       </div>
     `;
@@ -937,6 +1019,17 @@
         btn.addEventListener('click', () => { dashEscopoChart = btn.dataset.escopo; renderDashboard(main); });
       });
     }
+
+    const tmrModoBox = document.getElementById('tkTmrModoToggle');
+    if (tmrModoBox) {
+      tmrModoBox.querySelectorAll('.seg').forEach((btn) => {
+        btn.addEventListener('click', () => { tkTmrModo = btn.dataset.modo; tkTmrOffset = 0; renderDashboard(main); });
+      });
+    }
+    const tmrPrevBtn = document.getElementById('tkTmrPrev');
+    if (tmrPrevBtn) tmrPrevBtn.addEventListener('click', () => { tkTmrOffset++; renderDashboard(main); });
+    const tmrNextBtn = document.getElementById('tkTmrNext');
+    if (tmrNextBtn) tmrNextBtn.addEventListener('click', () => { if (tkTmrOffset > 0) { tkTmrOffset--; renderDashboard(main); } });
   }
 
   /* ================= DRAWER ================= */
