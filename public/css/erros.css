@@ -329,6 +329,13 @@ th.er-sorted .er-sarrow { color: var(--text); }
 .er-foto-prev .fp-arquivo { width: 78px; height: 78px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 6px; border-radius: var(--radius-sm); border: 1px solid var(--border-strong); background: var(--surface-2); }
 .er-foto-prev .fp-ic { font-size: 22px; }
 .er-foto-prev .fp-nome { font-size: 9.5px; color: var(--text-muted); text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+/* Estado do anexo (pendente/salvando/salvo/erro) antes de poder registrar o caso. */
+.er-foto-prev .fp-badge { position: absolute; left: 0; right: 0; bottom: 0; font-size: 8.5px; font-weight: 700; text-align: center; padding: 2px 0; border-radius: 0 0 var(--radius-sm) var(--radius-sm); letter-spacing: .3px; text-transform: uppercase; }
+.er-foto-prev .fp-arquivo .fp-badge { position: static; margin-top: 2px; border-radius: 3px; width: 100%; }
+.er-foto-prev .fp-badge.fp-pending { background: rgba(0,0,0,.6); color: #fff; }
+.er-foto-prev .fp-badge.fp-loading { background: var(--gold-dim); color: var(--gold-dark); }
+.er-foto-prev .fp-badge.fp-ok { background: rgba(30,138,77,.88); color: #fff; }
+.er-foto-prev .fp-badge.fp-bad { background: var(--bad); color: #fff; }
 .er-setor-destaque { background: var(--gold-dim); border: 1px solid var(--gold-dark); border-radius: var(--radius); padding: 13px 14px; }
 .er-setor-destaque label { color: var(--gold-dark); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 

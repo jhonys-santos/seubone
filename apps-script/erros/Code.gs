@@ -19,6 +19,10 @@
  *    - doPost action:setDescricao → edita a descrição do erro (só gestor)
  *    - doPost action:comentarCaso → comentário de acompanhamento (Histórico)
  *    - doPost action:adicionarAnexos → anexa arquivo(s) a um caso já existente
+ *    - doPost action:salvarFotoPreCaso → salva foto(s)/anexo(s) no Drive
+ *      ANTES de criar o caso (não mexe na planilha) — devolve os links pra
+ *      "criar" gravar direto, sem competir pelo lock nem pelo tempo do
+ *      pedido junto com a escrita da linha
  *
  *  Mapeamento de colunas por NOME DO CABEÇALHO (tolerante a acento/maiúscula).
  *
@@ -201,6 +205,25 @@ function salvarFotos_(fotos, idVenda) {
     }
   }
   return resultado;
+}
+
+/**
+ * Salva foto(s)/anexo(s) no Drive ANTES de criar o caso — separado da
+ * criação em si. O fluxo antigo subia a linha E as fotos numa chamada só;
+ * sob carga (Drive lento, vários arquivos) isso podia estourar o tempo do
+ * pedido e, mesmo reportando o erro certinho pro usuário, o caso ainda
+ * nascia sem anexo até alguém reparar no aviso. Separando, a pessoa só
+ * consegue clicar em "Registrar erro" depois que o anexo já está
+ * confirmado salvo — sem essa etapa não tem como o caso subir sem foto.
+ * Não mexe na planilha (só Drive), por isso não precisa do lock do sheet.
+ */
+function salvarFotoPreCaso_(fotos) {
+  try {
+    var resultado = salvarFotos_(fotos, 'novo-' + new Date().getTime());
+    return jsonOut_({ ok: true, urls: resultado.urls, falhas: resultado.falhas, erroExemplo: resultado.erroExemplo });
+  } catch (e) {
+    return jsonOut_({ ok: false, error: String(e && e.message || e) });
+  }
 }
 
 /**
@@ -489,6 +512,7 @@ function doPost(e) {
     if (action === 'finalizarRefab') return finalizarRefab_(body.rowIndex, body.usuario, body.usuarioSlug);
     if (action === 'comentarCaso') return comentarCaso_(body.rowIndex, body.comentario, body.usuario, body.usuarioSlug);
     if (action === 'adicionarAnexos') return adicionarAnexos_(body.rowIndex, body.fotos, body.usuario, body.usuarioSlug);
+    if (action === 'salvarFotoPreCaso') return salvarFotoPreCaso_(body.fotos);
 
     return jsonOut_({ ok: false, error: 'Ação desconhecida: ' + action });
   } catch (err) {
@@ -585,7 +609,20 @@ function criarCaso_(f, usuario, usuarioSlug) {
     // mesmo se o anexo falhar) — antes disso a resposta dizia sempre "ok" e o
     // caso subia sem anexo sem ninguém perceber.
     var fotosErro = null;
-    if (f.fotos && f.fotos.length) {
+    if (f.fotosUrls && f.fotosUrls.length) {
+      // Fluxo novo: as fotos já foram salvas no Drive ANTES de criar o caso
+      // (action "salvarFotoPreCaso"), só grava os links — sem novo upload
+      // aqui, então não tem como falhar nessa etapa.
+      if (col.foto == null) {
+        fotosErro = 'A planilha não tem a coluna "Foto". Adicione um cabeçalho "Foto".';
+        logHist_(novaLinha, f.idVenda, usuario || f.quemCadastrou, 'Fotos não salvas', fotosErro, usuarioSlug);
+      } else {
+        setCell_(sh, novaLinha, col, 'foto', f.fotosUrls.join(','));
+      }
+    } else if (f.fotos && f.fotos.length) {
+      // Fluxo antigo (upload junto com a criação) — mantido só por
+      // compatibilidade; a tela de "Registrar novo erro" não usa mais esse
+      // caminho.
       if (col.foto == null) {
         fotosErro = 'A planilha não tem a coluna "Foto". Adicione um cabeçalho "Foto".';
         logHist_(novaLinha, f.idVenda, usuario || f.quemCadastrou, 'Fotos não salvas', fotosErro, usuarioSlug);

@@ -92,4 +92,8 @@ module.exports = [
     chave: 'tickets', titulo: 'Painel de Ticket', descricao: 'Acompanhamento de tickets (pedido atrasado, refabricação, envio) com tempo médio de resolução',
     url: '/tickets', icone: 'ti-ticket',
   },
+  {
+    chave: 'manifesto', titulo: 'Manifesto', descricao: 'Consulta notas fiscais de outro sistema e soma peso/valor total do período',
+    url: '/manifesto', icone: 'ti-file-invoice',
+  },
 ];

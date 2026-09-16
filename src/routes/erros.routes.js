@@ -79,6 +79,26 @@ router.post('/api/criar', async (req, res) => {
   }
 });
 
+// Salva foto(s)/anexo(s) ANTES de criar o caso — separado do "criar" pra
+// garantir que o anexo já está confirmado no Drive antes de registrar o
+// erro (sem trava de role, mesma ideia de "registrar" e "anexar": qualquer
+// colaborador pode). Não recebe rowIndex porque o caso ainda nem existe.
+router.post('/api/salvar-foto-pre-caso', async (req, res) => {
+  try {
+    const { fotos } = req.body;
+    if (!fotos || !fotos.length) {
+      return res.status(400).json({ ok: false, error: 'Nenhum arquivo enviado.' });
+    }
+    const json = await chamarAppsScript(env.errosAppsScriptUrl, {
+      method: 'POST',
+      body: { action: 'salvarFotoPreCaso', fotos },
+    });
+    res.json(json);
+  } catch (err) {
+    res.status(502).json({ ok: false, error: 'Falha ao salvar anexo: ' + err.message });
+  }
+});
+
 // Auditar/mudar status são as ações que o app original restringia a
 // gestor/dev/auditor (colaborador só via, não editava) — aqui vira
 // requireRole('gestor') reforçado no servidor, não só escondido na tela.

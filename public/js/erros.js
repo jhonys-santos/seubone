@@ -2175,6 +2175,8 @@
                 <div class="er-foto-drop" id="erFotoDrop"><b>Clique para adicionar arquivos</b> ou arraste aqui</div>
                 <input type="file" id="erFotoInput" accept="image/*,video/*,audio/*" multiple style="display:none">
                 <div class="er-foto-prev" id="erFotoPrev"></div>
+                <button class="er-btn er-btn-ghost" type="button" id="erBtnSalvarAnexoNovo" style="margin-top:9px;display:none">Salvar anexo</button>
+                <div class="er-foto-hint" id="erFotoHintNovo" style="font-size:11.5px;color:var(--text-muted);margin-top:6px">O anexo precisa estar salvo (✓) antes de registrar o erro — garante que o caso nunca sobe sem a foto/vídeo.</div>
               </div>
 
               <div class="er-sec-title" style="margin-top:20px">Classificação <span class="er-badge er-pill-warn">obrigatório</span></div>
@@ -2223,19 +2225,41 @@
     selResNovo.addEventListener('change', () => { document.getElementById('erLogicaBoxNovo').textContent = selResNovo.value ? getRes(selResNovo.value).logica : 'Selecione o tipo de resolução para ver a lógica de custo.'; });
 
     // --- Fotos/áudios/vídeos: seleção + preview (foto comprime, o resto vai cru) ---
-    const FOTOS = []; // { url: data URL, tipo: mime, nome } prontos pra enviar
+    // Cada arquivo passa por um estado: 'pendente' (só selecionado) -> 'salvando'
+    // -> 'salvo' (já tem link do Drive, confirmado) ou 'erro'. "Registrar erro"
+    // só libera com pelo menos 1 arquivo 'salvo' e nenhum pendente/erro sobrando —
+    // assim o caso nunca é criado antes do anexo estar de verdade no Drive.
+    const FOTOS = []; // { url: data URL, tipo: mime, nome, estado, driveUrl }
     const fotoDrop = document.getElementById('erFotoDrop');
     const fotoInput = document.getElementById('erFotoInput');
     const fotoPrev = document.getElementById('erFotoPrev');
+    const btnSalvarAnexo = document.getElementById('erBtnSalvarAnexoNovo');
+    const btnCriar = document.getElementById('erBtnCriarCaso');
     const iconeAnexo = (tipo) => (/^video\//.test(tipo) ? '🎬' : /^audio\//.test(tipo) ? '🎵' : '📄');
+    const badgeDe = (estado) => ({
+      pendente: '<span class="fp-badge fp-pending">pendente</span>',
+      salvando: '<span class="fp-badge fp-loading">salvando…</span>',
+      salvo: '<span class="fp-badge fp-ok">✓ salvo</span>',
+      erro: '<span class="fp-badge fp-bad">✗ falhou</span>',
+    }[estado] || '');
     const renderPrev = () => {
       fotoPrev.innerHTML = FOTOS.map((f, i) => (
         /^image\//.test(f.tipo)
-          ? `<div class="fp"><img src="${f.url}" alt=""><button type="button" class="rm" data-i="${i}" title="Remover">✕</button></div>`
-          : `<div class="fp fp-arquivo" title="${erEsc(f.nome)}"><span class="fp-ic">${iconeAnexo(f.tipo)}</span><span class="fp-nome">${erEsc(f.nome)}</span><button type="button" class="rm" data-i="${i}" title="Remover">✕</button></div>`
+          ? `<div class="fp"><img src="${f.url}" alt="">${badgeDe(f.estado)}<button type="button" class="rm" data-i="${i}" title="Remover">✕</button></div>`
+          : `<div class="fp fp-arquivo" title="${erEsc(f.nome)}"><span class="fp-ic">${iconeAnexo(f.tipo)}</span><span class="fp-nome">${erEsc(f.nome)}</span>${badgeDe(f.estado)}<button type="button" class="rm" data-i="${i}" title="Remover">✕</button></div>`
       )).join('');
-      fotoPrev.querySelectorAll('.rm').forEach((b) => b.addEventListener('click', () => { FOTOS.splice(Number(b.dataset.i), 1); renderPrev(); }));
+      fotoPrev.querySelectorAll('.rm').forEach((b) => b.addEventListener('click', () => { FOTOS.splice(Number(b.dataset.i), 1); atualizaEstadoFotos(); }));
       fotoDrop.innerHTML = FOTOS.length ? `<b>${FOTOS.length} arquivo(s) selecionado(s)</b> · clique para adicionar mais (até ${MAX_FOTOS})` : `<b>Clique para adicionar arquivos</b> ou arraste aqui`;
+    };
+    const atualizaEstadoFotos = () => {
+      renderPrev();
+      const pendentes = FOTOS.filter((f) => f.estado === 'pendente' || f.estado === 'erro').length;
+      btnSalvarAnexo.style.display = pendentes ? '' : 'none';
+      btnSalvarAnexo.textContent = pendentes > 1 ? `Salvar ${pendentes} anexos` : 'Salvar anexo';
+      const temSalvo = FOTOS.some((f) => f.estado === 'salvo');
+      const temPendente = FOTOS.some((f) => f.estado !== 'salvo');
+      btnCriar.disabled = !temSalvo || temPendente;
+      btnCriar.title = !temSalvo ? 'Anexe e salve ao menos 1 arquivo antes de registrar' : temPendente ? 'Salve os anexos pendentes antes de registrar' : '';
     };
     const addFiles = async (files) => {
       const lista = Array.from(files);
@@ -2249,21 +2273,53 @@
         if (FOTOS.length >= MAX_FOTOS) { toast('Máximo de ' + MAX_FOTOS + ' arquivos', false); break; }
         try {
           const url = /^image\//.test(f.type) ? await comprimirImagem(f) : await lerArquivoDataUrl(f);
-          FOTOS.push({ url, tipo: f.type || 'application/octet-stream', nome: f.name });
+          FOTOS.push({ url, tipo: f.type || 'application/octet-stream', nome: f.name, estado: 'pendente', driveUrl: null });
         } catch (err) { toast('Arquivo ignorado: ' + err.message, false); }
       }
-      renderPrev();
+      atualizaEstadoFotos();
     };
     fotoDrop.addEventListener('click', () => fotoInput.click());
     fotoInput.addEventListener('change', () => { addFiles(fotoInput.files); fotoInput.value = ''; });
     ['dragover', 'dragenter'].forEach((ev) => fotoDrop.addEventListener(ev, (e) => { e.preventDefault(); fotoDrop.style.borderColor = 'var(--gold)'; }));
     ['dragleave', 'drop'].forEach((ev) => fotoDrop.addEventListener(ev, (e) => { e.preventDefault(); fotoDrop.style.borderColor = ''; }));
     fotoDrop.addEventListener('drop', (e) => { if (e.dataTransfer?.files?.length) addFiles(e.dataTransfer.files); });
+    atualizaEstadoFotos();
 
-    document.getElementById('erBtnCriarCaso').addEventListener('click', async () => {
+    btnSalvarAnexo.addEventListener('click', async () => {
+      const lote = FOTOS.filter((f) => f.estado === 'pendente' || f.estado === 'erro');
+      if (!lote.length) return;
+      lote.forEach((f) => { f.estado = 'salvando'; });
+      atualizaEstadoFotos();
+      btnSalvarAnexo.disabled = true;
+      try {
+        const resp = await fetch('/erros/api/salvar-foto-pre-caso', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ fotos: lote.map((f) => f.url) }),
+        });
+        const json = await resp.json();
+        if (!json.ok) throw new Error(json.error || 'Erro desconhecido');
+        // Se alguma falhou, não dá pra saber COM CERTEZA qual dentro do lote
+        // (salvarFotos_ só devolve as URLs que deram certo, sem posição) —
+        // mais seguro marcar o lote inteiro como erro e deixar tentar de novo.
+        if (json.falhas > 0 || json.urls.length !== lote.length) {
+          lote.forEach((f) => { f.estado = 'erro'; });
+          toast(`${json.falhas || (lote.length - json.urls.length)} de ${lote.length} anexo(s) não foram salvos (${json.erroExemplo || 'motivo desconhecido'}). Tente de novo.`, false);
+        } else {
+          lote.forEach((f, i) => { f.estado = 'salvo'; f.driveUrl = json.urls[i]; });
+          toast(lote.length > 1 ? `${lote.length} anexos salvos` : 'Anexo salvo', true);
+        }
+      } catch (err) {
+        lote.forEach((f) => { f.estado = 'erro'; });
+        toast('Falha ao salvar anexo: ' + err.message, false);
+      } finally {
+        btnSalvarAnexo.disabled = false;
+        atualizaEstadoFotos();
+      }
+    });
+
+    btnCriar.addEventListener('click', async () => {
       const fd = new FormData(document.getElementById('erFormNovo'));
       const g = (k) => String(fd.get(k) || '').trim();
-      const btnCriar = document.getElementById('erBtnCriarCaso');
 
       const idVenda = g('idVenda');
       const formNovo = document.getElementById('erFormNovo');
@@ -2278,8 +2334,10 @@
       ];
       let primeiroErro = null;
       obrigatorios.forEach(([n, txt]) => { const el = formNovo.querySelector('[name="' + n + '"]'); if (el && !el.value.trim()) { markFieldErr(el, txt); if (!primeiroErro) primeiroErro = el; } });
-      // Precisa de pelo menos 1 mídia mostrando o erro — não é mais opcional.
-      if (!FOTOS.length) { markFieldErr(fotoInput, 'Anexe ao menos 1 foto, áudio ou vídeo mostrando o erro'); if (!primeiroErro) primeiroErro = fotoDrop; }
+      // Precisa de pelo menos 1 mídia JÁ SALVA mostrando o erro — o botão
+      // já fica desabilitado nesse caso, isso aqui é só defesa extra.
+      const fotosSalvas = FOTOS.filter((f) => f.estado === 'salvo');
+      if (!fotosSalvas.length) { markFieldErr(fotoInput, 'Anexe e salve ao menos 1 foto, áudio ou vídeo mostrando o erro'); if (!primeiroErro) primeiroErro = fotoDrop; }
       if (primeiroErro) { primeiroErro.focus(); primeiroErro.scrollIntoView({ behavior: 'smooth', block: 'center' }); msg.textContent = 'Preencha os campos obrigatórios (*).'; return; }
 
       // Quantidade não pode ser negativa.
@@ -2304,7 +2362,7 @@
         tipoProblema: g('tipoProblema'), subproblema: g('subproblema'),
         qtd: qtdNum, tipoResolucao: g('tipoResolucao'),
         auditoria: false, status: 'novo',
-        fotos: FOTOS.map((f) => f.url), // data URLs (foto comprimida, resto cru); o servidor salva e grava o(s) link(s)
+        fotosUrls: fotosSalvas.map((f) => f.driveUrl), // já salvas no Drive antes de registrar (ver botão "Salvar anexo")
       };
 
       btnCriar.disabled = true; msg.textContent = 'Gravando…';

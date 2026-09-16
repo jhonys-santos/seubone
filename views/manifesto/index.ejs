@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<%- include('../partials/head') %>
+<title>Manifesto - SeuBoné</title>
+<link rel="stylesheet" href="/css/manifesto.css">
+</head>
+<body>
+<div class="app-shell">
+<%- include('../partials/sidebar') %>
+<div class="app-main">
+
+<div class="mf-scope">
+
+  <div class="mf-header">
+    <div>
+      <h1><i class="ti ti-file-invoice" aria-hidden="true"></i> Manifesto</h1>
+      <p>Consulta notas fiscais de outro sistema e soma o peso e o valor total do período.</p>
+    </div>
+  </div>
+
+  <div class="mf-filtros">
+    <div class="mf-campo">
+      <label for="mfDe">De</label>
+      <input type="date" id="mfDe">
+    </div>
+    <div class="mf-campo">
+      <label for="mfAte">Até</label>
+      <input type="date" id="mfAte">
+    </div>
+    <button class="mf-btn mf-btn-accent" id="mfBtnBuscar"><i class="ti ti-search" aria-hidden="true"></i> Buscar Notas</button>
+  </div>
+
+  <div id="mfConteudo"></div>
+
+</div>
+
+</div>
+</div>
+
+<script src="/js/manifesto.js"></script>
+</body>
+</html>

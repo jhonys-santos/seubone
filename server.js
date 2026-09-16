@@ -36,6 +36,7 @@ const agendaSemanaRoutes = require('./src/routes/agendaSemana.routes');
 const auditoriaRoutes = require('./src/routes/auditoria.routes');
 const errosRoutes = require('./src/routes/erros.routes');
 const ticketsRoutes = require('./src/routes/tickets.routes');
+const manifestoRoutes = require('./src/routes/manifesto.routes');
 
 const app = express();
 
@@ -123,6 +124,7 @@ app.use('/agenda-semana', agendaSemanaRoutes);
 app.use('/auditoria', auditoriaRoutes);
 app.use('/erros', errosRoutes);
 app.use('/tickets', ticketsRoutes);
+app.use('/manifesto', manifestoRoutes);
 app.use(notificacoesRoutes);
 
 app.use((req, res) => {

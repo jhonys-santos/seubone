@@ -72,4 +72,10 @@ module.exports = {
   // autenticação própria (rota interna, protegida só por rede) — confirmado
   // em teste direto.
   luluPedidosPpfVencidoUrl: required('LULU_PEDIDOS_PPF_VENCIDO_URL', 'https://intranet.seubone.com/integracoes/sucesso-cliente/pedidos-ppf-vencido'),
+
+  // Manifesto (notas fiscais) — API do setor de cobranças, consultada ao
+  // vivo a cada busca (sem persistência própria no hub). Autentica via
+  // Bearer token, não pelo padrão "segredo" do Apps Script.
+  manifestoNotasUrl: required('MANIFESTO_NOTAS_URL', 'https://cobrancas-seubone.vercel.app/api/externo/notas'),
+  manifestoNotasToken: required('MANIFESTO_NOTAS_TOKEN', ''),
 };
