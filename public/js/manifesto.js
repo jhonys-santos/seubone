@@ -83,8 +83,8 @@
     conteudo.innerHTML = `
       <div class="mf-kpis">
         <div class="mf-kpi"><div class="k-l">Notas encontradas</div><div class="k-v">${notas.length}</div></div>
-        <div class="mf-kpi"><div class="k-l">Peso total</div><div class="k-v">${fmtPeso(totalPeso)}</div>${temPesoIncompleto ? '<div class="k-foot">⚠ algum peso ainda não confirmado</div>' : ''}</div>
-        <div class="mf-kpi accent"><div class="k-l">Valor total</div><div class="k-v">${fmtMoeda(totalValor)}</div></div>
+        <div class="mf-kpi"><div class="k-l">Peso total</div><div class="k-v mf-copiar" title="Clique para copiar" data-copiar="${fmtNumero(totalPeso)}">${fmtPeso(totalPeso)}</div>${temPesoIncompleto ? '<div class="k-foot">⚠ algum peso ainda não confirmado</div>' : ''}</div>
+        <div class="mf-kpi accent"><div class="k-l">Valor total</div><div class="k-v mf-copiar" title="Clique para copiar" data-copiar="${fmtNumero(totalValor)}">${fmtMoeda(totalValor)}</div></div>
         <div class="mf-kpi"><div class="k-l">Itens (quantidade)</div><div class="k-v">${totalQtd}</div></div>
       </div>
       <div class="mf-table-wrap">
@@ -96,7 +96,7 @@
           <tbody>
             ${notas.map((n) => `
               <tr>
-                <td>${mfEsc(n.numero)}</td>
+                <td class="mf-copiar" title="Clique para copiar" data-copiar="${mfEsc(n.numero)}">${mfEsc(n.numero)}</td>
                 <td class="mf-copiar mf-chave-cel" title="Clique para copiar" data-copiar="${mfEsc(n.chaveNfe)}">${mfEsc(n.chaveNfe)}</td>
                 <td>${fmtDataBR(n.dataEmissao)}</td>
                 <td class="num">${mfEsc(n.quantidade)}</td>
