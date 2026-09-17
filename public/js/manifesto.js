@@ -25,6 +25,14 @@
     return n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' kg';
   }
 
+  // Só o número, sem "R$"/"kg" — pra copiar e colar direto numa planilha
+  // (vírgula decimal, ponto de milhar: formato que o Excel em pt-BR já
+  // reconhece como número, sem precisar reformatar depois de colar).
+  function fmtNumero(v) {
+    const n = Number(v) || 0;
+    return mfEsc(n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+  }
+
   function toast(msg, ok) {
     const el = document.createElement('div');
     el.className = 'mf-toast' + (ok ? ' ok' : ' bad');
@@ -82,30 +90,29 @@
       <div class="mf-table-wrap">
         <table class="mf-table">
           <thead><tr>
-            <th>Número</th><th>Chave NFe</th><th>Cliente</th><th>Emissão</th>
+            <th>Número</th><th>Chave NFe</th><th>Emissão</th>
             <th class="num">Qtd</th><th class="num">Peso</th><th class="num">Valor</th>
           </tr></thead>
           <tbody>
             ${notas.map((n) => `
               <tr>
                 <td>${mfEsc(n.numero)}</td>
-                <td class="mf-chave" title="Clique para copiar" data-chave="${mfEsc(n.chaveNfe)}">${mfEsc(n.chaveNfe)}</td>
-                <td>${mfEsc(n.cliente)}</td>
+                <td class="mf-copiar mf-chave-cel" title="Clique para copiar" data-copiar="${mfEsc(n.chaveNfe)}">${mfEsc(n.chaveNfe)}</td>
                 <td>${fmtDataBR(n.dataEmissao)}</td>
                 <td class="num">${mfEsc(n.quantidade)}</td>
-                <td class="num">${fmtPeso(n.pesoLiquido)}${n.pesoCompleto === false ? ' <span class="mf-peso-parcial" title="Peso ainda não confirmado">⚠</span>' : ''}</td>
-                <td class="num">${fmtMoeda(n.valorTotal)}</td>
+                <td class="num mf-copiar" title="Clique para copiar" data-copiar="${fmtNumero(n.pesoLiquido)}">${fmtPeso(n.pesoLiquido)}${n.pesoCompleto === false ? ' <span class="mf-peso-parcial" title="Peso ainda não confirmado">⚠</span>' : ''}</td>
+                <td class="num mf-copiar" title="Clique para copiar" data-copiar="${fmtNumero(n.valorTotal)}">${fmtMoeda(n.valorTotal)}</td>
               </tr>
             `).join('')}
           </tbody>
         </table>
       </div>`;
 
-    conteudo.querySelectorAll('.mf-chave').forEach((td) => {
+    conteudo.querySelectorAll('.mf-copiar').forEach((td) => {
       td.addEventListener('click', async () => {
         try {
-          await navigator.clipboard.writeText(td.dataset.chave);
-          toast('Chave copiada', true);
+          await navigator.clipboard.writeText(td.dataset.copiar);
+          toast('Copiado', true);
         } catch (e) {
           toast('Não consegui copiar automaticamente', false);
         }
