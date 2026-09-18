@@ -37,6 +37,11 @@ function renderListaAnexos(listaEl) {
   });
 }
 
+// Sugere o último e-mail preenchido (aqui ou em Registro/Pagamento) — é
+// sempre a mesma pessoa do financeiro digitando o próprio e-mail de novo
+// em cada solicitação, então poupa retrabalho repetitivo no dia a dia.
+document.getElementById('r-email').value = localStorage.getItem('rd-ultimo-email') || '';
+
 const inputAnexosEl = document.getElementById('r-anexos');
 const listaAnexosEl = document.getElementById('r-anexos-lista');
 inputAnexosEl.addEventListener('change', () => {
@@ -99,10 +104,11 @@ document.getElementById('btn-registrar').addEventListener('click', async () => {
     if (!result.ok) throw new Error(result.erro || 'erro ao registrar');
 
     mostrarMsg('Solicitação de reembolso registrada!', 'ok');
+    localStorage.setItem('rd-ultimo-email', email);
     document.getElementById('r-id').value = '';
     document.getElementById('r-vencimento').value = '';
     document.getElementById('r-cpfcnpj').value = '';
-    document.getElementById('r-email').value = '';
+    document.getElementById('r-email').value = email;
     document.getElementById('r-motivo').value = '';
     document.getElementById('r-razaosocial').value = '';
     document.getElementById('r-banco').value = '';

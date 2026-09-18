@@ -8,6 +8,10 @@ function hojeISO() {
   return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
 }
 document.getElementById('f-data').value = hojeISO();
+// Sugere o último e-mail preenchido (aqui ou em Pagamento/Reembolso) — é
+// sempre a mesma pessoa do financeiro digitando o próprio e-mail de novo
+// em cada solicitação, então poupa retrabalho repetitivo no dia a dia.
+document.getElementById('f-email').value = localStorage.getItem('rd-ultimo-email') || '';
 
 function mostrarMsg(texto, tipo) {
   const el = document.getElementById('form-msg');
@@ -143,6 +147,7 @@ document.getElementById('btn-registrar').addEventListener('click', async () => {
     if (!result.ok) throw new Error(result.erro || 'erro ao registrar');
 
     mostrarMsg('Solicitação registrada!', 'ok');
+    localStorage.setItem('rd-ultimo-email', email);
     document.getElementById('f-solicitante').value = '';
     document.getElementById('f-empresa').value = '';
     document.getElementById('f-numero').value = '';
@@ -151,7 +156,7 @@ document.getElementById('btn-registrar').addEventListener('click', async () => {
     document.getElementById('f-demanda').value = '';
     document.getElementById('f-descricao').value = '';
     document.getElementById('f-vencimento').value = '';
-    document.getElementById('f-email').value = '';
+    document.getElementById('f-email').value = email;
     document.getElementById('f-idvenda').value = '';
     document.getElementById('f-link').value = '';
     anexosSelecionados = [];
