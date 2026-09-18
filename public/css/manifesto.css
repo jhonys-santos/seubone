@@ -26,6 +26,17 @@
 .mf-erro .e-title { font-size: 15px; font-weight: 700; color: var(--bad-text, var(--bad)); margin-bottom: 6px; }
 .mf-erro .e-sub { font-size: 12.5px; color: var(--text-muted); margin-bottom: 14px; }
 
+.mf-card-filtro { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 16px; margin-bottom: 18px; }
+.mf-filtro-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
+.mf-filtro-titulo { font-size: 11px; font-weight: 700; color: var(--text-hint); text-transform: uppercase; letter-spacing: .5px; }
+.mf-filtro-acoes { display: flex; gap: 12px; }
+.mf-link-btn { background: none; border: none; padding: 0; font-size: 11.5px; font-weight: 700; color: var(--gold); cursor: pointer; font-family: inherit; }
+.mf-link-btn:hover { color: var(--gold-dark); text-decoration: underline; }
+.mf-cfop-lista { display: flex; flex-wrap: wrap; gap: 8px; }
+.mf-cfop-chip { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: var(--text-muted); background: var(--surface-2); border: 1px solid var(--border-strong); border-radius: 20px; padding: 5px 11px 5px 9px; cursor: pointer; user-select: none; }
+.mf-cfop-chip:has(input:checked) { color: var(--text); border-color: var(--gold-dark); background: var(--gold-dim); }
+.mf-cfop-chip input { accent-color: var(--gold); cursor: pointer; margin: 0; }
+
 .mf-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 18px; }
 .mf-kpi { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; }
 .mf-kpi .k-l { font-size: 10.5px; font-weight: 700; color: var(--text-hint); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 6px; }
