@@ -184,6 +184,12 @@
   }
   const MAX_FOTOS = 6;
   const MAX_ANEXOS_MB = 20; // soma de todos os arquivos do Novo Caso — imagem já comprimida, áudio/vídeo cru
+  // Rascunho do "Registrar novo erro" — sobrevive a um F5/fechar aba sem
+  // querer, pra ninguém perder um formulário grande (ou anexo já salvo no
+  // Drive) por acidente. Só um rascunho por vez (não tem como ter duas
+  // instâncias do modal abertas ao mesmo tempo).
+  const RASCUNHO_NOVO_CASO_KEY = 'erRascunhoNovoCaso_v1';
+  const RASCUNHO_NOVO_CASO_MAX_IDADE_MS = 48 * 3600000; // 48h — mais velho que isso, ignora
 
   /* ================= STATUS (modelo de workflow) ================= */
   const STATUS_DEF = [
@@ -2214,7 +2220,7 @@
     const _prevFocus = document.activeElement;
     const _untrap = trapFocus(modalRoot.querySelector('.er-modal'));
     const _onKey = (e) => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); close(); } };
-    const close = () => { if (_untrap) _untrap(); document.removeEventListener('keydown', _onKey, true); modalRoot.innerHTML = ''; if (_prevFocus && _prevFocus.focus) { try { _prevFocus.focus(); } catch (e) {} } };
+    const close = () => { limparRascunhoNovoCaso(); if (_untrap) _untrap(); document.removeEventListener('keydown', _onKey, true); modalRoot.innerHTML = ''; if (_prevFocus && _prevFocus.focus) { try { _prevFocus.focus(); } catch (e) {} } };
     document.addEventListener('keydown', _onKey, true);
     document.getElementById('erCloseModalNovo').addEventListener('click', close);
     document.getElementById('erBtnCancelarNovo').addEventListener('click', close);
@@ -2230,6 +2236,7 @@
     // só libera com pelo menos 1 arquivo 'salvo' e nenhum pendente/erro sobrando —
     // assim o caso nunca é criado antes do anexo estar de verdade no Drive.
     const FOTOS = []; // { url: data URL, tipo: mime, nome, estado, driveUrl }
+    const formNovo = document.getElementById('erFormNovo');
     const fotoDrop = document.getElementById('erFotoDrop');
     const fotoInput = document.getElementById('erFotoInput');
     const fotoPrev = document.getElementById('erFotoPrev');
@@ -2244,7 +2251,10 @@
     }[estado] || '');
     const renderPrev = () => {
       fotoPrev.innerHTML = FOTOS.map((f, i) => (
-        /^image\//.test(f.tipo)
+        // Item restaurado de rascunho não guarda o preview em base64 (só o
+        // link já salvo no Drive) — sem "url" pra mostrar, cai no visual de
+        // arquivo genérico mesmo sendo imagem, nunca numa tag <img> quebrada.
+        (f.url && /^image\//.test(f.tipo))
           ? `<div class="fp"><img src="${f.url}" alt="">${badgeDe(f.estado)}<button type="button" class="rm" data-i="${i}" title="Remover">✕</button></div>`
           : `<div class="fp fp-arquivo" title="${erEsc(f.nome)}"><span class="fp-ic">${iconeAnexo(f.tipo)}</span><span class="fp-nome">${erEsc(f.nome)}</span>${badgeDe(f.estado)}<button type="button" class="rm" data-i="${i}" title="Remover">✕</button></div>`
       )).join('');
@@ -2260,7 +2270,38 @@
       const temPendente = FOTOS.some((f) => f.estado !== 'salvo');
       btnCriar.disabled = !temSalvo || temPendente;
       btnCriar.title = !temSalvo ? 'Anexe e salve ao menos 1 arquivo antes de registrar' : temPendente ? 'Salve os anexos pendentes antes de registrar' : '';
+      salvarRascunhoNovoCaso();
     };
+
+    // --- Rascunho (sobrevive a F5/fechar aba sem querer) -------------------
+    // Guarda os campos de texto + só os anexos já CONFIRMADOS salvos no
+    // Drive (com o link, sem o base64 — isso pode ser grande e não serve
+    // pra nada de novo, o arquivo já está seguro lá). Anexo ainda pendente
+    // (não salvo) não entra no rascunho: se sumir, é só re-selecionar e
+    // salvar de novo, sem risco de estourar a cota do localStorage.
+    function coletarCamposNovoCaso_() {
+      const obj = {};
+      formNovo.querySelectorAll('input[name], select[name], textarea[name]').forEach((el) => { obj[el.name] = el.value; });
+      return obj;
+    }
+    function salvarRascunhoNovoCaso() {
+      try {
+        const fotosSalvas = FOTOS.filter((f) => f.estado === 'salvo').map((f) => ({ nome: f.nome, tipo: f.tipo, driveUrl: f.driveUrl }));
+        localStorage.setItem(RASCUNHO_NOVO_CASO_KEY, JSON.stringify({ campos: coletarCamposNovoCaso_(), fotos: fotosSalvas, quando: Date.now() }));
+      } catch (e) { /* modo privado, cota cheia etc. — rascunho é conveniência, não essencial */ }
+    }
+    function limparRascunhoNovoCaso() {
+      try { localStorage.removeItem(RASCUNHO_NOVO_CASO_KEY); } catch (e) {}
+    }
+    function carregarRascunhoNovoCaso_() {
+      try {
+        const bruto = localStorage.getItem(RASCUNHO_NOVO_CASO_KEY);
+        if (!bruto) return null;
+        const obj = JSON.parse(bruto);
+        if (!obj || !obj.quando || Date.now() - obj.quando > RASCUNHO_NOVO_CASO_MAX_IDADE_MS) return null;
+        return obj;
+      } catch (e) { return null; }
+    }
     const addFiles = async (files) => {
       const lista = Array.from(files);
       const tamanhoNovo = lista.reduce((soma, f) => soma + f.size, 0);
@@ -2283,7 +2324,28 @@
     ['dragover', 'dragenter'].forEach((ev) => fotoDrop.addEventListener(ev, (e) => { e.preventDefault(); fotoDrop.style.borderColor = 'var(--gold)'; }));
     ['dragleave', 'drop'].forEach((ev) => fotoDrop.addEventListener(ev, (e) => { e.preventDefault(); fotoDrop.style.borderColor = ''; }));
     fotoDrop.addEventListener('drop', (e) => { if (e.dataTransfer?.files?.length) addFiles(e.dataTransfer.files); });
+
+    // Restaura rascunho de uma sessão anterior (F5, aba fechada sem querer
+    // etc.) ANTES do primeiro atualizaEstadoFotos() — essa função já salva
+    // o estado atual como rascunho de novo (só reflete pra cá), e se
+    // rodasse antes de ler o rascunho antigo, sobrescreveria ele em branco
+    // antes da gente conseguir recuperar nada.
+    const rascunhoNovoCaso = carregarRascunhoNovoCaso_();
+    if (rascunhoNovoCaso) {
+      Object.entries(rascunhoNovoCaso.campos || {}).forEach(([nome, valor]) => {
+        const el = formNovo.querySelector('[name="' + nome + '"]');
+        if (el && valor) el.value = valor;
+      });
+      if (selResNovo.value) document.getElementById('erLogicaBoxNovo').textContent = getRes(selResNovo.value).logica;
+      (rascunhoNovoCaso.fotos || []).forEach((f) => FOTOS.push({ url: '', tipo: f.tipo, nome: f.nome, estado: 'salvo', driveUrl: f.driveUrl }));
+      const teveAlgo = (rascunhoNovoCaso.fotos && rascunhoNovoCaso.fotos.length) || Object.values(rascunhoNovoCaso.campos || {}).some(Boolean);
+      if (teveAlgo) toast('Rascunho recuperado — confira os dados antes de registrar.', true);
+    }
     atualizaEstadoFotos();
+    formNovo.querySelectorAll('input[name], select[name], textarea[name]').forEach((el) => {
+      el.addEventListener('input', salvarRascunhoNovoCaso);
+      el.addEventListener('change', salvarRascunhoNovoCaso);
+    });
 
     btnSalvarAnexo.addEventListener('click', async () => {
       const lote = FOTOS.filter((f) => f.estado === 'pendente' || f.estado === 'erro');
@@ -2318,11 +2380,10 @@
     });
 
     btnCriar.addEventListener('click', async () => {
-      const fd = new FormData(document.getElementById('erFormNovo'));
+      const fd = new FormData(formNovo);
       const g = (k) => String(fd.get(k) || '').trim();
 
       const idVenda = g('idVenda');
-      const formNovo = document.getElementById('erFormNovo');
       const msg = document.getElementById('erSaveMsgNovo');
       clearFieldErrs(formNovo);
       const obrigatorios = [

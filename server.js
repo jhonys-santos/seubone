@@ -13,6 +13,14 @@ const { iniciarImportacaoLulu } = require('./src/services/ticketsImportLulu.serv
 const catalogoPaineis = require('./src/config/paineis');
 const catalogoAtalhos = require('./src/config/atalhos');
 
+// Versão de boot — muda a cada deploy (o processo reinicia do zero) e fica
+// fixa entre deploys. Usada como "?v=" nos <script>/<link> das telas que
+// precisam garantir que ninguém fique rodando JS velho em cache depois de
+// uma correção (ex: trava de anexo do Painel de Erros) — sem isso, quem
+// não atualiza a página manualmente pode continuar com o bug corrigido há
+// dias, achando que já subiu.
+const APP_BOOT_VERSION = String(Date.now());
+
 // A pasta de sessões não é versionada (fica no .gitignore) — em um deploy
 // novo (ex: Render) ela simplesmente não existe ainda. Sem isso, a store
 // falha silenciosamente ao gravar e o cookie de sessão nunca é enviado,
@@ -96,6 +104,7 @@ app.use((req, res, next) => {
   const usuario = req.session.user || null;
   res.locals.usuario = usuario;
   res.locals.rotaAtual = req.path;
+  res.locals.appVersion = APP_BOOT_VERSION;
   if (usuario) {
     res.locals.paineisVisiveis = catalogoPaineis.filter((p) => usuariosService.podeAcessarPainel(usuario, p.chave) && usuariosService.podeVerPainelRestrito(usuario, p));
     res.locals.atalhosVisiveis = catalogoAtalhos.filter((a) => !a.requerPainel || usuariosService.podeAcessarPainel(usuario, a.requerPainel));

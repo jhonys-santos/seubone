@@ -4,7 +4,7 @@
 <%- include('../partials/head') %>
 <title>Painel de Erros - SeuBoné</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
-<link rel="stylesheet" href="/css/erros.css">
+<link rel="stylesheet" href="/css/erros.css?v=<%= appVersion %>">
 </head>
 <body>
 <div class="app-shell">
@@ -67,6 +67,6 @@
 <script>
   window.USUARIO_SESSAO = <%- JSON.stringify(usuario) %>;
 </script>
-<script src="/js/erros.js"></script>
+<script src="/js/erros.js?v=<%= appVersion %>"></script>
 </body>
 </html>
