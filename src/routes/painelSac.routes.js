@@ -93,6 +93,39 @@ async function contarAuditoriasFeitas(slugAlvo, periodo, mes, ano, semIni, semFi
     .length;
 }
 
+// Gabrielle e Daniel: "TMT Ped. Atrasados" (tmr_ppf, em minutos — fmtHoras
+// no front espera minutos) e "Tickets" deixam de vir da planilha antiga do
+// Painel SAC e passam a vir direto do Painel de Ticket de verdade — mesma
+// fonte/regra já usada no Time Resolução do Ranking SAC (ver
+// rankingSac.routes.js): Tickets = todo "Resolvido" com fechamento no
+// período; TMT = só a média dos "Pedido atrasado" resolvidos no período.
+// Reaproveita registroNoPeriodo (mesma semana/mês que o resto da tela já
+// usa) pra bater exatamente com o toggle semanal/mensal existente.
+const CONSULTORES_TICKETS_SLUGS = ['gabrielle', 'daniel'];
+
+async function buscarTicketsResolucao(slugAlvo, periodo, mes, ano, semIni, semFim) {
+  if (!CONSULTORES_TICKETS_SLUGS.includes(slugAlvo)) return null;
+
+  const json = await chamarAppsScript(env.ticketsAppsScriptUrl, { cache: true });
+  if (!json || !json.ok || !Array.isArray(json.tickets)) return null;
+
+  const resolvidosNoPeriodo = json.tickets.filter(
+    (t) => t.responsavelSlug === slugAlvo && t.status === 'Resolvido' && t.dataFechamento
+      && registroNoPeriodo(t.dataFechamento, periodo, mes, ano, semIni, semFim)
+  );
+
+  const ppfNoPeriodo = resolvidosNoPeriodo.filter((t) => t.identificador === 'Pedido atrasado');
+  let tmrMinutos = 0;
+  if (ppfNoPeriodo.length) {
+    const minutos = ppfNoPeriodo
+      .map((t) => (new Date(t.dataFechamento).getTime() - new Date(t.dataAbertura).getTime()) / 60000)
+      .filter((m) => Number.isFinite(m) && m >= 0);
+    if (minutos.length) tmrMinutos = minutos.reduce((a, b) => a + b, 0) / minutos.length;
+  }
+
+  return { tmr_ppf: tmrMinutos, tickets: resolvidosNoPeriodo.length };
+}
+
 router.get('/', (req, res) => {
   const u = req.session.user;
   const iniciais = u.nome
@@ -162,6 +195,20 @@ router.get('/api/dados', resolveSlug, async (req, res) => {
         if (count !== null) json.indicadores.auditorias = count;
       } catch (err) {
         console.error('[painel-sac] falha ao contar auditorias feitas:', err.message);
+      }
+    }
+
+    // Independente do bloco acima (Gabrielle também audita — ela precisa das
+    // DUAS sobrescritas juntas, não é um "ou" com o audit/auditorias dela).
+    if (CONSULTORES_TICKETS_SLUGS.includes(req.slugAlvo) && json.indicadores) {
+      try {
+        const ticketsResolucao = await buscarTicketsResolucao(req.slugAlvo, periodo, mes, ano, sem_ini, sem_fim);
+        if (ticketsResolucao) {
+          json.indicadores.tmr_ppf = ticketsResolucao.tmr_ppf;
+          json.indicadores.tickets = ticketsResolucao.tickets;
+        }
+      } catch (err) {
+        console.error('[painel-sac] falha ao buscar TMT/tickets do Painel de Ticket:', err.message);
       }
     }
 
