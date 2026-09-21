@@ -77,4 +77,21 @@ async function marcarLida(id, slug) {
   return !!json.ok;
 }
 
-module.exports = { listarNaoLidas, adicionar, marcarLida };
+// Botão "Limpar todas" do sininho — marca de uma vez tudo que essa pessoa
+// ainda não leu, reaproveitando a mesma ação de marcar-lida por item (sem
+// precisar de uma ação nova no Apps Script). Devolve quantas foram limpas.
+async function marcarTodasLidas(slug) {
+  const naoLidas = await listarNaoLidas(slug);
+  await Promise.all(
+    naoLidas.map((n) =>
+      chamarAppsScript(env.registroDemandasAppsScriptUrl, {
+        method: 'POST',
+        body: { action: 'marcarNotificacaoLida', id: n.id, slug },
+      })
+    )
+  );
+  await podar(await listarTodas());
+  return naoLidas.length;
+}
+
+module.exports = { listarNaoLidas, adicionar, marcarLida, marcarTodasLidas };

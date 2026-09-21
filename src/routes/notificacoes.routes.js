@@ -26,4 +26,13 @@ router.post('/api/notificacoes/:id/marcar-lida', async (req, res) => {
   }
 });
 
+router.post('/api/notificacoes/marcar-todas-lidas', async (req, res) => {
+  try {
+    const total = await notificacoesService.marcarTodasLidas(req.session.user.slug);
+    res.json({ ok: true, total });
+  } catch (err) {
+    res.status(502).json({ ok: false, erro: 'Falha ao limpar notificações: ' + err.message });
+  }
+});
+
 module.exports = router;

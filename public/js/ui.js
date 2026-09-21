@@ -352,6 +352,8 @@ function copiarTexto(texto, btn) {
   function renderNotificacoes(lista) {
     const container = document.getElementById('notificacoes-lista');
     if (!container) return;
+    const btnLimpar = document.getElementById('btn-limpar-notificacoes');
+    if (btnLimpar) btnLimpar.style.display = lista.length ? '' : 'none';
     if (!lista.length) {
       container.innerHTML = '<div style="font-size:12px;color:var(--text-hint);text-align:center;padding:16px">Nenhuma notificação nova.</div>';
       return;
@@ -407,6 +409,17 @@ function copiarTexto(texto, btn) {
     try {
       await fetch(`/api/notificacoes/${id}/marcar-lida`, { method: 'POST' });
     } catch (e) {}
+    carregarNotificacoes();
+  };
+
+  window.limparTodasNotificacoes = async function limparTodasNotificacoes() {
+    const btn = document.getElementById('btn-limpar-notificacoes');
+    if (btn) btn.disabled = true;
+    renderNotificacoes([]); // some da tela na hora, sem esperar a resposta
+    try {
+      await fetch('/api/notificacoes/marcar-todas-lidas', { method: 'POST' });
+    } catch (e) {}
+    if (btn) btn.disabled = false;
     carregarNotificacoes();
   };
 
