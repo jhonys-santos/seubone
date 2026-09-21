@@ -583,41 +583,56 @@ function criarCaso_(f, usuario, usuarioSlug) {
 
     var novaLinha = ultimaLinhaDeDados_(sh, col) + 1;
 
-    var hoje = new Date();
-    setCell_(sh, novaLinha, col, 'data', fmtDate_(hoje));
+    // Monta a linha inteira num array e grava com UMA chamada (setValues) em
+    // vez de uma chamada por campo (eram ~19 antes). Sob carga pesada, cada
+    // chamada extra é mais uma chance de uma falha transitória do Google
+    // interromper a execução bem no meio — confirmado em produção: linhas
+    // com vários campos preenchidos (descrição, setor, responsável...) mas
+    // SEM foto e SEM o log "Caso registrado", porque a execução morreu
+    // entre um setCell_ e outro. Com uma gravação só, ou grava a linha
+    // inteira ou não grava nada — nunca fica pela metade.
+    var linha = new Array(header.length).fill('');
+    function set(key, value) {
+      var i = col[key];
+      if (i == null) return;
+      if (value === undefined || value === null || value === '') return;
+      linha[i] = value;
+    }
 
-    setCell_(sh, novaLinha, col, 'auditoria',     f.auditoria ? 'TRUE' : 'FALSE');
-    setCell_(sh, novaLinha, col, 'status',        f.status || (f.auditoria ? 'resolvido' : 'novo'));
-    setCell_(sh, novaLinha, col, 'idVenda',       f.idVenda);
-    setCell_(sh, novaLinha, col, 'nomeCard',      f.nomeCard);
-    setCell_(sh, novaLinha, col, 'descricao',     f.descricao);
-    setCell_(sh, novaLinha, col, 'linkPedido',    f.linkPedido);
-    setCell_(sh, novaLinha, col, 'quemCadastrou', f.quemCadastrou);
-    setCell_(sh, novaLinha, col, 'culpaDe',       f.culpaDe);
-    setCell_(sh, novaLinha, col, 'setor',         f.setor);
-    setCell_(sh, novaLinha, col, 'responsavel',   f.responsavel);
-    setCell_(sh, novaLinha, col, 'empresa',       f.empresa);
-    setCell_(sh, novaLinha, col, 'tipoProblema',  f.tipoProblema);
-    setCell_(sh, novaLinha, col, 'subproblema',   f.subproblema);
-    setCell_(sh, novaLinha, col, 'qtd',           f.qtd);
-    setCell_(sh, novaLinha, col, 'custo',         f.custo);
-    setCell_(sh, novaLinha, col, 'tipoProduto',   f.tipoProduto);
-    setCell_(sh, novaLinha, col, 'queFim',        f.queFim);
-    setCell_(sh, novaLinha, col, 'tipoResolucao', f.tipoResolucao);
+    var hoje = new Date();
+    set('data', fmtDate_(hoje));
+    set('auditoria',     f.auditoria ? 'TRUE' : 'FALSE');
+    set('status',        f.status || (f.auditoria ? 'resolvido' : 'novo'));
+    set('idVenda',       f.idVenda);
+    set('nomeCard',      f.nomeCard);
+    set('descricao',     f.descricao);
+    set('linkPedido',    f.linkPedido);
+    set('quemCadastrou', f.quemCadastrou);
+    set('culpaDe',       f.culpaDe);
+    set('setor',         f.setor);
+    set('responsavel',   f.responsavel);
+    set('empresa',       f.empresa);
+    set('tipoProblema',  f.tipoProblema);
+    set('subproblema',   f.subproblema);
+    set('qtd',           f.qtd);
+    set('custo',         f.custo);
+    set('tipoProduto',   f.tipoProduto);
+    set('queFim',        f.queFim);
+    set('tipoResolucao', f.tipoResolucao);
 
     // fotosErro fica pra avisar quem cadastrou (o registro em si sempre vale,
     // mesmo se o anexo falhar) — antes disso a resposta dizia sempre "ok" e o
     // caso subia sem anexo sem ninguém perceber.
     var fotosErro = null;
+    var fotosErroAcao = 'Fotos não salvas';
     if (f.fotosUrls && f.fotosUrls.length) {
       // Fluxo novo: as fotos já foram salvas no Drive ANTES de criar o caso
       // (action "salvarFotoPreCaso"), só grava os links — sem novo upload
       // aqui, então não tem como falhar nessa etapa.
       if (col.foto == null) {
         fotosErro = 'A planilha não tem a coluna "Foto". Adicione um cabeçalho "Foto".';
-        logHist_(novaLinha, f.idVenda, usuario || f.quemCadastrou, 'Fotos não salvas', fotosErro, usuarioSlug);
       } else {
-        setCell_(sh, novaLinha, col, 'foto', f.fotosUrls.join(','));
+        set('foto', f.fotosUrls.join(','));
       }
     } else if (f.fotos && f.fotos.length) {
       // Fluxo antigo (upload junto com a criação) — mantido só por
@@ -625,12 +640,11 @@ function criarCaso_(f, usuario, usuarioSlug) {
       // caminho.
       if (col.foto == null) {
         fotosErro = 'A planilha não tem a coluna "Foto". Adicione um cabeçalho "Foto".';
-        logHist_(novaLinha, f.idVenda, usuario || f.quemCadastrou, 'Fotos não salvas', fotosErro, usuarioSlug);
       } else {
         try {
           var resultadoFotos = salvarFotos_(f.fotos, f.idVenda);
           if (resultadoFotos.urls.length) {
-            setCell_(sh, novaLinha, col, 'foto', resultadoFotos.urls.join(','));
+            set('foto', resultadoFotos.urls.join(','));
           }
           // Reporta falha tanto no "nada salvou" quanto no "salvou só ALGUNS"
           // — antes, se 1 de 3 arquivos falhasse, os outros 2 geravam link e
@@ -639,15 +653,19 @@ function criarCaso_(f, usuario, usuarioSlug) {
             fotosErro = resultadoFotos.urls.length
               ? (resultadoFotos.falhas + ' de ' + f.fotos.length + ' arquivo(s) não foram salvos (' + (resultadoFotos.erroExemplo || 'motivo desconhecido') + ').')
               : 'Nenhum arquivo foi salvo (' + (resultadoFotos.erroExemplo || 'formato inesperado') + ').';
-            logHist_(novaLinha, f.idVenda, usuario || f.quemCadastrou, 'Fotos não salvas', fotosErro, usuarioSlug);
           }
         } catch (e) {
           fotosErro = String(e && e.message || e);
-          logHist_(novaLinha, f.idVenda, usuario || f.quemCadastrou, 'Falha ao salvar fotos', fotosErro, usuarioSlug);
+          fotosErroAcao = 'Falha ao salvar fotos';
         }
       }
     }
 
+    sh.getRange(novaLinha, 1, 1, header.length).setValues([linha]);
+
+    if (fotosErro) {
+      logHist_(novaLinha, f.idVenda, usuario || f.quemCadastrou, fotosErroAcao, fotosErro, usuarioSlug);
+    }
     logHist_(novaLinha, f.idVenda, usuario || f.quemCadastrou, 'Caso registrado',
       f.auditoria ? 'já auditado (' + (f.status || 'resolvido') + ')' : 'pendente de auditoria', usuarioSlug);
 
