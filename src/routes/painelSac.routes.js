@@ -123,7 +123,45 @@ async function buscarTicketsResolucao(slugAlvo, periodo, mes, ano, semIni, semFi
     if (minutos.length) tmrMinutos = minutos.reduce((a, b) => a + b, 0) / minutos.length;
   }
 
-  return { tmr_ppf: tmrMinutos, tickets: resolvidosNoPeriodo.length };
+  return {
+    tmr_ppf: tmrMinutos,
+    tickets: resolvidosNoPeriodo.length,
+    pico: picoDeDemanda_(resolvidosNoPeriodo, periodo, mes, ano, semIni),
+  };
+}
+
+// "Pico de demanda" — mesmos tickets resolvidos já contados acima (o
+// mesmo total do card "Tickets"), só quebrados por dia. Semana: sexta a
+// quinta (mesma janela de sempre, formato {d:'Sex'|'Seg'|...,v}). Mês:
+// todo dia do mês corrido (formato {n:1..31,v}) — é o que o front
+// (renderPico) já espera nos dois casos.
+function picoDeDemanda_(resolvidosNoPeriodo, periodo, mes, ano, semIni) {
+  const contarNoDia = (chaveAlvo) =>
+    resolvidosNoPeriodo.filter((t) => dataParaChave(t.dataFechamento) === chaveAlvo).length;
+
+  if (periodo === 'semana' && semIni) {
+    const iniChave = dataBrParaChave(semIni);
+    if (iniChave === null) return [];
+    const anoIni = Math.floor(iniChave / 10000);
+    const mesIni = Math.floor((iniChave % 10000) / 100);
+    const diaIni = iniChave % 100;
+    const iniData = new Date(Date.UTC(anoIni, mesIni - 1, diaIni));
+    const dias = [['Sex', 0], ['Seg', 3], ['Ter', 4], ['Qua', 5], ['Qui', 6]];
+    return dias.map(([d, offset]) => {
+      const alvo = new Date(iniData.getTime());
+      alvo.setUTCDate(alvo.getUTCDate() + offset);
+      const chave = alvo.getUTCFullYear() * 10000 + (alvo.getUTCMonth() + 1) * 100 + alvo.getUTCDate();
+      return { d, v: contarNoDia(chave) };
+    });
+  }
+
+  const ultimoDia = new Date(Number(ano), Number(mes) + 1, 0).getDate();
+  const out = [];
+  for (let dia = 1; dia <= ultimoDia; dia++) {
+    const chave = Number(ano) * 10000 + (Number(mes) + 1) * 100 + dia;
+    out.push({ n: dia, v: contarNoDia(chave) });
+  }
+  return out;
 }
 
 router.get('/', (req, res) => {
@@ -206,6 +244,7 @@ router.get('/api/dados', resolveSlug, async (req, res) => {
         if (ticketsResolucao) {
           json.indicadores.tmr_ppf = ticketsResolucao.tmr_ppf;
           json.indicadores.tickets = ticketsResolucao.tickets;
+          json.indicadores.pico = ticketsResolucao.pico;
         }
       } catch (err) {
         console.error('[painel-sac] falha ao buscar TMT/tickets do Painel de Ticket:', err.message);

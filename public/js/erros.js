@@ -73,7 +73,34 @@
     'Jonathan Silva', 'Lucas Matheus', 'Lucas Santos', 'Luiz Cavalcante', 'Marcelo Moreira',
     'Pedro Maranhao', 'Paulo Sergio', 'Sabrina Silva', 'Stephanie Rayssa', 'Taynara Soares',
     'Victor Brito', 'Victor Clemerson', 'Victor Medeiros', 'Victor Varela', 'Vinicius Barros',
-    'Walter Galdino', 'Yuri Pinheiro',
+    'Walter Galdino', 'Yuri Pinheiro', 'Jonathan Felipe',
+  ];
+
+  // Squads de Vendas (Reunião de Vendas) — cada uma é nomeada pelo
+  // coordenador. Fixo no código por enquanto (não editável pela tela); pra
+  // mudar quem está em qual squad, é só ajustar essa lista aqui.
+  // "Responsável" é texto livre no caso, então cada consultor pode ter mais
+  // de uma grafia usada ao longo do tempo — quando isso acontece, as duas
+  // formas entram na lista pra não perder caso já cadastrado com a grafia
+  // antiga. Entrada só com o primeiro nome (ex: "Taynara") casa com
+  // qualquer sobrenome que apareça depois (bate por "começa com").
+  const SQUADS_VENDAS = [
+    {
+      nome: 'Pedro Albano',
+      consultores: ['Anderson Carlos', 'Jonathan Felipe', 'Amanda Alves', 'Walter Galdino', 'Vinicius Barros', 'Victor Clemerson', 'Vitor Clemerson', 'Elenici Macedo', 'Guilherme Heleno'],
+    },
+    {
+      nome: 'Felipe Cruz',
+      consultores: ['Sabrina Oliveira', 'Jailton Queiroz', 'Paulo Sergio', 'Emily Dantas', 'João Victor Medeiros', 'Victor Medeiros', 'Taynara', 'Camilla Marinho', 'Giovani', 'Alexsandra'],
+    },
+    {
+      nome: 'Cynthya Gomes',
+      consultores: ['Luiz Cavalcante', 'Artur', 'Cleyton Andrade', 'Ana Beatriz', 'Lucas Matheus', 'Anderson Gabriel'],
+    },
+    {
+      nome: 'Lucas Oliveira',
+      consultores: ['Victor Brito', 'Victor Varela', 'Lucas Santos', 'Igor Neves', 'Hadyja Saraiva', 'Gabriel Vinicius', 'Emanuel Pereira', 'Caio Targino', 'Fernanda Araujo', 'João Gabriel Soares'],
+    },
   ];
 
   // Configuração das reuniões semanais com apresentação (PDF). Cada uma filtra por setor e
@@ -1340,11 +1367,31 @@
   // tanto pela Reunião semanal quanto pela mensal, pra não duplicar a lógica
   // de KPIs/causas/ranking em dois lugares.
   function diaSemHora_(d) { const x = new Date(d); x.setHours(0, 0, 0, 0); return x.getTime(); }
+
+  // "responsavelFiltro" aceita três formas: vazio (sem filtro), uma string
+  // (1 responsável só, igual sempre foi) ou um objeto de SQUADS_VENDAS (a
+  // squad inteira). Casa por nome normalizado (sem acento/maiúscula) e por
+  // "começa com", pra cobrir tanto a grafia completa quanto só o primeiro
+  // nome cadastrado na squad.
+  function responsavelNaSquad_(nomeResp, squad) {
+    const alvo = normNome_(nomeResp);
+    if (!alvo) return false;
+    return squad.consultores.some((c) => {
+      const cNorm = normNome_(c);
+      return alvo === cNorm || alvo.startsWith(cNorm + ' ');
+    });
+  }
+  function matchResponsavelFiltro_(nomeResp, filtro) {
+    if (!filtro) return true;
+    if (typeof filtro === 'string') return nomeResp === filtro;
+    return responsavelNaSquad_(nomeResp, filtro);
+  }
+
   function periodoData(inicio, fim, inicioAnt, fimAnt, setores, responsavelFiltro) {
     setores = setores || SETORES_VENDAS;
     const iniTs = diaSemHora_(inicio), fimTs = diaSemHora_(fim);
     const iniAntTs = diaSemHora_(inicioAnt), fimAntTs = diaSemHora_(fimAnt);
-    const doIntervalo = (iTs, fTs) => RECORDS.filter((r) => setores.includes(r.setor) && (!responsavelFiltro || r.responsavel === responsavelFiltro) && diaSemHora_(r.date) >= iTs && diaSemHora_(r.date) <= fTs);
+    const doIntervalo = (iTs, fTs) => RECORDS.filter((r) => setores.includes(r.setor) && matchResponsavelFiltro_(r.responsavel, responsavelFiltro) && diaSemHora_(r.date) >= iTs && diaSemHora_(r.date) <= fTs);
 
     const atual = doIntervalo(iniTs, fimTs).filter((r) => r.auditado);
     const pendentesPeriodo = doIntervalo(iniTs, fimTs).filter((r) => !r.auditado).length;
@@ -1453,6 +1500,7 @@
 
   function renderReuniao(main, cfg) {
     cfg = cfg || REUNIOES.vendas;
+    const ehVendas = cfg === REUNIOES.vendas;
     // Filtro por responsável — útil sobretudo na Reunião de Fábrica, onde
     // "responsável" é a fábrica/produção específica (temos várias). Lista só
     // os responsáveis que já tiveram caso no(s) setor(es) dessa reunião.
@@ -1460,7 +1508,16 @@
     if (erState[respKey] === undefined) erState[respKey] = '';
     const responsaveisDisponiveis = Array.from(new Set(RECORDS.filter((r) => cfg.setores.includes(r.setor) && r.responsavel).map((r) => r.responsavel))).sort((a, b) => a.localeCompare(b, 'pt-BR'));
 
-    const d = reuniaoData(erState[cfg.stateKey], cfg.setores, erState[respKey]);
+    // Filtro por Squad — só faz sentido em Vendas. Convive com o filtro de
+    // responsável (lado a lado), mas os dois são mutuamente exclusivos: usar
+    // um limpa o outro, pra nunca cair num "responsável X da squad Y" que
+    // provavelmente dá zero resultado.
+    const squadKey = cfg.stateKey + 'Squad';
+    if (erState[squadKey] === undefined) erState[squadKey] = '';
+    const squadAtiva = ehVendas && erState[squadKey] ? SQUADS_VENDAS.find((s) => s.nome === erState[squadKey]) : null;
+    const filtroEfetivo = squadAtiva || erState[respKey] || '';
+
+    const d = reuniaoData(erState[cfg.stateKey], cfg.setores, filtroEfetivo);
     const { monday, sunday, n, custoTotal, deltaN, deltaCusto, causasTop, respTop, casosOrdenados, pendentesSemana } = d;
     // Mês do PDF mensal — seletor próprio, independente da semana navegada
     // (só usa a semana atual como sugestão inicial, na primeira vez que a
@@ -1468,7 +1525,7 @@
     const mesKey = cfg.stateKey + 'MesPdf';
     if (!erState[mesKey]) erState[mesKey] = ymMes_(new Date(erState[cfg.stateKey]));
     const dataMesEscolhido = dataDoYm_(erState[mesKey]);
-    const dMes = reuniaoDataMensal(dataMesEscolhido, cfg.setores, erState[respKey]);
+    const dMes = reuniaoDataMensal(dataMesEscolhido, cfg.setores, filtroEfetivo);
     const nomeMesEscolhido = dataMesEscolhido.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
 
     const filtroResp = `
@@ -1477,6 +1534,11 @@
           <option value="">Todos os responsáveis</option>
           ${responsaveisDisponiveis.map((r) => `<option value="${erEsc(r)}" ${erState[respKey] === r ? 'selected' : ''}>${erEsc(r)}</option>`).join('')}
         </select>
+        ${ehVendas ? `
+        <select id="erSquadFiltro">
+          <option value="">Todas as squads</option>
+          ${SQUADS_VENDAS.map((s) => `<option value="${erEsc(s.nome)}" ${erState[squadKey] === s.nome ? 'selected' : ''}>Squad ${erEsc(s.nome)}</option>`).join('')}
+        </select>` : ''}
       </div>
     `;
 
@@ -1499,11 +1561,13 @@
     `;
 
     const bindNav = () => {
-      document.getElementById('erRespFiltro').addEventListener('change', (e) => { erState[respKey] = e.target.value; erRender(); });
+      document.getElementById('erRespFiltro').addEventListener('change', (e) => { erState[respKey] = e.target.value; if (e.target.value) erState[squadKey] = ''; erRender(); });
+      const selSquad = document.getElementById('erSquadFiltro');
+      if (selSquad) selSquad.addEventListener('change', (e) => { erState[squadKey] = e.target.value; if (e.target.value) erState[respKey] = ''; erRender(); });
       document.getElementById('erSemanaPrev').addEventListener('click', () => { erState[cfg.stateKey] -= 7 * 86400000; erRender(); });
       document.getElementById('erSemanaNext').addEventListener('click', () => { erState[cfg.stateKey] += 7 * 86400000; erRender(); });
-      const bap = document.getElementById('erBtnPdf'); if (bap && n > 0) bap.addEventListener('click', () => exportarPDF(erState[cfg.stateKey], cfg, erState[respKey]));
-      const bapMes = document.getElementById('erBtnPdfMes'); if (bapMes && dMes.n > 0) bapMes.addEventListener('click', () => exportarPDFMensal(dataMesEscolhido.getTime(), cfg, erState[respKey]));
+      const bap = document.getElementById('erBtnPdf'); if (bap && n > 0) bap.addEventListener('click', () => exportarPDF(erState[cfg.stateKey], cfg, filtroEfetivo));
+      const bapMes = document.getElementById('erBtnPdfMes'); if (bapMes && dMes.n > 0) bapMes.addEventListener('click', () => exportarPDFMensal(dataMesEscolhido.getTime(), cfg, filtroEfetivo));
       document.getElementById('erMesPdfInput').addEventListener('change', (e) => {
         if (!e.target.value) return;
         erState[mesKey] = e.target.value;
@@ -1512,7 +1576,7 @@
     };
 
     if (n === 0) {
-      const filtroAtivo = erState[respKey] ? ` (filtrado por "${erEsc(erState[respKey])}")` : '';
+      const filtroAtivo = squadAtiva ? ` (filtrado pela squad "${erEsc(squadAtiva.nome)}")` : erState[respKey] ? ` (filtrado por "${erEsc(erState[respKey])}")` : '';
       main.innerHTML = nav + `<div class="er-card er-empty"><div class="e-title">Nenhum erro de ${erEsc(cfg.short)} auditado nesta semana${filtroAtivo}</div><div class="e-sub">${pendentesSemana > 0 ? pendentesSemana + ' caso(s) ainda pendente(s) de auditoria nesta semana.' : 'Use as setas pra navegar até uma semana com dado, ou é uma boa notícia mesmo.'}</div></div>`;
       bindNav();
       return;
@@ -1597,7 +1661,9 @@
     const naPeriodoTxt = tipoPeriodo === 'mes' ? 'no mês' : 'na semana';
     const daPeriodoTxt = tipoPeriodo === 'mes' ? 'do mês' : 'da semana';
     const tituloRelatorio = tipoPeriodo === 'mes' ? 'Erros do Mês' : 'Erros da Semana';
-    const filtroTxt = opts.responsavelFiltro ? ` · Responsável: ${erEsc(opts.responsavelFiltro)}` : '';
+    const filtroTxt = !opts.responsavelFiltro ? ''
+      : typeof opts.responsavelFiltro === 'string' ? ` · Responsável: ${erEsc(opts.responsavelFiltro)}`
+      : ` · Squad: ${erEsc(opts.responsavelFiltro.nome)}`;
     const comFoto = d.casosOrdenados.filter((r) => parseFotos(r.foto).length).length;
     const causa = d.causasTop[0] || { nome: '—', n: 0, custo: 0 };
     const maxResp = d.respTop.length ? (d.respTop[0].custo || 1) : 1;
