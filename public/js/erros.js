@@ -310,6 +310,7 @@
       foto: row.foto || '',
       aprovacaoRefab: row.aprovacaoRefab || '',
       comentarioAprovacao: row.comentarioAprovacao || '',
+      comentarioFinal: row.comentarioFinal || '',
       registradoPorSlug: row.registradoPorSlug || '',
       linha: row.linha || null,
     }));
@@ -460,7 +461,7 @@
     const cols = [['ID', (r) => r.idVenda], ['Cliente/Card', (r) => r.nomeCard], ['Data', (r) => fmtDate(r.date)], ['Idade (dias)', (r) => diasDesde(r.date)],
       ['Setor', (r) => r.setor], ['Culpa de', (r) => r.culpaDe], ['Responsável', (r) => r.responsavel], ['Empresa', (r) => r.empresa],
       ['Tipo de problema', (r) => r.subproblema], ['Detalhe', (r) => r.detalhe], ['Qtd', (r) => r.qtd], ['Custo', (r) => (r.custo == null ? '' : r.custo)],
-      ['Tipo de resolução', (r) => r.tipoResolucao], ['Que fim', (r) => r.queFim], ['Status', (r) => (r.auditado ? 'Auditado' : 'Pendente')], ['Descrição', (r) => r.descricao]];
+      ['Tipo de resolução', (r) => r.tipoResolucao], ['Que fim', (r) => r.queFim], ['Status', (r) => (r.auditado ? 'Auditado' : 'Pendente')], ['Descrição', (r) => r.descricao], ['Comentário Final', (r) => r.comentarioFinal]];
     // Escapa p/ CSV E neutraliza injeção de fórmula: célula começando com = + - @ (ou tab/CR)
     // recebe um apóstrofo na frente, senão Excel/Sheets executa como fórmula ao abrir.
     const escCsv = (v) => { let s = String(v == null ? '' : v); if (/^[=+\-@\t\r]/.test(s)) s = "'" + s; return '"' + s.replace(/"/g, '""') + '"'; };
@@ -1695,7 +1696,12 @@
       const photo = fs.length
         ? `<div class="er-pr-photo"><img src="${erEsc(fotoSrc(fs[0]))}" alt=""></div>`
         : `<div class="er-pr-photo"><span class="noimg">Sem foto</span></div>`;
-      const desc = r.descricao ? `<div class="er-pr-cdesc">${erEsc(String(r.descricao).slice(0, 420))}</div>` : '';
+      // Comentário Final é o texto estudado do auditor pra repassar ao
+      // coordenador — substitui a descrição bruta do erro aqui. Casos
+      // auditados antes desse campo existir ainda não têm comentarioFinal,
+      // então cai pra descrição pra não deixar o PDF sem contexto nenhum.
+      const descTexto = r.comentarioFinal || r.descricao;
+      const desc = descTexto ? `<div class="er-pr-cdesc">${erEsc(String(descTexto).slice(0, 420))}</div>` : '';
       return `<div class="er-pr-case">
         ${photo}
         <div>
@@ -1959,6 +1965,12 @@
             <div class="er-field"><label>Custo do erro (R$)</label>${editable ? `<input type="number" name="custo" id="erInpCusto" value="${r.custo ?? ''}" min="0">` : `<div class="er-readonly-block">${brl(r.custo)}</div>`}</div>
           </div>
           <div class="er-logica-box" id="erLogicaBox">${r.tipoResolucao ? getRes(r.tipoResolucao).logica : 'Selecione o tipo de resolução.'}</div>
+          <div class="er-field" style="margin-top:14px">
+            <label>Comentário Final</label>
+            ${editable
+              ? `<textarea name="comentarioFinal" placeholder="Comentário estudado pra repassar ao coordenador do squad — é o que aparece no PDF da Reunião de Vendas no lugar da descrição bruta." style="min-height:70px">${erEsc(r.comentarioFinal)}</textarea>`
+              : `<div class="er-readonly-block" style="font-style:italic">${erEsc(r.comentarioFinal) || '—'}</div>`}
+          </div>
         </form>
 
         <div class="er-sec-title" style="margin-top:24px">Histórico</div>
@@ -2184,6 +2196,7 @@
           empresa: fd.get('empresa'), tipoProduto: fd.get('tipoProduto'), tipoProblema: fd.get('tipoProblema'),
           linha: fd.get('linha'),
           qtd: qtdNum, custo: custoNum, queFim: fd.get('queFim'), tipoResolucao,
+          comentarioFinal: fd.get('comentarioFinal'),
         };
         const btn = $('erBtnSalvar');
         btn.disabled = true; msg.textContent = 'Gravando…';
@@ -2193,7 +2206,8 @@
           if (!json.ok) throw new Error(json.error || 'Erro desconhecido');
           Object.assign(r, { setor: fields.setor, responsavel: fields.responsavel, empresa: fields.empresa,
             tipoProduto: fields.tipoProduto, subproblema: fields.tipoProblema, linha: fields.linha, qtd: fields.qtd, custo: fields.custo,
-            queFim: fields.queFim, tipoResolucao: fields.tipoResolucao, auditado: true, status: 'resolvido' });
+            queFim: fields.queFim, tipoResolucao: fields.tipoResolucao, comentarioFinal: fields.comentarioFinal,
+            auditado: true, status: 'resolvido' });
           derivarListasDinamicas(); erInitFilterOptions();
           closeDrawer(false); erRender();
           toast('Auditoria salva', true);

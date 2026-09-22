@@ -73,6 +73,9 @@ var COLUNAS = {
   // Fila de aprovação de Refabricação (Fase 3) — colunas novas na aba.
   aprovacaoRefab:      ['aprovacaorefab'],
   comentarioAprovacao: ['comentarioaprovacao'],
+  // Comentário estudado do auditor pra repassar ao coordenador do squad —
+  // substitui a descrição bruta do erro no PDF da Reunião de Vendas.
+  comentarioFinal:     ['comentario final'],
 };
 
 // Valores possíveis de AprovacaoRefab — cai em "Pendente" sozinho quando o
@@ -485,6 +488,7 @@ function doGet(e) {
         linkPedido:    String(get(row, 'linkPedido') || '').trim() || extractUrl_(descricao),
         aprovacaoRefab:      String(get(row, 'aprovacaoRefab') || '').trim(),
         comentarioAprovacao: String(get(row, 'comentarioAprovacao') || '').trim(),
+        comentarioFinal:     String(get(row, 'comentarioFinal') || '').trim(),
         registradoPorSlug:   registradoPorSlugMap[String(rowIndex)] || '',
       });
     }
@@ -737,6 +741,7 @@ function auditarCaso_(rowIndex, f, usuario, usuarioSlug) {
   setCell_(sh, rowIndex, col, 'custo',         f.custo);
   setCell_(sh, rowIndex, col, 'queFim',        f.queFim);
   setCell_(sh, rowIndex, col, 'tipoResolucao', f.tipoResolucao);
+  setCell_(sh, rowIndex, col, 'comentarioFinal', f.comentarioFinal);
 
   // idVenda/nomeCard não vêm no payload de auditoria (o form só reenvia os
   // campos editáveis) — lê da própria planilha, igual decidirRefab_, pra dar
