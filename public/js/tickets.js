@@ -286,6 +286,18 @@
     return dias + 'd' + (resto ? ' ' + resto + 'h' : '');
   }
 
+  // Só pras médias (TMR geral) — mesmo estilo "Xh Ymin" já usado no Tempo
+  // PPF+1 do Painel de Indicadores/Indicadores Equipe, sem quebrar em dias
+  // (diferente do fmtHoras acima, que é pra idade de ticket individual e
+  // continua em dias pra não virar "240h" num ticket velho).
+  function fmtHorasTotal(h) {
+    if (h == null) return '—';
+    const totalMin = Math.round(h * 60);
+    const hh = Math.floor(totalMin / 60);
+    const mm = totalMin % 60;
+    return hh > 0 ? (hh + 'h' + (mm > 0 ? ' ' + mm + 'min' : '')) : (mm + 'min');
+  }
+
   // Precisão até o segundo — usado nos rankings de TMR, pra servir de
   // critério de desempate quando dois grupos arredondam pro mesmo valor
   // em fmtHoras (ex: "2h" pra ambos, mas um resolve mais rápido que o outro).
@@ -826,7 +838,7 @@
         <div class="tk-kpi ${atrasados.length ? 'warn' : ''}"><div class="k-l">Atrasados</div><div class="k-v">${atrasados.length}</div>${atrasados.length ? `<div class="k-foot">média de ${mediaAtraso} dia(s) de atraso</div>` : ''}</div>
         <div class="tk-kpi"><div class="k-l">Vence hoje</div><div class="k-v">${venceHoje}</div></div>
         <div class="tk-kpi"><div class="k-l">Vence em ≤3 dias</div><div class="k-v">${vence3d}</div></div>
-        <div class="tk-kpi accent"><div class="k-l">TMR geral</div><div class="k-v">${fmtHoras(tmrDe(visiveis))}</div></div>
+        <div class="tk-kpi accent"><div class="k-l">TMR geral</div><div class="k-v">${fmtHorasTotal(tmrDe(visiveis))}</div></div>
       </div>`;
   }
 
