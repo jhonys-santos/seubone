@@ -254,9 +254,27 @@
 
   function parseData(iso) { return iso ? new Date(iso) : null; }
 
+  // Horas úteis entre duas datas, ignorando sábado e domingo por completo —
+  // usado tanto no "Aberto há"/"Tempo total" de cada ticket quanto no TMR
+  // (geral, por responsável, por identificador), já que só olhamos dias
+  // úteis aqui. Anda dia a dia somando só a fração de cada dia que não é
+  // fim de semana, então um ticket aberto sexta à noite e fechado segunda de
+  // manhã conta só as horas de sexta + as de segunda, sem o sábado/domingo
+  // no meio.
   function horasEntre(a, b) {
-    if (!a || !b) return null;
-    return Math.max(0, (b.getTime() - a.getTime()) / 3600000);
+    if (!a || !b || b <= a) return a && b ? 0 : null;
+    let total = 0;
+    let cursor = new Date(a.getTime());
+    while (cursor < b) {
+      const diaSemana = cursor.getDay(); // 0=Dom...6=Sáb
+      const meiaNoiteSeguinte = new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate() + 1);
+      const fimSegmento = meiaNoiteSeguinte < b ? meiaNoiteSeguinte : b;
+      if (diaSemana !== 0 && diaSemana !== 6) {
+        total += (fimSegmento.getTime() - cursor.getTime()) / 3600000;
+      }
+      cursor = fimSegmento;
+    }
+    return total;
   }
 
   function fmtHoras(h) {
