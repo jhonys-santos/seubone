@@ -91,28 +91,37 @@ async function buscarResolucaoEquipeDosTickets_(desde, ate) {
 router.get('/api/dados', async (req, res) => {
   try {
     const { time, desde, ate } = req.query;
-    const json = await chamarAppsScript(env.indicadoresEquipeAppsScriptUrl, {
-      params: { action: 'dados', time, desde, ate },
-      cache: true,
-    });
 
-    if (time === 'resolucao' && json.ok && json.porEquipe) {
-      try {
-        const resolucaoTickets = await buscarResolucaoEquipeDosTickets_(desde, ate);
-        if (resolucaoTickets) {
-          json.porEquipe.tempo_ppf = resolucaoTickets.equipe.tempo_ppf;
-          json.porEquipe.qtd_ppf = resolucaoTickets.equipe.qtd_ppf;
-          if (json.porConsultor) {
-            for (const [nome, serie] of Object.entries(resolucaoTickets.porConsultor)) {
-              if (json.porConsultor[nome]) {
-                json.porConsultor[nome].tempo_ppf = serie.tempo_ppf;
-                json.porConsultor[nome].qtd_ppf = serie.qtd_ppf;
-              }
-            }
+    // As duas buscas são independentes (a dos tickets só usa desde/ate, não
+    // o resultado da planilha) — disparam em paralelo em vez de uma esperar
+    // a outra. Em série, essa rota chegava a levar o tempo das DUAS chamadas
+    // ao Apps Script somado (1-6s cada) toda vez que alguém abria a Home ou
+    // o Time Resolução.
+    const resolucaoTicketsPromise = time === 'resolucao'
+      ? buscarResolucaoEquipeDosTickets_(desde, ate).catch((err) => {
+          console.error('[indicadores-equipe] falha ao buscar tempo_ppf/qtd_ppf do Painel de Ticket:', err.message);
+          return null;
+        })
+      : Promise.resolve(null);
+
+    const [json, resolucaoTickets] = await Promise.all([
+      chamarAppsScript(env.indicadoresEquipeAppsScriptUrl, {
+        params: { action: 'dados', time, desde, ate },
+        cache: true,
+      }),
+      resolucaoTicketsPromise,
+    ]);
+
+    if (time === 'resolucao' && json.ok && json.porEquipe && resolucaoTickets) {
+      json.porEquipe.tempo_ppf = resolucaoTickets.equipe.tempo_ppf;
+      json.porEquipe.qtd_ppf = resolucaoTickets.equipe.qtd_ppf;
+      if (json.porConsultor) {
+        for (const [nome, serie] of Object.entries(resolucaoTickets.porConsultor)) {
+          if (json.porConsultor[nome]) {
+            json.porConsultor[nome].tempo_ppf = serie.tempo_ppf;
+            json.porConsultor[nome].qtd_ppf = serie.qtd_ppf;
           }
         }
-      } catch (err) {
-        console.error('[indicadores-equipe] falha ao buscar tempo_ppf/qtd_ppf do Painel de Ticket:', err.message);
       }
     }
 

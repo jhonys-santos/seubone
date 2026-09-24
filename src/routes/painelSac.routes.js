@@ -210,44 +210,57 @@ router.get('/api/aviso', async (req, res) => {
 router.get('/api/dados', resolveSlug, async (req, res) => {
   try {
     const { periodo, mes, ano, sem_ini, sem_fim } = req.query;
-    const json = await chamarAppsScript(env.painelSacAppsScriptUrl, {
-      params: { action: 'dados', usuario: req.slugAlvo, periodo, mes, ano, sem_ini, sem_fim },
-      cache: true,
-    });
 
-    if (SAC_AGENTE_POR_SLUG[req.slugAlvo] && json.indicadores) {
-      try {
-        const auditoria = await buscarAuditoriaSac(req.slugAlvo, periodo, mes, ano, sem_ini, sem_fim);
-        if (auditoria) {
-          json.indicadores.audit = auditoria.audit;
-          json.auditorias_historico = auditoria.historico;
-        }
-      } catch (err) {
-        // Não deixa uma falha na Auditoria de Qualidade quebrar o resto dos
-        // indicadores — pior caso, essa seção específica fica sem dado.
-        console.error('[painel-sac] falha ao buscar auditoria da Auditoria de Qualidade:', err.message);
-      }
-    } else if (AUDITOR_POR_SLUG[req.slugAlvo] && json.indicadores) {
-      try {
-        const count = await contarAuditoriasFeitas(req.slugAlvo, periodo, mes, ano, sem_ini, sem_fim);
-        if (count !== null) json.indicadores.auditorias = count;
-      } catch (err) {
-        console.error('[painel-sac] falha ao contar auditorias feitas:', err.message);
-      }
-    }
+    // As 4 buscas abaixo são independentes entre si (nenhuma usa o resultado
+    // das outras, só slugAlvo/periodo/mes/ano/sem_ini/sem_fim, que já vêm da
+    // query) — então disparam todas em paralelo em vez de uma esperar a
+    // outra. Encadeadas (await sequencial), cada extra somava o tempo cheio
+    // de mais uma chamada ao Apps Script (1-6s cada) em cima do indicador
+    // base, deixando "Meus Indicadores" bem mais lento pra quem tem
+    // auditoria e/ou tickets (ex: Gabrielle acumulava 3 chamadas em série).
+    const semAuditoriaSac = () => Promise.resolve(null);
+    const auditoriaSacPromise = SAC_AGENTE_POR_SLUG[req.slugAlvo]
+      ? buscarAuditoriaSac(req.slugAlvo, periodo, mes, ano, sem_ini, sem_fim).catch((err) => {
+          console.error('[painel-sac] falha ao buscar auditoria da Auditoria de Qualidade:', err.message);
+          return null;
+        })
+      : semAuditoriaSac();
+    const contagemAuditoriasPromise = AUDITOR_POR_SLUG[req.slugAlvo]
+      ? contarAuditoriasFeitas(req.slugAlvo, periodo, mes, ano, sem_ini, sem_fim).catch((err) => {
+          console.error('[painel-sac] falha ao contar auditorias feitas:', err.message);
+          return null;
+        })
+      : Promise.resolve(null);
+    const ticketsResolucaoPromise = CONSULTORES_TICKETS_SLUGS.includes(req.slugAlvo)
+      ? buscarTicketsResolucao(req.slugAlvo, periodo, mes, ano, sem_ini, sem_fim).catch((err) => {
+          console.error('[painel-sac] falha ao buscar TMT/tickets do Painel de Ticket:', err.message);
+          return null;
+        })
+      : Promise.resolve(null);
 
-    // Independente do bloco acima (Gabrielle também audita — ela precisa das
-    // DUAS sobrescritas juntas, não é um "ou" com o audit/auditorias dela).
-    if (CONSULTORES_TICKETS_SLUGS.includes(req.slugAlvo) && json.indicadores) {
-      try {
-        const ticketsResolucao = await buscarTicketsResolucao(req.slugAlvo, periodo, mes, ano, sem_ini, sem_fim);
-        if (ticketsResolucao) {
-          json.indicadores.tmr_ppf = ticketsResolucao.tmr_ppf;
-          json.indicadores.tickets = ticketsResolucao.tickets;
-          json.indicadores.pico = ticketsResolucao.pico;
-        }
-      } catch (err) {
-        console.error('[painel-sac] falha ao buscar TMT/tickets do Painel de Ticket:', err.message);
+    const [json, auditoria, contagemAuditorias, ticketsResolucao] = await Promise.all([
+      chamarAppsScript(env.painelSacAppsScriptUrl, {
+        params: { action: 'dados', usuario: req.slugAlvo, periodo, mes, ano, sem_ini, sem_fim },
+        cache: true,
+      }),
+      auditoriaSacPromise,
+      contagemAuditoriasPromise,
+      ticketsResolucaoPromise,
+    ]);
+
+    if (json.indicadores) {
+      if (auditoria) {
+        json.indicadores.audit = auditoria.audit;
+        json.auditorias_historico = auditoria.historico;
+      } else if (contagemAuditorias !== null) {
+        json.indicadores.auditorias = contagemAuditorias;
+      }
+      // Independente do bloco acima (Gabrielle também audita — ela precisa
+      // das DUAS sobrescritas juntas, não é um "ou" com o audit/auditorias dela).
+      if (ticketsResolucao) {
+        json.indicadores.tmr_ppf = ticketsResolucao.tmr_ppf;
+        json.indicadores.tickets = ticketsResolucao.tickets;
+        json.indicadores.pico = ticketsResolucao.pico;
       }
     }
 
