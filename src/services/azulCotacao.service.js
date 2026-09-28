@@ -32,6 +32,8 @@ class ErroCotacao extends Error {
 
 const soDigitos = (v) => String(v ?? '').replace(/\D/g, '');
 const numero = (v) => (typeof v === 'number' ? v : Number(String(v ?? '').replace(',', '.')));
+/** "60,59" → 60.59 ; "1.234,56" → 1234.56 ; "1.500" → 1500 (só milhar, sem vírgula) */
+const numeroBr = (v) => (typeof v === 'number' ? v : Number(String(v ?? '').replace(/\./g, '').replace(',', '.')));
 
 /** Valida e normaliza a entrada (aceita números como texto com vírgula). Lança ErroCotacao VALIDACAO. */
 function validarEntrada(bruta) {
@@ -41,7 +43,10 @@ function validarEntrada(bruta) {
   if (cepOrigem.length !== 8) throw new ErroCotacao('VALIDACAO', 'CEP de origem deve ter 8 dígitos', 'cepOrigem');
   if (cepDestino.length !== 8) throw new ErroCotacao('VALIDACAO', 'CEP de destino deve ter 8 dígitos', 'cepDestino');
 
-  const valorMercadoria = numero(e.valorMercadoria);
+  // numeroBr (não numero): valorMercadoria é o único campo onde o usuário
+  // digita valores grandes com separador de milhar ("1.500") — mesmo bug
+  // encontrado e corrigido no correiosCotacao.service.js.
+  const valorMercadoria = numeroBr(e.valorMercadoria);
   if (!(valorMercadoria > 0)) throw new ErroCotacao('VALIDACAO', 'Informe o valor da mercadoria', 'valorMercadoria');
 
   const lista = Array.isArray(e.volumes) ? e.volumes : [];

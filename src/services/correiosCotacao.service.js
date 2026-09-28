@@ -53,7 +53,11 @@ function validarEntrada(bruta) {
   if (cepDestino.length !== 8) throw new ErroCotacao('VALIDACAO', 'CEP de destino deve ter 8 dígitos', 'cepDestino');
 
   const declararValor = Boolean(e.declararValor);
-  const valorMercadoria = e.valorMercadoria == null || e.valorMercadoria === '' ? 0 : numero(e.valorMercadoria);
+  // numeroBr (não numero): valorMercadoria é o único campo onde o usuário
+  // digita valores grandes com separador de milhar ("1.500") — descoberto
+  // em produção quando "1.500" virou R$1,50 (numero() só trata vírgula) e
+  // os Correios recusaram o valor declarado por ser menor que o mínimo.
+  const valorMercadoria = e.valorMercadoria == null || e.valorMercadoria === '' ? 0 : numeroBr(e.valorMercadoria);
   if (!Number.isFinite(valorMercadoria) || valorMercadoria < 0) throw new ErroCotacao('VALIDACAO', 'Valor da mercadoria inválido', 'valorMercadoria');
   if (declararValor && !(valorMercadoria > 0)) throw new ErroCotacao('VALIDACAO', 'Para declarar valor, informe o valor da mercadoria', 'valorMercadoria');
 
@@ -243,7 +247,15 @@ async function cotarFrete(entradaBruta, cred) {
 
   const ok = servicos.filter((s) => s.total != null);
   if (ok.length === 0) {
-    throw new ErroCotacao('ROTA_NAO_ATENDIDA', 'Os Correios não atendem essa rota com SEDEX nem PAC. Confira os CEPs.', undefined, servicos.map((s) => s.erro).join(' | '));
+    // Só culpa o CEP quando o motivo real é falta de atendimento na rota —
+    // outros motivos (ex: valor declarado fora da faixa aceita) têm sua
+    // própria mensagem por serviço; mostrar "confira os CEPs" nesse caso
+    // esconderia o motivo real, como o ERP-013 visto em produção.
+    const semAtendimento = servicos.every((s) => / não atende essa rota\.$/.test(s.erro || ''));
+    const mensagem = semAtendimento
+      ? 'Os Correios não atendem essa rota com SEDEX nem PAC. Confira os CEPs.'
+      : servicos.map((s) => s.erro).filter(Boolean).join(' ');
+    throw new ErroCotacao('ROTA_NAO_ATENDIDA', mensagem, undefined, servicos.map((s) => s.erro).join(' | '));
   }
   if (ok.length > 1) {
     const menorPreco = Math.min(...ok.map((s) => s.total));
