@@ -82,6 +82,15 @@ module.exports = {
   luluAlertaEntregaUrl: required('LULU_ALERTA_ENTREGA_URL', 'https://intranet.seubone.com/integracoes/sucesso-cliente/alerta-entrega'),
   luluIntegracaoKey: required('LULU_INTEGRACAO_KEY', ''),
 
+  // Cotação de frete Azul Logística ("Integração Fácil") — ver
+  // src/services/azulCotacao.service.js. Token de autenticação da Azul;
+  // sem ele (ou AZUL_EMAIL+AZUL_SENHA) a cotação não funciona. CEP de
+  // origem padrão só preenche o formulário, não é obrigatório.
+  azulToken: required('AZUL_TOKEN', ''),
+  azulEmail: required('AZUL_EMAIL', ''),
+  azulSenha: required('AZUL_SENHA', ''),
+  azulCepOrigemPadrao: required('AZUL_CEP_ORIGEM_PADRAO', ''),
+
   // Manifesto (notas fiscais) — API do setor de cobranças, consultada ao
   // vivo a cada busca (sem persistência própria no hub). Autentica via
   // Bearer token, não pelo padrão "segredo" do Apps Script.

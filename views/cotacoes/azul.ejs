@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<%- include('../partials/head') %>
+<title>Cotações · Azul - SeuBoné</title>
+<link rel="stylesheet" href="/css/cotacoes.css">
+</head>
+<body>
+<div class="app-shell">
+<%- include('../partials/sidebar') %>
+<div class="app-main">
+
+<div class="ct-scope">
+
+  <div class="ct-header">
+    <div>
+      <p class="ct-sobretitulo">Azul Cargo Express</p>
+      <h1><i class="ti ti-plane" aria-hidden="true"></i> Cotação de frete</h1>
+      <p class="ct-lede">Preço e prazo pela tabela da SeuBoné na Azul. A cotação não cria envio nem gera cobrança.</p>
+    </div>
+  </div>
+
+  <div class="ct-grade">
+    <form class="ct-form" id="ctForm" novalidate>
+      <fieldset class="ct-grupo">
+        <legend>Rota</legend>
+        <div class="ct-linha2">
+          <label class="ct-campo" id="ctCampoCepOrigem">
+            <span>CEP de origem</span>
+            <input id="ctCepOrigem" inputmode="numeric" autocomplete="off" placeholder="00000-000" value="<%= cepOrigemPadrao %>">
+          </label>
+          <label class="ct-campo" id="ctCampoCepDestino">
+            <span>CEP de destino</span>
+            <input id="ctCepDestino" inputmode="numeric" autocomplete="off" placeholder="00000-000" autofocus>
+          </label>
+        </div>
+        <div class="ct-opcoes" role="radiogroup" aria-label="Tipo de entrega">
+          <label class="ct-opcao" id="ctOpcaoDomicilio">
+            <input type="radio" name="tipoEntrega" id="ctTipoDomicilio" value="DOMICILIO" checked>
+            Entrega no endereço
+          </label>
+          <label class="ct-opcao" id="ctOpcaoAeroporto">
+            <input type="radio" name="tipoEntrega" id="ctTipoAeroporto" value="AEROPORTO">
+            Retira na unidade Azul
+          </label>
+        </div>
+      </fieldset>
+
+      <fieldset class="ct-grupo">
+        <legend>Volumes</legend>
+        <div class="ct-linha4">
+          <label class="ct-campo" id="ctCampoQuantidade">
+            <span>Quantidade</span>
+            <input id="ctQuantidade" inputmode="numeric" value="1">
+          </label>
+          <label class="ct-campo" id="ctCampoPeso">
+            <span>Peso de cada (kg)</span>
+            <input id="ctPesoUnitarioKg" inputmode="decimal" placeholder="0,0">
+          </label>
+        </div>
+        <div class="ct-linha3">
+          <label class="ct-campo" id="ctCampoAltura">
+            <span>Altura (cm)</span>
+            <input id="ctAlturaCm" inputmode="decimal">
+          </label>
+          <label class="ct-campo" id="ctCampoLargura">
+            <span>Largura (cm)</span>
+            <input id="ctLarguraCm" inputmode="decimal">
+          </label>
+          <label class="ct-campo" id="ctCampoComprimento">
+            <span>Comprimento (cm)</span>
+            <input id="ctComprimentoCm" inputmode="decimal">
+          </label>
+        </div>
+      </fieldset>
+
+      <fieldset class="ct-grupo">
+        <legend>Mercadoria</legend>
+        <label class="ct-campo" id="ctCampoValor">
+          <span>Valor total da mercadoria (R$)</span>
+          <input id="ctValorMercadoria" inputmode="decimal" placeholder="0,00">
+        </label>
+        <label class="ct-check">
+          <input type="checkbox" id="ctColeta">
+          Azul coleta no remetente <small>(tem taxa de coleta)</small>
+        </label>
+      </fieldset>
+
+      <p class="ct-erro" id="ctErro" role="alert" style="display:none"></p>
+
+      <button class="ct-botao" type="submit" id="ctBtnCotar">Cotar frete</button>
+    </form>
+
+    <section class="ct-resultado" id="ctResultado" aria-live="polite">
+      <div class="ct-vazio"><p>Preencha a rota, os volumes e o valor da mercadoria para ver preço e prazo.</p></div>
+    </section>
+  </div>
+
+</div>
+
+</div>
+</div>
+
+<script src="/js/cotacoes.js?v=<%= appVersion %>"></script>
+</body>
+</html>

@@ -96,4 +96,12 @@ module.exports = [
     chave: 'manifesto', titulo: 'Manifesto', descricao: 'Consulta notas fiscais de outro sistema e soma peso/valor total do período',
     url: '/manifesto', icone: 'ti-file-invoice',
   },
+  {
+    chave: 'cotacoes', titulo: 'Cotações', descricao: 'Cotação de frete por transportadora',
+    url: '/cotacoes/azul', icone: 'ti-truck-delivery',
+    subpaginas: [
+      { titulo: 'Azul', url: '/cotacoes/azul', icone: 'ti-plane' },
+      { titulo: 'Correios', url: '/cotacoes/correios', icone: 'ti-mailbox' },
+    ],
+  },
 ];

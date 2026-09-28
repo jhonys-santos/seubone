@@ -46,6 +46,7 @@ const auditoriaRoutes = require('./src/routes/auditoria.routes');
 const errosRoutes = require('./src/routes/erros.routes');
 const ticketsRoutes = require('./src/routes/tickets.routes');
 const manifestoRoutes = require('./src/routes/manifesto.routes');
+const cotacoesRoutes = require('./src/routes/cotacoes.routes');
 
 const app = express();
 
@@ -135,6 +136,7 @@ app.use('/auditoria', auditoriaRoutes);
 app.use('/erros', errosRoutes);
 app.use('/tickets', ticketsRoutes);
 app.use('/manifesto', manifestoRoutes);
+app.use('/cotacoes', cotacoesRoutes);
 app.use(notificacoesRoutes);
 
 app.use((req, res) => {
