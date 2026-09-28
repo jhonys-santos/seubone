@@ -14,15 +14,77 @@
 
   <div class="ct-header">
     <div>
-      <p class="ct-sobretitulo">Correios</p>
+      <p class="ct-sobretitulo">Correios · contrato SeuBoné</p>
       <h1><i class="ti ti-mailbox" aria-hidden="true"></i> Cotação de frete</h1>
+      <p class="ct-lede">SEDEX e PAC lado a lado, pela tabela do contrato da SeuBoné. A cotação não cria envio nem gera cobrança.</p>
     </div>
   </div>
 
-  <div class="ct-construcao">
-    <i class="ti ti-tools" aria-hidden="true"></i>
-    <div class="e-title">Em construção</div>
-    <div class="e-sub">A cotação pelos Correios ainda não está disponível aqui. Por enquanto, use a aba <a href="/cotacoes/azul">Azul</a>.</div>
+  <div class="ct-grade">
+    <form class="ct-form" id="ctFormCorreios" novalidate>
+      <fieldset class="ct-grupo">
+        <legend>Rota</legend>
+        <div class="ct-linha2">
+          <label class="ct-campo" id="ccCampoCepOrigem">
+            <span>CEP de origem</span>
+            <input id="ccCepOrigem" inputmode="numeric" autocomplete="off" placeholder="00000-000" value="<%= cepOrigemPadrao %>">
+          </label>
+          <label class="ct-campo" id="ccCampoCepDestino">
+            <span>CEP de destino</span>
+            <input id="ccCepDestino" inputmode="numeric" autocomplete="off" placeholder="00000-000" autofocus>
+          </label>
+        </div>
+      </fieldset>
+
+      <fieldset class="ct-grupo">
+        <legend>Volumes</legend>
+        <div class="ct-linha4">
+          <label class="ct-campo" id="ccCampoQuantidade">
+            <span>Quantidade</span>
+            <input id="ccQuantidade" inputmode="numeric" value="1">
+          </label>
+          <label class="ct-campo" id="ccCampoPeso">
+            <span>Peso de cada (kg)</span>
+            <input id="ccPesoUnitarioKg" inputmode="decimal" placeholder="0,0">
+          </label>
+        </div>
+        <div class="ct-linha3">
+          <label class="ct-campo" id="ccCampoAltura">
+            <span>Altura (cm)</span>
+            <input id="ccAlturaCm" inputmode="decimal">
+          </label>
+          <label class="ct-campo" id="ccCampoLargura">
+            <span>Largura (cm)</span>
+            <input id="ccLarguraCm" inputmode="decimal">
+          </label>
+          <label class="ct-campo" id="ccCampoComprimento">
+            <span>Comprimento (cm)</span>
+            <input id="ccComprimentoCm" inputmode="decimal">
+          </label>
+        </div>
+        <p class="ct-dica">Cada volume é um objeto nos Correios. Máximo de 30 kg e 100 cm por lado.</p>
+      </fieldset>
+
+      <fieldset class="ct-grupo">
+        <legend>Seguro</legend>
+        <label class="ct-check">
+          <input type="checkbox" id="ccDeclararValor">
+          <span>Declarar valor <small>(seguro adicional; sem ele, a cobertura automática é de até R$ 25,63)</small></span>
+        </label>
+        <label class="ct-campo" id="ccCampoValor" style="display:none">
+          <span>Valor total da mercadoria (R$)</span>
+          <input id="ccValorMercadoria" inputmode="decimal" placeholder="0,00">
+        </label>
+      </fieldset>
+
+      <p class="ct-erro" id="ccErro" role="alert" style="display:none"></p>
+
+      <button class="ct-botao" type="submit" id="ccBtnCotar">Cotar SEDEX e PAC</button>
+    </form>
+
+    <section class="ct-resultado" id="ccResultado" aria-live="polite">
+      <div class="ct-vazio"><p>Preencha a rota e os volumes para ver preço e prazo de SEDEX e PAC.</p></div>
+    </section>
   </div>
 
 </div>
@@ -30,5 +92,6 @@
 </div>
 </div>
 
+<script src="/js/cotacoes.js?v=<%= appVersion %>"></script>
 </body>
 </html>

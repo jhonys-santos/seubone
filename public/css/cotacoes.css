@@ -47,15 +47,24 @@
 .ct-vazio { border: 1px dashed var(--border-strong); border-radius: var(--radius); padding: 28px 20px; color: var(--text-muted); text-align: center; }
 .ct-vazio p { margin: 0; }
 
-.ct-servico { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px 20px; }
+.ct-servico { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px 20px; display: flex; flex-direction: column; }
+.ct-servico[data-indisponivel] { background: transparent; border-style: dashed; }
 .ct-servico-topo { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
 .ct-servico-nome { font-size: 12.5px; font-weight: 700; letter-spacing: .04em; color: var(--text-muted); }
+.ct-servico-nome small { font-size: 11px; font-weight: 600; color: var(--text-hint); margin-left: 4px; font-variant-numeric: tabular-nums; }
 .ct-prazo { font-size: 12.5px; font-weight: 700; color: var(--gold-dark); background: var(--gold-dim); padding: 3px 10px; border-radius: 999px; white-space: nowrap; }
 .ct-total { margin: 6px 0 12px; font-size: 32px; font-weight: 800; line-height: 1.1; font-variant-numeric: tabular-nums; color: var(--text); }
-.ct-composicao { width: 100%; border-collapse: collapse; font-size: 13.5px; font-variant-numeric: tabular-nums; }
+.ct-composicao { width: 100%; border-collapse: collapse; font-size: 13.5px; font-variant-numeric: tabular-nums; margin-top: auto; }
 .ct-composicao td { padding: 6px 0; border-top: 1px solid var(--border); color: var(--text); }
 .ct-composicao td:last-child { text-align: right; }
 .ct-composicao td:first-child { color: var(--text-muted); }
+
+/* Correios: SEDEX e PAC lado a lado, com selos e dica de limite. */
+.ct-servicos { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+.ct-selos { display: flex; flex-wrap: wrap; gap: 6px; min-height: 22px; margin-bottom: 10px; }
+.ct-selo { font-size: 11.5px; font-weight: 700; color: var(--on-gold); background: var(--gold); padding: 2px 8px; border-radius: 4px; }
+.ct-indisponivel { margin: 10px 0 0; color: var(--text-muted); font-size: 13.5px; }
+.ct-dica { margin: 0; font-size: 12px; color: var(--text-muted); }
 
 .ct-pesos { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin: 0; }
 @media (max-width: 480px) { .ct-pesos { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

@@ -91,6 +91,17 @@ module.exports = {
   azulSenha: required('AZUL_SENHA', ''),
   azulCepOrigemPadrao: required('AZUL_CEP_ORIGEM_PADRAO', ''),
 
+  // Cotação de frete Correios (contrato Seubone) — ver
+  // src/services/correiosCotacao.service.js. CORREIOS_USUARIO é o
+  // idCorreios (não o e-mail), CORREIOS_CODIGO_ACESSO é o código gerado no
+  // CWS (não a senha) — trocados, a API recusa o acesso.
+  correiosUsuario: required('CORREIOS_USUARIO', ''),
+  correiosCodigoAcesso: required('CORREIOS_CODIGO_ACESSO', ''),
+  correiosCartao: required('CORREIOS_CARTAO', ''),
+  correiosContrato: required('CORREIOS_CONTRATO', ''),
+  correiosDr: required('CORREIOS_DR', ''),
+  correiosCepOrigemPadrao: required('CORREIOS_CEP_ORIGEM_PADRAO', ''),
+
   // Manifesto (notas fiscais) — API do setor de cobranças, consultada ao
   // vivo a cada busca (sem persistência própria no hub). Autentica via
   // Bearer token, não pelo padrão "segredo" do Apps Script.
