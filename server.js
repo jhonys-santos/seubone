@@ -10,6 +10,7 @@ const env = require('./src/config/env');
 const usuariosService = require('./src/services/usuarios.service');
 const { iniciarChecagemAtrasos } = require('./src/services/ticketsAtraso.service');
 const { iniciarImportacaoLulu } = require('./src/services/ticketsImportLulu.service');
+const { iniciarImportacaoErroEnvio } = require('./src/services/ticketsImportErroEnvio.service');
 const catalogoPaineis = require('./src/config/paineis');
 const catalogoAtalhos = require('./src/config/atalhos');
 
@@ -151,6 +152,7 @@ usuariosService
     });
     iniciarChecagemAtrasos();
     iniciarImportacaoLulu();
+    iniciarImportacaoErroEnvio();
   })
   .catch((err) => {
     // Sem a lista de usuários carregada, ninguém consegue logar — melhor

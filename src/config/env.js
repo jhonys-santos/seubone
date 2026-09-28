@@ -73,6 +73,15 @@ module.exports = {
   // em teste direto.
   luluPedidosPpfVencidoUrl: required('LULU_PEDIDOS_PPF_VENCIDO_URL', 'https://intranet.seubone.com/integracoes/sucesso-cliente/pedidos-ppf-vencido'),
 
+  // Endpoint interno da Lulu que lista os cards que estão na coluna "Alerta
+  // de Entrega" (problema de transporte: atraso, extravio, retido fiscal
+  // etc.) — o hub consulta periodicamente (ver
+  // ticketsImportErroEnvio.service.js) e abre um Ticket "Erro de Envio" pra
+  // cada card ainda sem ticket aberto. Diferente do PPF vencido, esse exige
+  // autenticação via header x-integracao-key (confirmado em teste direto).
+  luluAlertaEntregaUrl: required('LULU_ALERTA_ENTREGA_URL', 'https://intranet.seubone.com/integracoes/sucesso-cliente/alerta-entrega'),
+  luluIntegracaoKey: required('LULU_INTEGRACAO_KEY', ''),
+
   // Manifesto (notas fiscais) — API do setor de cobranças, consultada ao
   // vivo a cada busca (sem persistência própria no hub). Autentica via
   // Bearer token, não pelo padrão "segredo" do Apps Script.

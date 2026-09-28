@@ -495,7 +495,7 @@
           <table>
             <thead><tr>
               ${podeSelecionar ? `<th style="width:32px"><input type="checkbox" id="tkSelAllCheck" ${todosSelecionados ? 'checked' : ''}></th>` : ''}
-              <th>Ticket</th><th>Cliente</th><th>Identificador</th><th>Fábrica</th><th>Setor</th><th>PPE</th><th>Dias</th><th>Previsão finalização</th><th>Responsável</th><th>Status</th><th>${tkState.fStatus === STATUS_RESOLVIDO ? 'Tempo total' : 'Aberto há'}</th>
+              <th>ID Venda</th><th>Cliente</th><th>Identificador</th><th>Fábrica</th><th>Setor</th><th>PPE</th><th>Dias</th><th>Previsão finalização</th><th>Responsável</th><th>Status</th><th>${tkState.fStatus === STATUS_RESOLVIDO ? 'Tempo total' : 'Aberto há'}</th>
             </tr></thead>
             <tbody>
               ${rows.length === 0 ? `<tr><td colspan="${nCols}"><div class="tk-empty"><div class="e-title">Nenhum ticket encontrado</div><div class="e-sub">Ajuste os filtros ou clique em "+ Novo ticket".</div></div></td></tr>` : rows.map((r) => {
@@ -504,7 +504,7 @@
                 const corDias = dPPE == null ? 'var(--text-hint)' : dPPE < 0 ? 'var(--bad-text,var(--bad))' : dPPE === 0 ? 'var(--warn-text,var(--warn))' : 'var(--text)';
                 return `<tr class="tk-clickable" data-id="${r.id}">
                   ${podeSelecionar ? `<td class="tk-selcol"><input type="checkbox" class="tk-row-check" data-id="${r.id}" ${tkSelecionados.has(r.id) ? 'checked' : ''}></td>` : ''}
-                  <td>${r.idTicket ? '#' + tkEsc(r.idTicket) : '<span style="color:var(--text-hint)">—</span>'}</td>
+                  <td>${r.idVenda ? `<span class="tk-idchip tk-idchip-click" data-copy="${tkEsc(r.idVenda)}" title="Clique para copiar">#${tkEsc(r.idVenda)}</span>` : '<span style="color:var(--text-hint)">—</span>'}</td>
                   <td style="font-weight:600">${tkEsc(r.pedido) || '—'} ${tkPhotoBadge(r)}</td>
                   <td>${tkEsc(r.identificador) || '—'}</td>
                   <td>${r.fabrica ? `<span class="tk-badge tk-badge-muted">${tkEsc(r.fabrica)}</span>` : '—'}</td>
@@ -524,8 +524,17 @@
     `;
     main.querySelectorAll('tbody tr.tk-clickable').forEach((tr) => {
       tr.addEventListener('click', (e) => {
-        if (e.target.closest('.tk-selcol')) return;
+        if (e.target.closest('.tk-selcol') || e.target.closest('.tk-idchip-click')) return;
         openTicket(Number(tr.dataset.id));
+      });
+    });
+    main.querySelectorAll('.tk-idchip-click').forEach((chip) => {
+      chip.addEventListener('click', (e) => {
+        e.stopPropagation();
+        navigator.clipboard?.writeText(chip.dataset.copy).catch(() => {});
+        const original = chip.textContent;
+        chip.textContent = 'Copiado!';
+        setTimeout(() => { chip.textContent = original; }, 900);
       });
     });
     if (podeSelecionar) wireSelecaoLista(main, idsVisiveis);
