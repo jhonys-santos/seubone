@@ -58,8 +58,7 @@ function montarObservacao_(card) {
     const partes = [a.categoria, a.descricao, a.local, quando].filter(Boolean);
     return '- ' + partes.join(' · ');
   });
-  const cabecalho = 'Importado automaticamente do sistema (coluna Alerta de Entrega). Situação: ' + (card.situacao || '—') +
-    (card.codigo_rastreio ? '. Rastreio: ' + card.codigo_rastreio + ' (' + (card.transportadora || '—') + ')' : '') + '.';
+  const cabecalho = 'Situação: ' + (card.situacao || '—') + '.';
   return linhas.length ? cabecalho + '\n' + linhas.join('\n') : cabecalho;
 }
 
@@ -79,7 +78,8 @@ async function criarTicketComRetry_(card) {
     link: LULU_BUSINESS_URL_BASE + card.negocio_id,
     observacao: montarObservacao_(card),
     ppe: card.ppe || '',
-    previsaoFinalizacao: card.previsao_entrega || '',
+    codigoRastreio: card.codigo_rastreio || '',
+    previsaoEntregaTransportadora: card.previsao_entrega || '',
     origem: 'Lulu 2.0',
     usuario: 'Lulu 2.0',
   };

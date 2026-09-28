@@ -47,6 +47,15 @@
       reader.readAsDataURL(file);
     });
   }
+  /** Lê um File (PDF) direto como data URL, sem compressão — canvas não sabe desenhar PDF. */
+  function tkLerArquivoBruto(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = () => reject(new Error('Falha ao ler o arquivo'));
+      reader.readAsDataURL(file);
+    });
+  }
   function tkPhotoBadge(r) {
     const n = tkParseFotos(r.anexos).length;
     return n ? `<span class="tk-photo-badge" title="${n} anexo(s)">📎 ${n}</span>` : '';
@@ -848,6 +857,7 @@
         <div class="tk-kpi"><div class="k-l">Vence hoje</div><div class="k-v">${venceHoje}</div></div>
         <div class="tk-kpi"><div class="k-l">Vence em ≤3 dias</div><div class="k-v">${vence3d}</div></div>
         <div class="tk-kpi accent"><div class="k-l">TMR geral</div><div class="k-v">${fmtHorasTotal(tmrDe(visiveis))}</div></div>
+        <div class="tk-kpi accent"><div class="k-l">Ticket Erro de Envio</div><div class="k-v">${fmtHorasTotal(tmrDe(visiveis.filter((r) => r.identificador === 'Erro de Envio')))}</div></div>
       </div>`;
   }
 
@@ -1132,10 +1142,10 @@
         <div class="tk-sec-title" style="margin-top:20px">Anexos${(() => { const n = tkParseFotos(r.anexos).length; return n ? ` (${n})` : ''; })()}</div>
         ${(() => {
           const fs = tkParseFotos(r.anexos);
-          return fs.length ? `<div class="tk-foto-prev" id="tkAnexosExistentes" style="margin-top:0;margin-bottom:12px">${fs.map((u, i) => `<div class="fp"><img class="tk-thumb tk-lb-thumb" data-idx="${i}" src="${tkEsc(tkFotoSrc(u))}" alt="Anexo ${i + 1}" title="Ampliar" loading="lazy"><button type="button" class="rm" data-url="${tkEsc(u)}" title="Remover anexo">✕</button></div>`).join('')}</div>` : '';
+          return fs.length ? `<div class="tk-foto-prev" id="tkAnexosExistentes" style="margin-top:0;margin-bottom:12px">${fs.map((u, i) => `<div class="fp"><img class="tk-thumb tk-lb-thumb" data-idx="${i}" data-url="${tkEsc(u)}" src="${tkEsc(tkFotoSrc(u))}" alt="Anexo ${i + 1}" title="Ampliar" loading="lazy"><button type="button" class="rm" data-url="${tkEsc(u)}" title="Remover anexo">✕</button></div>`).join('')}</div>` : '';
         })()}
-        <div class="tk-foto-drop" id="tkFotoDrop"><b>Clique para adicionar imagem</b> ou arraste aqui</div>
-        <input type="file" id="tkFotoInput" accept="image/*" multiple style="display:none">
+        <div class="tk-foto-drop" id="tkFotoDrop"><b>Clique para adicionar imagem ou PDF</b> ou arraste aqui</div>
+        <input type="file" id="tkFotoInput" accept="image/*,application/pdf" multiple style="display:none">
         <div class="tk-foto-prev" id="tkFotoPrev"></div>
         <div style="display:flex;justify-content:flex-end;align-items:center;gap:10px;margin-top:8px">
           <span class="tk-save-msg" id="tkSaveMsgAnexo"></span>
@@ -1155,6 +1165,8 @@
           <div class="tk-field"><label>PPE (prazo previsto de entrega)</label><div class="tk-readonly-block">${fmtDataCurta(r.ppe)}</div></div>
           <div class="tk-field"><label>Previsão de finalização</label><div class="tk-readonly-block">${fmtDataCurta(r.previsaoFinalizacao)}</div></div>
           <div class="tk-field"><label>P. Folha (prazo de produção)</label><div class="tk-readonly-block">${fmtDataCurta(r.pFolha)}</div></div>
+          ${r.codigoRastreio ? `<div class="tk-field"><label>Código de rastreio</label><div><span class="tk-idchip tk-idchip-click" data-copy="${tkEsc(r.codigoRastreio)}" title="Clique para copiar">${tkEsc(r.codigoRastreio)}</span></div></div>` : ''}
+          ${r.previsaoEntregaTransportadora ? `<div class="tk-field"><label>P. Entrega Transportadora</label><div class="tk-readonly-block">${fmtDataCurta(r.previsaoEntregaTransportadora)}</div></div>` : ''}
           <div class="tk-field">
             <label>Novo prazo para finalizar</label>
             <div style="display:flex;gap:8px">
@@ -1287,16 +1299,33 @@
 
     document.querySelectorAll('.tk-drawer .tk-stbtn').forEach((b) => b.addEventListener('click', () => setTicketStatus(r, b.dataset.status)));
 
-    const idVendaCopy = $('tkIdVendaCopy');
-    if (idVendaCopy) idVendaCopy.addEventListener('click', () => {
-      navigator.clipboard?.writeText(idVendaCopy.dataset.copy).catch(() => {});
-      idVendaCopy.textContent = 'Copiado!';
-      setTimeout(() => { idVendaCopy.textContent = '#' + idVendaCopy.dataset.copy; }, 900);
+    document.querySelectorAll('.tk-drawer .tk-idchip-click').forEach((chip) => {
+      chip.addEventListener('click', () => {
+        navigator.clipboard?.writeText(chip.dataset.copy).catch(() => {});
+        const original = chip.textContent;
+        chip.textContent = 'Copiado!';
+        setTimeout(() => { chip.textContent = original; }, 900);
+      });
     });
 
     const anexosExistentes = tkParseFotos(r.anexos).map(tkFotoSrc);
     document.querySelectorAll('.tk-drawer .tk-lb-thumb').forEach((el) => {
       el.addEventListener('click', () => tkOpenLightbox(anexosExistentes, Number(el.dataset.idx)));
+    });
+    // PDF (ou qualquer arquivo que o Drive não consiga gerar miniatura) —
+    // a URL é a mesma, só a miniatura falha; troca por um link "Abrir
+    // arquivo" em vez de deixar o ícone de imagem quebrada.
+    document.querySelectorAll('.tk-drawer .tk-thumb').forEach((img) => {
+      img.addEventListener('error', () => {
+        const link = document.createElement('a');
+        link.className = 'tk-thumb tk-pdf-fallback';
+        link.href = img.dataset.url;
+        link.target = '_blank';
+        link.rel = 'noopener';
+        link.title = 'Abrir arquivo';
+        link.textContent = '📄 Abrir';
+        img.replaceWith(link);
+      }, { once: true });
     });
     document.querySelectorAll('#tkAnexosExistentes .rm').forEach((btn) => {
       btn.addEventListener('click', async (ev) => {
@@ -1440,25 +1469,28 @@
     const fotoPrev = $('tkFotoPrev');
     const btnEnviarAnexos = $('tkBtnEnviarAnexos');
     const renderFotoPrev = () => {
-      fotoPrev.innerHTML = NOVAS_FOTOS.map((f, i) => `<div class="fp"><img src="${f.url}" alt=""><button type="button" class="rm" data-i="${i}" title="Remover">✕</button></div>`).join('');
+      fotoPrev.innerHTML = NOVAS_FOTOS.map((f, i) => f.pdf
+        ? `<div class="fp"><div class="tk-pdf-fallback" title="${tkEsc(f.nome)}">📄 ${tkEsc(f.nome)}</div><button type="button" class="rm" data-i="${i}" title="Remover">✕</button></div>`
+        : `<div class="fp"><img src="${f.url}" alt=""><button type="button" class="rm" data-i="${i}" title="Remover">✕</button></div>`).join('');
       fotoPrev.querySelectorAll('.rm').forEach((b) => b.addEventListener('click', () => { NOVAS_FOTOS.splice(Number(b.dataset.i), 1); renderFotoPrev(); }));
-      fotoDrop.innerHTML = NOVAS_FOTOS.length ? `<b>${NOVAS_FOTOS.length} imagem(ns) selecionada(s)</b> · clique para adicionar mais (até ${MAX_FOTOS})` : `<b>Clique para adicionar imagem</b> ou arraste aqui`;
+      fotoDrop.innerHTML = NOVAS_FOTOS.length ? `<b>${NOVAS_FOTOS.length} arquivo(s) selecionado(s)</b> · clique para adicionar mais (até ${MAX_FOTOS})` : `<b>Clique para adicionar imagem ou PDF</b> ou arraste aqui`;
       btnEnviarAnexos.style.display = NOVAS_FOTOS.length ? '' : 'none';
     };
     const addFotos = async (files) => {
-      const lista = Array.from(files).filter((f) => /^image\//.test(f.type));
-      if (!lista.length) { toast('Só é possível anexar imagens.', false); return; }
+      const lista = Array.from(files).filter((f) => /^image\//.test(f.type) || f.type === 'application/pdf');
+      if (!lista.length) { toast('Só é possível anexar imagens ou PDF.', false); return; }
       const tamanhoNovo = lista.reduce((soma, f) => soma + f.size, 0);
       const tamanhoAtual = NOVAS_FOTOS.reduce((soma, f) => soma + (f.url.length * 0.75), 0);
       if (tamanhoAtual + tamanhoNovo > MAX_ANEXOS_MB * 1024 * 1024) {
-        toast(`As imagens somadas passariam de ${MAX_ANEXOS_MB} MB. Envie menos ou imagens menores.`, false);
+        toast(`Os arquivos somados passariam de ${MAX_ANEXOS_MB} MB. Envie menos ou arquivos menores.`, false);
         return;
       }
       for (const f of lista) {
-        if (NOVAS_FOTOS.length >= MAX_FOTOS) { toast('Máximo de ' + MAX_FOTOS + ' imagens por vez', false); break; }
+        if (NOVAS_FOTOS.length >= MAX_FOTOS) { toast('Máximo de ' + MAX_FOTOS + ' arquivos por vez', false); break; }
         try {
-          const url = await tkComprimirImagem(f);
-          NOVAS_FOTOS.push({ url, nome: f.name });
+          const pdf = f.type === 'application/pdf';
+          const url = pdf ? await tkLerArquivoBruto(f) : await tkComprimirImagem(f);
+          NOVAS_FOTOS.push({ url, nome: f.name, pdf });
         } catch (err) { toast('Arquivo ignorado: ' + err.message, false); }
       }
       renderFotoPrev();
@@ -1592,9 +1624,9 @@
               <div class="tk-field" style="margin-bottom:14px"><label>Link</label><input type="url" name="link" placeholder="https://..."></div>
               <div class="tk-field" style="margin-bottom:14px"><label>Observação</label><textarea name="observacao" placeholder="Contexto inicial do ticket"></textarea></div>
               <div class="tk-field">
-                <label>Imagens (opcional)</label>
-                <div class="tk-foto-drop" id="tkFotoDropNovo"><b>Clique para adicionar imagem</b> ou arraste aqui</div>
-                <input type="file" id="tkFotoInputNovo" accept="image/*" multiple style="display:none">
+                <label>Imagens ou PDF (opcional)</label>
+                <div class="tk-foto-drop" id="tkFotoDropNovo"><b>Clique para adicionar imagem ou PDF</b> ou arraste aqui</div>
+                <input type="file" id="tkFotoInputNovo" accept="image/*,application/pdf" multiple style="display:none">
                 <div class="tk-foto-prev" id="tkFotoPrevNovo"></div>
               </div>
             </form>
@@ -1618,24 +1650,27 @@
     const fotoInputNovo = document.getElementById('tkFotoInputNovo');
     const fotoPrevNovo = document.getElementById('tkFotoPrevNovo');
     const renderFotoPrevNovo = () => {
-      fotoPrevNovo.innerHTML = FOTOS_NOVO.map((f, i) => `<div class="fp"><img src="${f.url}" alt=""><button type="button" class="rm" data-i="${i}" title="Remover">✕</button></div>`).join('');
+      fotoPrevNovo.innerHTML = FOTOS_NOVO.map((f, i) => f.pdf
+        ? `<div class="fp"><div class="tk-pdf-fallback" title="${tkEsc(f.nome)}">📄 ${tkEsc(f.nome)}</div><button type="button" class="rm" data-i="${i}" title="Remover">✕</button></div>`
+        : `<div class="fp"><img src="${f.url}" alt=""><button type="button" class="rm" data-i="${i}" title="Remover">✕</button></div>`).join('');
       fotoPrevNovo.querySelectorAll('.rm').forEach((b) => b.addEventListener('click', () => { FOTOS_NOVO.splice(Number(b.dataset.i), 1); renderFotoPrevNovo(); }));
-      fotoDropNovo.innerHTML = FOTOS_NOVO.length ? `<b>${FOTOS_NOVO.length} imagem(ns) selecionada(s)</b> · clique para adicionar mais (até ${MAX_FOTOS})` : `<b>Clique para adicionar imagem</b> ou arraste aqui`;
+      fotoDropNovo.innerHTML = FOTOS_NOVO.length ? `<b>${FOTOS_NOVO.length} arquivo(s) selecionado(s)</b> · clique para adicionar mais (até ${MAX_FOTOS})` : `<b>Clique para adicionar imagem ou PDF</b> ou arraste aqui`;
     };
     const addFotosNovo = async (files) => {
-      const lista = Array.from(files).filter((f) => /^image\//.test(f.type));
-      if (!lista.length) { toast('Só é possível anexar imagens.', false); return; }
+      const lista = Array.from(files).filter((f) => /^image\//.test(f.type) || f.type === 'application/pdf');
+      if (!lista.length) { toast('Só é possível anexar imagens ou PDF.', false); return; }
       const tamanhoNovo = lista.reduce((soma, f) => soma + f.size, 0);
       const tamanhoAtual = FOTOS_NOVO.reduce((soma, f) => soma + (f.url.length * 0.75), 0);
       if (tamanhoAtual + tamanhoNovo > MAX_ANEXOS_MB * 1024 * 1024) {
-        toast(`As imagens somadas passariam de ${MAX_ANEXOS_MB} MB. Envie menos ou imagens menores.`, false);
+        toast(`Os arquivos somados passariam de ${MAX_ANEXOS_MB} MB. Envie menos ou arquivos menores.`, false);
         return;
       }
       for (const f of lista) {
-        if (FOTOS_NOVO.length >= MAX_FOTOS) { toast('Máximo de ' + MAX_FOTOS + ' imagens', false); break; }
+        if (FOTOS_NOVO.length >= MAX_FOTOS) { toast('Máximo de ' + MAX_FOTOS + ' arquivos', false); break; }
         try {
-          const url = await tkComprimirImagem(f);
-          FOTOS_NOVO.push({ url, nome: f.name });
+          const pdf = f.type === 'application/pdf';
+          const url = pdf ? await tkLerArquivoBruto(f) : await tkComprimirImagem(f);
+          FOTOS_NOVO.push({ url, nome: f.name, pdf });
         } catch (err) { toast('Arquivo ignorado: ' + err.message, false); }
       }
       renderFotoPrevNovo();

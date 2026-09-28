@@ -299,12 +299,16 @@
 /* ===== Anexos (miniaturas + upload) ===== */
 .tk-photo-badge { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; font-weight: 700; color: var(--text-muted); background: var(--surface-3); border-radius: 999px; padding: 1px 7px; white-space: nowrap; }
 .tk-thumb { width: 78px; height: 78px; border-radius: var(--radius-sm); object-fit: cover; border: 1px solid var(--border-strong); background: var(--surface-3); display: block; cursor: zoom-in; }
+/* PDF (ou qualquer anexo sem miniatura do Drive) — mesma caixa do .tk-thumb, texto centralizado em vez de imagem. */
+.tk-pdf-fallback { display: flex; align-items: center; justify-content: center; text-align: center; font-size: 11px; font-weight: 700; color: var(--text-muted); text-decoration: none; cursor: pointer; padding: 4px; }
+.tk-pdf-fallback:hover { color: var(--gold-dark); }
 .tk-foto-drop { border: 1.5px dashed var(--border-strong); border-radius: var(--radius); padding: 14px; text-align: center; cursor: pointer; color: var(--text-muted); font-size: 12.5px; background: var(--surface-2); }
 .tk-foto-drop:hover { border-color: var(--gold-dark); background: var(--gold-dim); }
 .tk-foto-drop b { color: var(--text); }
 .tk-foto-prev { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 10px; }
 .tk-foto-prev .fp { position: relative; width: 74px; height: 74px; }
 .tk-foto-prev .fp img { width: 100%; height: 100%; object-fit: cover; border-radius: var(--radius-sm); border: 1px solid var(--border-strong); }
+.tk-foto-prev .fp .tk-pdf-fallback { width: 100%; height: 100%; box-sizing: border-box; border-radius: var(--radius-sm); border: 1px solid var(--border-strong); background: var(--surface-3); }
 .tk-foto-prev .fp .rm { position: absolute; top: -7px; right: -7px; width: 20px; height: 20px; border-radius: 50%; background: var(--bad); color: #fff; border: 2px solid var(--surface); cursor: pointer; font-size: 11px; line-height: 1; display: flex; align-items: center; justify-content: center; }
 
 /* ===== Lightbox / carrossel de anexos ===== */

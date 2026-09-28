@@ -91,6 +91,11 @@ var COLUNAS = {
   // nulo de lá, então é essa coluna que garante que o mesmo pedido atrasado
   // nunca gera dois tickets em checagens diferentes.
   negocioId:      ['negocio id', 'negocioid', 'id do negocio'],
+  // Campos próprios do importador de Erro de Envio (Lulu) — separados de
+  // PPE/Previsão de finalização/P.Folha (que são de Pedido atrasado) pra não
+  // misturar prazos de origens diferentes na mesma coluna.
+  codigoRastreio: ['codigo de rastreio', 'código de rastreio', 'codigo rastreio'],
+  previsaoEntregaTransportadora: ['p entrega transportadora', 'previsao entrega transportadora', 'previsão entrega transportadora'],
 };
 
 var STATUS_ABERTO = 'Aberto';
@@ -256,6 +261,8 @@ function doGet(e) {
         novoPrazo:           fmtDate_(get(row, 'novoPrazo')),
         atrasoNotificado:    parseBool_(get(row, 'atrasoNotificado')),
         negocioId:           String(get(row, 'negocioId') || '').trim(),
+        codigoRastreio:      String(get(row, 'codigoRastreio') || '').trim(),
+        previsaoEntregaTransportadora: fmtDate_(get(row, 'previsaoEntregaTransportadora')),
       });
     }
     return jsonOut_({ ok: true, tickets: tickets });
@@ -354,6 +361,8 @@ function criarTicket_(f) {
     setCell_(sh, novaLinha, col, 'ppe', f.ppe);
     setCell_(sh, novaLinha, col, 'previsaoFinalizacao', f.previsaoFinalizacao);
     setCell_(sh, novaLinha, col, 'pFolha', f.pFolha);
+    setCell_(sh, novaLinha, col, 'codigoRastreio', f.codigoRastreio);
+    setCell_(sh, novaLinha, col, 'previsaoEntregaTransportadora', f.previsaoEntregaTransportadora);
 
     if (f.fotos && f.fotos.length) {
       try {
