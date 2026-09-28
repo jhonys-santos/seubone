@@ -95,7 +95,7 @@ var COLUNAS = {
   // PPE/Previsão de finalização/P.Folha (que são de Pedido atrasado) pra não
   // misturar prazos de origens diferentes na mesma coluna.
   codigoRastreio: ['codigo de rastreio', 'código de rastreio', 'codigo rastreio'],
-  previsaoEntregaTransportadora: ['p entrega transportadora', 'previsao entrega transportadora', 'previsão entrega transportadora'],
+  previsaoEntregaTransportadora: ['p. entrega transportadora', 'p entrega transportadora', 'previsao entrega transportadora', 'previsão entrega transportadora'],
 };
 
 var STATUS_ABERTO = 'Aberto';
