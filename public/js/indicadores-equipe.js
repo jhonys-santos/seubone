@@ -91,11 +91,16 @@ const IE_TIMES = {
   resolucao: {
     titulo: 'Time Resolução',
     consultores: ['Gabrielle Batista', 'Daniel Sheldon'],
-    resumoKeys: ['csat', 'tempo_ppf', 'qtd_ppf'],
+    resumoKeys: ['csat', 'tempo_ppf', 'qtd_ppf', 'tempo_erro_envio', 'qtd_erro_envio'],
     metricas: [
       { key: 'csat', label: 'CSAT', unidade: 'pct', agregacao: 'media', meta: { valor: 95, direcao: 'maior' } },
       { key: 'tempo_ppf', label: 'Tempo PPF+1', unidade: 'tempo', agregacao: 'media', meta: { valor: 24 * 60 * 60, direcao: 'menor' } },
       { key: 'qtd_ppf', label: 'Tickets PPF+1', unidade: 'num', agregacao: 'soma' },
+      // Mesma regra do PPF+1, só filtrado por "Erro de Envio" no lugar de
+      // "Pedido atrasado" (ver indicadoresEquipe.routes.js) — mesma meta de
+      // 24h, já que os dois têm o mesmo SLA de 1 dia no Painel de Ticket.
+      { key: 'tempo_erro_envio', label: 'TMR Erro de Envio', unidade: 'tempo', agregacao: 'media', meta: { valor: 24 * 60 * 60, direcao: 'menor' } },
+      { key: 'qtd_erro_envio', label: 'Tickets Erro de Envio', unidade: 'num', agregacao: 'soma' },
       // Planilha só tem essa métrica no nível de Equipe, sem quebra por
       // consultor — por isso não entra em resumoKeys nem tem gráfico
       // individual (semIndividual), só o gráfico de Equipe. Na prática é o

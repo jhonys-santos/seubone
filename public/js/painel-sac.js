@@ -234,9 +234,14 @@ function renderTudo(dados) {
       const tmaLogoStr = tmaLogo > 0 ? tmaLogo + ' min' : '—';
       const tmrPPFStr  = ind.tmr_ppf > 0 ? fmtHoras(ind.tmr_ppf) : '—';
       const tmrPPFSp   = ind.tmr_ppf > 0 && ind.tmr_ppf <= 1440 ? 'ok' : ind.tmr_ppf > 1440 ? 'bad' : 'neutral';
+      const tmrEEStr   = ind.tmr_erro_envio > 0 ? fmtHoras(ind.tmr_erro_envio) : '—';
+      const tmrEESp    = ind.tmr_erro_envio > 0 && ind.tmr_erro_envio <= 1440 ? 'ok' : ind.tmr_erro_envio > 1440 ? 'bad' : 'neutral';
       const testesStr  = ind.testes_aprovados !== null && ind.testes_aprovados !== undefined ? ind.testes_aprovados : '—';
       document.getElementById('kpi-grid').innerHTML =
         kpiCard('ti-clock',     'TMT Ped. Atrasados', tmrPPFStr,              tmrPPFSp,  bdg(tmrPPFSp),  'Meta: &lt; 24h') +
+        kpiCard('ti-ticket',    'Tickets Ped. Atrasados', ind.tickets_pedido_atrasado || 0, 'neutral', '', 'resolvidos ' + lbl) +
+        kpiCard('ti-clock',     'TMR Erro de Envio',  tmrEEStr,               tmrEESp,   bdg(tmrEESp),   'Meta: &lt; 24h') +
+        kpiCard('ti-ticket',    'Tickets Erro de Envio', ind.tickets_erro_envio || 0, 'neutral', '',     'resolvidos ' + lbl) +
         kpiCard('ti-clock',     'TMA Aprov. Logo',    tmaLogoStr,             tmaLogoSp, bdg(tmaLogoSp), 'Meta: &lt; 30 min') +
         kpiCard('ti-star',      'CSAT',               csatStr,                csatSp,    bdg(csatSp),    'Meta: ≥ 95%') +
         kpiCard('ti-chart-bar', 'Pesquisas',          ind.pesquisas || 0,     'neutral', '',             'esta semana') +
@@ -248,10 +253,15 @@ function renderTudo(dados) {
       const csatStr   = csat !== null && csat !== undefined ? csat + '%' : '—';
       const tmrPPFStr = ind.tmr_ppf > 0 ? fmtHoras(ind.tmr_ppf) : '—';
       const tmrPPFSp  = ind.tmr_ppf > 0 && ind.tmr_ppf <= 1440 ? 'ok' : ind.tmr_ppf > 1440 ? 'bad' : 'neutral';
+      const tmrEEStr  = ind.tmr_erro_envio > 0 ? fmtHoras(ind.tmr_erro_envio) : '—';
+      const tmrEESp   = ind.tmr_erro_envio > 0 && ind.tmr_erro_envio <= 1440 ? 'ok' : ind.tmr_erro_envio > 1440 ? 'bad' : 'neutral';
       const meta      = ind.meta_auditoria || (periodo === 'semana' ? 30 : 120);
       const auditSp   = (ind.auditorias||0) >= meta ? 'ok' : 'bad';
       document.getElementById('kpi-grid').innerHTML =
         kpiCard('ti-clock',     'TMT Ped. Atrasados', tmrPPFStr,        tmrPPFSp,  bdg(tmrPPFSp), 'Meta: &lt; 24h') +
+        kpiCard('ti-ticket',    'Tickets Ped. Atrasados', ind.tickets_pedido_atrasado || 0, 'neutral', '', 'resolvidos ' + lbl) +
+        kpiCard('ti-clock',     'TMR Erro de Envio',  tmrEEStr,         tmrEESp,   bdg(tmrEESp),  'Meta: &lt; 24h') +
+        kpiCard('ti-ticket',    'Tickets Erro de Envio', ind.tickets_erro_envio || 0, 'neutral', '', 'resolvidos ' + lbl) +
         kpiCard('ti-star',      'CSAT',        csatStr,                csatSp,    bdg(csatSp),   'Meta: ≥ 95%') +
         kpiCard('ti-chart-bar', 'Pesquisas',   ind.pesquisas || 0,     'neutral', '',            'esta semana') +
         kpiCard('ti-clipboard-check','Auditorias', (ind.auditorias||0) + ' / ' + meta, auditSp, bdg(auditSp), 'Meta: ' + meta + (periodo==='semana'?'/semana':'/mês')) +

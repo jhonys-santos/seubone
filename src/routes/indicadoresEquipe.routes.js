@@ -18,16 +18,15 @@ router.get('/resolucao', (req, res) => {
   res.render('indicadores-equipe/index', { time: 'resolucao' });
 });
 
-// Time Resolução (Gabrielle + Daniel): "Tempo PPF+1" e "Tickets PPF+1" da
-// EQUIPE e de CADA CONSULTOR deixam de vir da planilha antiga e passam a vir
-// direto dos tickets reais — mesma regra já usada no painel-sac.routes.js
-// (só "Pedido atrasado" conta pros dois, já que o nome da métrica aqui é
-// literalmente "PPF+1", diferente do "Tickets" genérico do painel
-// individual). Devolve um valor por dia no intervalo desde..ate pedido, no
-// MESMO formato que porEquipe/porConsultor já vinham (array alinhado aos
-// dias do período — o front agrega sozinho via ieAgregar), então funciona
-// pra semana, mês ou período personalizado sem precisar saber qual é qual
-// aqui.
+// Time Resolução (Gabrielle + Daniel): "Tempo/Tickets PPF+1" (Pedido
+// atrasado) e "Tempo/Tickets Erro de Envio" da EQUIPE e de CADA CONSULTOR
+// deixam de vir da planilha antiga e passam a vir direto dos tickets reais
+// — mesma regra já usada no painel-sac.routes.js, cada métrica filtrada
+// pelo identificador correspondente. Devolve um valor por dia no intervalo
+// desde..ate pedido, no MESMO formato que porEquipe/porConsultor já vinham
+// (array alinhado aos dias do período — o front agrega sozinho via
+// ieAgregar), então funciona pra semana, mês ou período personalizado sem
+// precisar saber qual é qual aqui.
 const CONSULTORES_RESOLUCAO_SLUGS = ['gabrielle', 'daniel'];
 // Nome exibido em IE_TIMES.resolucao.consultores (indicadores-equipe.js) —
 // é a chave usada em porConsultor, não o slug.
@@ -39,8 +38,12 @@ function chaveDia_(dataStr) {
   return d.getUTCFullYear() * 10000 + (d.getUTCMonth() + 1) * 100 + d.getUTCDate();
 }
 
-function seriePpf_(tickets, dias) {
-  const tempo_ppf = dias.map((chaveAlvo) => {
+// Série diária de tempo médio (segundos) + quantidade, pra uma lista de
+// tickets já filtrada por identificador — reaproveitada tanto pra "Pedido
+// atrasado" (PPF+1) quanto pra "Erro de Envio" (TMR Erro de Envio), que têm
+// exatamente a mesma conta (abertura até fechamento), só filtro diferente.
+function serieDeTickets_(tickets, dias) {
+  const tempo = dias.map((chaveAlvo) => {
     const doDia = tickets.filter((t) => chaveDia_(t.dataFechamento) === chaveAlvo);
     if (!doDia.length) return null;
     // Segundos — porEquipe.tempo_ppf sempre foi em segundos aqui (ver meta
@@ -52,9 +55,9 @@ function seriePpf_(tickets, dias) {
     return segundos.reduce((a, b) => a + b, 0) / segundos.length;
   });
 
-  const qtd_ppf = dias.map((chaveAlvo) => tickets.filter((t) => chaveDia_(t.dataFechamento) === chaveAlvo).length);
+  const qtd = dias.map((chaveAlvo) => tickets.filter((t) => chaveDia_(t.dataFechamento) === chaveAlvo).length);
 
-  return { tempo_ppf, qtd_ppf };
+  return { tempo, qtd };
 }
 
 async function buscarResolucaoEquipeDosTickets_(desde, ate) {
@@ -63,9 +66,8 @@ async function buscarResolucaoEquipeDosTickets_(desde, ate) {
   const json = await chamarAppsScript(env.ticketsAppsScriptUrl, { cache: true });
   if (!json || !json.ok || !Array.isArray(json.tickets)) return null;
 
-  const ppfResolvidos = json.tickets.filter(
-    (t) => CONSULTORES_RESOLUCAO_SLUGS.includes(t.responsavelSlug) && t.status === 'Resolvido'
-      && t.dataFechamento && t.identificador === 'Pedido atrasado'
+  const resolvidosDaEquipe = json.tickets.filter(
+    (t) => CONSULTORES_RESOLUCAO_SLUGS.includes(t.responsavelSlug) && t.status === 'Resolvido' && t.dataFechamento
   );
 
   // Um dia por posição do array, de "desde" até "ate" (inclusive) — mesmo
@@ -79,10 +81,19 @@ async function buscarResolucaoEquipeDosTickets_(desde, ate) {
     cursor.setUTCDate(cursor.getUTCDate() + 1);
   }
 
-  const equipe = seriePpf_(ppfResolvidos, dias);
+  function seriesPara_(lista) {
+    const ppf = serieDeTickets_(lista.filter((t) => t.identificador === 'Pedido atrasado'), dias);
+    const erroEnvio = serieDeTickets_(lista.filter((t) => t.identificador === 'Erro de Envio'), dias);
+    return {
+      tempo_ppf: ppf.tempo, qtd_ppf: ppf.qtd,
+      tempo_erro_envio: erroEnvio.tempo, qtd_erro_envio: erroEnvio.qtd,
+    };
+  }
+
+  const equipe = seriesPara_(resolvidosDaEquipe);
   const porConsultor = {};
   for (const [slug, nome] of Object.entries(SLUG_PARA_NOME_RESOLUCAO)) {
-    porConsultor[nome] = seriePpf_(ppfResolvidos.filter((t) => t.responsavelSlug === slug), dias);
+    porConsultor[nome] = seriesPara_(resolvidosDaEquipe.filter((t) => t.responsavelSlug === slug));
   }
 
   return { equipe, porConsultor };
@@ -113,14 +124,10 @@ router.get('/api/dados', async (req, res) => {
     ]);
 
     if (time === 'resolucao' && json.ok && json.porEquipe && resolucaoTickets) {
-      json.porEquipe.tempo_ppf = resolucaoTickets.equipe.tempo_ppf;
-      json.porEquipe.qtd_ppf = resolucaoTickets.equipe.qtd_ppf;
+      Object.assign(json.porEquipe, resolucaoTickets.equipe);
       if (json.porConsultor) {
         for (const [nome, serie] of Object.entries(resolucaoTickets.porConsultor)) {
-          if (json.porConsultor[nome]) {
-            json.porConsultor[nome].tempo_ppf = serie.tempo_ppf;
-            json.porConsultor[nome].qtd_ppf = serie.qtd_ppf;
-          }
+          if (json.porConsultor[nome]) Object.assign(json.porConsultor[nome], serie);
         }
       }
     }

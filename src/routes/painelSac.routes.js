@@ -103,6 +103,17 @@ async function contarAuditoriasFeitas(slugAlvo, periodo, mes, ano, semIni, semFi
 // usa) pra bater exatamente com o toggle semanal/mensal existente.
 const CONSULTORES_TICKETS_SLUGS = ['gabrielle', 'daniel'];
 
+// TMR em minutos (abertura até fechamento) de uma lista já filtrada por
+// identificador — mesma conta pra Pedido atrasado e Erro de Envio, só muda
+// o filtro de entrada.
+function tmrMinutosDe_(lista) {
+  if (!lista.length) return 0;
+  const minutos = lista
+    .map((t) => (new Date(t.dataFechamento).getTime() - new Date(t.dataAbertura).getTime()) / 60000)
+    .filter((m) => Number.isFinite(m) && m >= 0);
+  return minutos.length ? minutos.reduce((a, b) => a + b, 0) / minutos.length : 0;
+}
+
 async function buscarTicketsResolucao(slugAlvo, periodo, mes, ano, semIni, semFim) {
   if (!CONSULTORES_TICKETS_SLUGS.includes(slugAlvo)) return null;
 
@@ -115,17 +126,18 @@ async function buscarTicketsResolucao(slugAlvo, periodo, mes, ano, semIni, semFi
   );
 
   const ppfNoPeriodo = resolvidosNoPeriodo.filter((t) => t.identificador === 'Pedido atrasado');
-  let tmrMinutos = 0;
-  if (ppfNoPeriodo.length) {
-    const minutos = ppfNoPeriodo
-      .map((t) => (new Date(t.dataFechamento).getTime() - new Date(t.dataAbertura).getTime()) / 60000)
-      .filter((m) => Number.isFinite(m) && m >= 0);
-    if (minutos.length) tmrMinutos = minutos.reduce((a, b) => a + b, 0) / minutos.length;
-  }
+  // TMR Erro de Envio é um indicador independente do TMT Ped. Atrasados —
+  // mesma conta (abertura até fechamento), só filtrado por identificador
+  // diferente, por pedido explícito do usuário (antes só entrava na
+  // contagem genérica de "Tickets").
+  const erroEnvioNoPeriodo = resolvidosNoPeriodo.filter((t) => t.identificador === 'Erro de Envio');
 
   return {
-    tmr_ppf: tmrMinutos,
+    tmr_ppf: tmrMinutosDe_(ppfNoPeriodo),
+    tmr_erro_envio: tmrMinutosDe_(erroEnvioNoPeriodo),
     tickets: resolvidosNoPeriodo.length,
+    tickets_pedido_atrasado: ppfNoPeriodo.length,
+    tickets_erro_envio: erroEnvioNoPeriodo.length,
     pico: picoDeDemanda_(resolvidosNoPeriodo, periodo, mes, ano, semIni),
   };
 }
@@ -259,7 +271,10 @@ router.get('/api/dados', resolveSlug, async (req, res) => {
       // das DUAS sobrescritas juntas, não é um "ou" com o audit/auditorias dela).
       if (ticketsResolucao) {
         json.indicadores.tmr_ppf = ticketsResolucao.tmr_ppf;
+        json.indicadores.tmr_erro_envio = ticketsResolucao.tmr_erro_envio;
         json.indicadores.tickets = ticketsResolucao.tickets;
+        json.indicadores.tickets_pedido_atrasado = ticketsResolucao.tickets_pedido_atrasado;
+        json.indicadores.tickets_erro_envio = ticketsResolucao.tickets_erro_envio;
         json.indicadores.pico = ticketsResolucao.pico;
       }
     }
