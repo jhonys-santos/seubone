@@ -169,9 +169,14 @@ async function cotarFrete(entradaBruta, cred) {
   const lista = Array.isArray(r.json && r.json.Value) ? r.json.Value : [];
   if (lista.length === 0) throw new ErroCotacao('ROTA_NAO_ATENDIDA', 'Nenhum serviço da Azul disponível para essa rota.');
 
+  // Margem de segurança interna: soma 1 dia ao prazo que a Azul devolve
+  // antes de mostrar pra quem cota — decisão de negócio (evitar prometer um
+  // prazo que a Azul não bate), não reflete o prazo real que a Azul cotou.
+  const MARGEM_PRAZO_DIAS = 1;
+
   const servicos = lista.map((c) => {
     const taxas = (c.Taxas || []).map((t) => ({ tipo: t.Tipo.trim(), valor: t.Valor }));
-    return { servico: c.NomeServico, total: c.Total, prazoDias: c.Prazo, frete: c.Frete, taxas, idCotacao: c.ID_Cotacao || null };
+    return { servico: c.NomeServico, total: c.Total, prazoDias: c.Prazo + MARGEM_PRAZO_DIAS, frete: c.Frete, taxas, idCotacao: c.ID_Cotacao || null };
   }).sort((a, b) => a.total - b.total);
 
   return { servicos, ...pesos, cotadoEm: new Date().toISOString() };
