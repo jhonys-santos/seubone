@@ -390,10 +390,14 @@ button.sidebar-item { width: 100%; text-align: left; background: none; cursor: p
   padding: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
 }
 .sidebar-chev i { font-size: 13px; transition: transform .15s; }
-.sidebar-group.open .sidebar-chev i { transform: rotate(90deg); }
+/* ">" e não " " (descendente): um grupo aninhado (ex: Cotações dentro de
+   Logística) tem seu próprio .sidebar-chev lá dentro — sem o filho direto
+   aqui, abrir o grupo de fora girava/expandia o chevron e o submenu do
+   grupo de dentro junto, mesmo ele estando fechado. */
+.sidebar-group.open > .sidebar-item-row .sidebar-chev i { transform: rotate(90deg); }
 
 .sidebar-sub { display: grid; grid-template-rows: 0fr; overflow: hidden; transition: grid-template-rows .18s ease; }
-.sidebar-group.open .sidebar-sub { grid-template-rows: 1fr; }
+.sidebar-group.open > .sidebar-sub { grid-template-rows: 1fr; }
 .sidebar-sub-inner { overflow: hidden; display: flex; flex-direction: column; gap: 2px; padding-top: 2px; }
 .sidebar-subitem { padding-left: 20px; font-size: 12.5px; }
 .sidebar-subitem i { font-size: 13px; }

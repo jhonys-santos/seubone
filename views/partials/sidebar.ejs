@@ -48,53 +48,54 @@
 
     <%
       // Painéis/atalhos com "categoria" saem da lista solta e são
-      // renderizados dentro do grupo da categoria (ver bloco "Logística"
-      // logo abaixo) — sem isso apareceriam duplicados.
+      // renderizados como um grupo dentro do próprio bloco "Painéis" (ex:
+      // Logística), lado a lado com os painéis soltos — não numa seção
+      // separada, senão apareciam duplicados/fora do lugar.
       var paineisSoltos = paineisVisiveis.filter(function (p) { return !p.categoria; });
       var atalhosSoltos = atalhosVisiveis.filter(function (a) { return !a.categoria; });
+      var categoriasComItens = (typeof categorias !== 'undefined' ? categorias : []).map(function (cat) {
+        return {
+          cat: cat,
+          itensPaineis: paineisVisiveis.filter(function (p) { return p.categoria === cat.chave; }),
+          itensAtalhos: atalhosVisiveis.filter(function (a) { return a.categoria === cat.chave; }),
+        };
+      }).filter(function (c) { return c.itensPaineis.length || c.itensAtalhos.length; });
     %>
 
-    <% if (typeof categorias !== 'undefined') { %>
-      <% categorias.forEach(function (cat) { %>
+    <% if (paineisSoltos.length || categoriasComItens.length) { %>
+      <div class="sidebar-label">Painéis</div>
+
+      <% categoriasComItens.forEach(function (c) { %>
         <%
-          var itensPaineis = paineisVisiveis.filter(function (p) { return p.categoria === cat.chave; });
-          var itensAtalhos = atalhosVisiveis.filter(function (a) { return a.categoria === cat.chave; });
+          var cat = c.cat, itensPaineis = c.itensPaineis, itensAtalhos = c.itensAtalhos;
+          var catAtiva = itensPaineis.some(function (p) {
+            return rotaAtual === p.url || (p.subpaginas || []).some(function (s) { return rotaAtual === s.url; });
+          }) || itensAtalhos.some(function (a) { return rotaAtual === a.url; });
         %>
-        <% if (itensPaineis.length || itensAtalhos.length) { %>
-          <div class="sidebar-label"><%= cat.titulo %></div>
-          <%
-            var catAtiva = itensPaineis.some(function (p) {
-              return rotaAtual === p.url || (p.subpaginas || []).some(function (s) { return rotaAtual === s.url; });
-            }) || itensAtalhos.some(function (a) { return rotaAtual === a.url; });
-          %>
-          <div class="sidebar-group <%= catAtiva ? 'open' : '' %>">
-            <div class="sidebar-item-row">
-              <button type="button" class="sidebar-item" onclick="alternarGrupoSidebar(this)">
-                <i class="ti <%= cat.icone %>" aria-hidden="true"></i> <%= cat.titulo %>
-              </button>
-              <button type="button" class="sidebar-chev" onclick="alternarGrupoSidebar(this)" aria-label="Expandir <%= cat.titulo %>">
-                <i class="ti ti-chevron-right" aria-hidden="true"></i>
-              </button>
-            </div>
-            <div class="sidebar-sub">
-              <div class="sidebar-sub-inner">
-                <% itensPaineis.forEach(function (p) { %>
-                  <%- include('sidebar-painel-item', { painel: p, usuario: usuario, rotaAtual: rotaAtual, subitem: true }) %>
-                <% }); %>
-                <% itensAtalhos.forEach(function (a) { %>
-                  <a href="<%= a.url %>" class="sidebar-item sidebar-subitem" <% if (a.novaAba) { %>target="_blank" rel="noopener"<% } %>>
-                    <i class="ti <%= a.icone %>" aria-hidden="true"></i> <%= a.titulo %>
-                  </a>
-                <% }); %>
-              </div>
+        <div class="sidebar-group <%= catAtiva ? 'open' : '' %>">
+          <div class="sidebar-item-row">
+            <button type="button" class="sidebar-item" onclick="alternarGrupoSidebar(this)">
+              <i class="ti <%= cat.icone %>" aria-hidden="true"></i> <%= cat.titulo %>
+            </button>
+            <button type="button" class="sidebar-chev" onclick="alternarGrupoSidebar(this)" aria-label="Expandir <%= cat.titulo %>">
+              <i class="ti ti-chevron-right" aria-hidden="true"></i>
+            </button>
+          </div>
+          <div class="sidebar-sub">
+            <div class="sidebar-sub-inner">
+              <% itensPaineis.forEach(function (p) { %>
+                <%- include('sidebar-painel-item', { painel: p, usuario: usuario, rotaAtual: rotaAtual, subitem: true }) %>
+              <% }); %>
+              <% itensAtalhos.forEach(function (a) { %>
+                <a href="<%= a.url %>" class="sidebar-item sidebar-subitem" <% if (a.novaAba) { %>target="_blank" rel="noopener"<% } %>>
+                  <i class="ti <%= a.icone %>" aria-hidden="true"></i> <%= a.titulo %>
+                </a>
+              <% }); %>
             </div>
           </div>
-        <% } %>
+        </div>
       <% }); %>
-    <% } %>
 
-    <% if (paineisSoltos.length) { %>
-      <div class="sidebar-label">Painéis</div>
       <% paineisSoltos.forEach(function (p) { %>
         <%- include('sidebar-painel-item', { painel: p, usuario: usuario, rotaAtual: rotaAtual, subitem: false }) %>
       <% }); %>
