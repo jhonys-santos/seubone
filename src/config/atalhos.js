@@ -11,6 +11,6 @@ module.exports = [
   {
     titulo: 'Gerador de Autorização', descricao: 'Autorização de retirada de pedidos nas transportadoras',
     url: 'https://script.google.com/macros/s/AKfycbxhBVqrHmr9xIHQIMNISVOgnHqIRYTwRqXpORF83cLapjQcGYbZOZXq70UO_96-Ygxv/exec',
-    icone: 'ti-file-text', novaAba: true,
+    icone: 'ti-file-text', novaAba: true, categoria: 'logistica',
   },
 ];

@@ -107,4 +107,18 @@ module.exports = {
   // Bearer token, não pelo padrão "segredo" do Apps Script.
   manifestoNotasUrl: required('MANIFESTO_NOTAS_URL', 'https://cobrancas-seubone.vercel.app/api/externo/notas'),
   manifestoNotasToken: required('MANIFESTO_NOTAS_TOKEN', ''),
+
+  // Emissão de e-Minuta LATAM Cargo (broker eSales, SOAP) — ver
+  // src/services/latamMinuta.service.js. Usuário/senha fornecidos pela
+  // eSales/LATAM (Basic Auth). Ambiente 'prod' ou 'hmg' (homologação/stg).
+  // CODIGO_STANDARD não é usado hoje (a regra automática acima de R$3.000
+  // usa JUNTOS, que já tem código — decisão do usuário pra não depender do
+  // código do STANDARD, que a LATAM ainda não passou); fica aqui só caso
+  // STANDARD volte a ser usado no futuro.
+  latamCargoUsuario: required('LATAM_CARGO_USUARIO', ''),
+  latamCargoSenha: required('LATAM_CARGO_SENHA', ''),
+  latamCargoAmbiente: required('LATAM_CARGO_AMBIENTE', 'prod'),
+  latamCargoCodigoStandard: required('LATAM_CARGO_CODIGO_STANDARD', ''),
+  latamCargoIeSeubone: required('LATAM_CARGO_IE_SEUBONE', '205357687'),
+  latamCargoOrigemIata: required('LATAM_CARGO_ORIGEM_IATA', 'NAT'),
 };

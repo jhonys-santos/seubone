@@ -79,8 +79,11 @@ function alternarGrupoSidebar(botao) {
   const grupo = botao.closest('.sidebar-group');
   if (!grupo) return;
   const estavaAberto = grupo.classList.contains('open');
-  document.querySelectorAll('.sidebar-group.open').forEach((g) => g.classList.remove('open'));
-  if (!estavaAberto) grupo.classList.add('open');
+  // Fecha os outros grupos abertos (acordeão), mas nunca um ancestral do
+  // grupo clicado — sem isso, abrir um subgrupo (ex: Cotações dentro de
+  // Logística) fechava o grupo pai junto, escondendo o que acabou de abrir.
+  document.querySelectorAll('.sidebar-group.open').forEach((g) => { if (!g.contains(grupo)) g.classList.remove('open'); });
+  grupo.classList.toggle('open', !estavaAberto);
 }
 
 // Popup genérico de aviso (banner "De: Jhonys Santos") — aberto a partir da

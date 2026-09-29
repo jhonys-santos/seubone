@@ -13,6 +13,7 @@ const { iniciarImportacaoLulu } = require('./src/services/ticketsImportLulu.serv
 const { iniciarImportacaoErroEnvio } = require('./src/services/ticketsImportErroEnvio.service');
 const catalogoPaineis = require('./src/config/paineis');
 const catalogoAtalhos = require('./src/config/atalhos');
+const catalogoCategorias = require('./src/config/categorias');
 
 // Versão de boot — muda a cada deploy (o processo reinicia do zero) e fica
 // fixa entre deploys. Usada como "?v=" nos <script>/<link> das telas que
@@ -48,6 +49,7 @@ const ticketsRoutes = require('./src/routes/tickets.routes');
 const manifestoRoutes = require('./src/routes/manifesto.routes');
 const cotacoesRoutes = require('./src/routes/cotacoes.routes');
 const correiosEtiquetaRoutes = require('./src/routes/correiosEtiqueta.routes');
+const latamMinutaRoutes = require('./src/routes/latamMinuta.routes');
 
 const app = express();
 
@@ -111,9 +113,11 @@ app.use((req, res, next) => {
   if (usuario) {
     res.locals.paineisVisiveis = catalogoPaineis.filter((p) => usuariosService.podeAcessarPainel(usuario, p.chave) && usuariosService.podeVerPainelRestrito(usuario, p));
     res.locals.atalhosVisiveis = catalogoAtalhos.filter((a) => !a.requerPainel || usuariosService.podeAcessarPainel(usuario, a.requerPainel));
+    res.locals.categorias = catalogoCategorias;
   } else {
     res.locals.paineisVisiveis = [];
     res.locals.atalhosVisiveis = [];
+    res.locals.categorias = [];
   }
   next();
 });
@@ -139,6 +143,7 @@ app.use('/tickets', ticketsRoutes);
 app.use('/manifesto', manifestoRoutes);
 app.use('/cotacoes', cotacoesRoutes);
 app.use('/emissao-correios', correiosEtiquetaRoutes);
+app.use('/emissao-latam', latamMinutaRoutes);
 app.use(notificacoesRoutes);
 
 app.use((req, res) => {

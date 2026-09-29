@@ -94,11 +94,11 @@ module.exports = [
   },
   {
     chave: 'manifesto', titulo: 'Manifesto', descricao: 'Consulta notas fiscais de outro sistema e soma peso/valor total do período',
-    url: '/manifesto', icone: 'ti-file-invoice',
+    url: '/manifesto', icone: 'ti-file-invoice', categoria: 'logistica',
   },
   {
     chave: 'cotacoes', titulo: 'Cotações', descricao: 'Cotação de frete por transportadora',
-    url: '/cotacoes/azul', icone: 'ti-truck-delivery',
+    url: '/cotacoes/azul', icone: 'ti-truck-delivery', categoria: 'logistica',
     subpaginas: [
       { titulo: 'Azul', url: '/cotacoes/azul', icone: 'ti-plane' },
       { titulo: 'Correios', url: '/cotacoes/correios', icone: 'ti-mailbox' },
@@ -106,6 +106,10 @@ module.exports = [
   },
   {
     chave: 'emissao-correios', titulo: 'Emissão Correios', descricao: 'Emite pré-postagem e etiqueta (SEDEX/PAC) a partir da NF-e',
-    url: '/emissao-correios', icone: 'ti-tag',
+    url: '/emissao-correios', icone: 'ti-tag', categoria: 'logistica',
+  },
+  {
+    chave: 'emissao-latam', titulo: 'Emissão Latam', descricao: 'Emite e-Minuta (AWB) da LATAM Cargo a partir da NF-e',
+    url: '/emissao-latam', icone: 'ti-plane-departure', categoria: 'logistica',
   },
 ];

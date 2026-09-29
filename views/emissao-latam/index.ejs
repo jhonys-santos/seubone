@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<%- include('../partials/head') %>
+<title>Emissão LATAM - SeuBoné</title>
+<link rel="stylesheet" href="/css/emissao-latam.css">
+</head>
+<body>
+<div class="app-shell">
+<%- include('../partials/sidebar') %>
+<div class="app-main">
+
+<div class="el-scope">
+
+  <div class="el-header">
+    <p class="el-sobretitulo">LATAM Cargo · contrato SeuBoné</p>
+    <h1><i class="ti ti-plane-departure" aria-hidden="true"></i> Emitir e-Minuta</h1>
+    <p class="el-lede">Cria o conhecimento de transporte (AWB) da LATAM Cargo a partir da NF-e. Remetente e tomador são sempre a SeuBoné.</p>
+    <ol class="el-passos" id="elPassos" aria-label="Etapas">
+      <li data-passo="form" class="el-ativo">1. Dados do envio</li>
+      <li data-passo="previa">2. Revisar</li>
+      <li data-passo="emitida">3. e-Minuta</li>
+    </ol>
+  </div>
+
+  <p class="el-erro" id="elErro" role="alert" style="display:none"></p>
+
+  <form class="el-form" id="elForm" novalidate>
+    <fieldset class="el-grupo">
+      <legend>Nota fiscal</legend>
+      <label class="el-campo"><span>Chave da NF-e</span>
+        <input id="elChave" inputmode="numeric" autocomplete="off" placeholder="0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000">
+      </label>
+      <div class="el-linha4">
+        <label class="el-campo"><span>Número</span><input id="elNfNumero" inputmode="numeric"></label>
+        <label class="el-campo"><span>Série</span><input id="elNfSerie" inputmode="numeric"></label>
+        <label class="el-campo"><span>Emitida em</span><input id="elNfData" type="date"></label>
+        <label class="el-campo"><span>Valor da nota (R$)</span><input id="elNfValor" inputmode="decimal" placeholder="0,00"></label>
+      </div>
+    </fieldset>
+
+    <fieldset class="el-grupo">
+      <legend>Destinatário</legend>
+      <div class="el-linha2">
+        <label class="el-campo"><span>Nome completo / razão social</span><input id="elDNome"></label>
+        <label class="el-campo"><span>CPF ou CNPJ</span><input id="elDDoc" inputmode="numeric"></label>
+        <label class="el-campo"><span>Inscrição estadual <small>(só CNPJ — vazio = ISENTO)</small></span><input id="elDIe"></label>
+        <label class="el-campo"><span>Celular com DDD <small>(opcional)</small></span><input id="elDTel" inputmode="tel"></label>
+      </div>
+      <div class="el-linhaEnd">
+        <label class="el-campo"><span>CEP</span><input id="elDCep" inputmode="numeric" placeholder="00000-000"></label>
+        <label class="el-campo"><span>Rua</span><input id="elDRua"></label>
+        <label class="el-campo"><span>Número</span><input id="elDNum" placeholder="S/N"></label>
+      </div>
+      <div class="el-linhaEnd2">
+        <label class="el-campo"><span>Complemento</span><input id="elDCompl"></label>
+        <label class="el-campo"><span>Bairro</span><input id="elDBairro"></label>
+        <label class="el-campo"><span>Cidade</span><input id="elDCidade"></label>
+        <label class="el-campo"><span>UF</span><input id="elDUf" maxlength="2"></label>
+      </div>
+    </fieldset>
+
+    <fieldset class="el-grupo">
+      <legend>Destino</legend>
+      <div class="el-linha4">
+        <label class="el-campo"><span>Aeroporto de destino (IATA)</span><input id="elDestino" maxlength="3" placeholder="GRU"></label>
+      </div>
+    </fieldset>
+
+    <fieldset class="el-grupo">
+      <legend>Volumes</legend>
+      <div id="elVolumes"></div>
+      <button type="button" class="el-secundario" id="elBtnAddVolume">Adicionar volume</button>
+    </fieldset>
+
+    <fieldset class="el-grupo">
+      <legend>Serviço</legend>
+      <div class="el-opcoes" role="radiogroup" aria-label="Serviço">
+        <label class="el-opcao el-ativo" id="elOpcaoAuto">
+          <input type="radio" name="servico" id="elServicoAuto" value="AUTOMATICO" checked>
+          <span><b>Automático</b> <small>até R$3.000 e-fácil, acima Juntos</small></span>
+        </label>
+        <% servicos.forEach(function (s) { %>
+        <label class="el-opcao" id="elOpcao<%= s.chave %>">
+          <input type="radio" name="servico" value="<%= s.chave %>">
+          <span><b><%= s.nome %></b></span>
+        </label>
+        <% }); %>
+      </div>
+    </fieldset>
+
+    <fieldset class="el-grupo">
+      <legend>Seguro e pagamento</legend>
+      <div class="el-linha4">
+        <label class="el-campo"><span>Seguro</span>
+          <select id="elSeguro">
+            <option value="1">Seguro LATAM</option>
+            <option value="2">Seguro próprio</option>
+            <option value="3">Sem seguro</option>
+          </select>
+        </label>
+        <label class="el-campo"><span>Pagamento</span>
+          <select id="elPagamento">
+            <option value="ORIGEM">Pago na origem (SeuBoné)</option>
+            <option value="DESTINO">A pagar no destino</option>
+          </select>
+        </label>
+      </div>
+      <label class="el-opcao" id="elOpcaoEntrega" style="align-self:flex-start">
+        <input type="checkbox" id="elEntregaDomicilio">
+        <span>Entrega no endereço do destinatário <small>(desmarcado = retirada no aeroporto)</small></span>
+      </label>
+    </fieldset>
+
+    <fieldset class="el-grupo">
+      <legend>Observação <small>(opcional)</small></legend>
+      <label class="el-campo"><input id="elObservacao" maxlength="300"></label>
+    </fieldset>
+
+    <button class="el-botao" type="submit" id="elBtnRevisar">Revisar antes de emitir</button>
+    <p class="el-dica">Revisar não cria nada na LATAM.</p>
+  </form>
+
+  <section class="el-cartao" id="elCartaoPrevia" style="display:none" aria-labelledby="elTituloPrevia">
+    <h2 id="elTituloPrevia" class="el-h2">Confira antes de emitir</h2>
+    <dl class="el-resumo" id="elResumoPrevia"></dl>
+    <div class="el-acoes">
+      <button type="button" class="el-secundario" id="elBtnVoltar">Voltar e corrigir</button>
+      <button type="button" class="el-botao" id="elBtnEmitir">Emitir e-Minuta</button>
+    </div>
+    <p class="el-dica">Emitir cria um AWB real no contrato. <b>Não existe cancelamento</b> — confira tudo com atenção antes de confirmar.</p>
+  </section>
+
+  <section class="el-cartao" id="elCartaoEmitida" style="display:none" aria-labelledby="elTituloEmitida">
+    <p class="el-sobretitulo">e-Minuta emitida</p>
+    <h2 id="elTituloEmitida" class="el-codigo">—</h2>
+    <dl class="el-resumo" id="elResumoEmitida"></dl>
+    <div id="elAvisoEmitida"></div>
+    <div id="elDownloads" class="el-downloads"></div>
+    <div class="el-acoes">
+      <button type="button" class="el-secundario" id="elBtnNovaMinuta">Emitir outra e-Minuta</button>
+    </div>
+  </section>
+
+  <section class="el-cartao" id="elCartaoVerificar" style="display:none" aria-labelledby="elTituloVerificar">
+    <h2 id="elTituloVerificar" class="el-h2">Verificar se já foi emitida</h2>
+    <p class="el-dica" style="margin-top:0">A LATAM não confirmou a emissão (erro de indisponibilidade). Antes de tentar de novo, confira pelo rastreio da NF-e se a e-Minuta já foi criada — reenviar sem checar pode duplicar o AWB.</p>
+    <button type="button" class="el-secundario" id="elBtnVerificar">Verificar pela chave da NF-e</button>
+    <div id="elResultadoVerificar"></div>
+    <div class="el-acoes">
+      <button type="button" class="el-secundario" id="elBtnVoltarDeVerificar">Voltar</button>
+    </div>
+  </section>
+
+</div>
+
+</div>
+</div>
+
+<script>
+  window.SERVICOS_MANUAIS = <%- JSON.stringify(servicos) %>;
+</script>
+<script src="/js/emissao-latam.js?v=<%= appVersion %>"></script>
+</body>
+</html>

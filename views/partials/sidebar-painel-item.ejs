@@ -1,0 +1,41 @@
+<%
+  // Renderiza UM painel na sidebar — com submenu (se tiver subpaginas
+  // visíveis) ou como link simples. Extraído do loop principal pra poder
+  // ser reusado também dentro de uma categoria (ex: Logística > Cotações).
+  // Locals esperados: painel, usuario, rotaAtual, subitem (opcional — true
+  // quando está dentro de uma categoria, pra herdar a indentação de subitem).
+  var subVisiveis = (painel.subpaginas || []).filter(function (s) {
+    if (!s.somenteSlug && !s.somenteRole) return true;
+    if (s.somenteSlug && s.somenteSlug === usuario.slug) return true;
+    if (s.somenteRole && s.somenteRole === usuario.role) return true;
+    return false;
+  });
+  var subAtiva = subVisiveis.some(function (s) { return rotaAtual === s.url; });
+  var tituloPainel = (painel.tituloPorRole && painel.tituloPorRole[usuario.role]) || painel.titulo;
+  var classeItem = 'sidebar-item' + (subitem ? ' sidebar-subitem' : '');
+%>
+<% if (subVisiveis.length) { %>
+  <div class="sidebar-group <%= subAtiva ? 'open' : '' %>">
+    <div class="sidebar-item-row">
+      <a href="<%= painel.url %>" class="<%= classeItem %> <%= !subAtiva && rotaAtual === painel.url ? 'active' : '' %>">
+        <i class="ti <%= painel.icone %>" aria-hidden="true"></i> <%= tituloPainel %>
+      </a>
+      <button type="button" class="sidebar-chev" onclick="alternarGrupoSidebar(this)" aria-label="Expandir <%= tituloPainel %>">
+        <i class="ti ti-chevron-right" aria-hidden="true"></i>
+      </button>
+    </div>
+    <div class="sidebar-sub">
+      <div class="sidebar-sub-inner">
+        <% subVisiveis.forEach(function (s) { %>
+          <a href="<%= s.url %>" class="sidebar-item sidebar-subitem <%= rotaAtual === s.url ? 'active' : '' %>">
+            <i class="ti <%= s.icone || 'ti-point' %>" aria-hidden="true"></i> <%= s.titulo %>
+          </a>
+        <% }); %>
+      </div>
+    </div>
+  </div>
+<% } else { %>
+  <a href="<%= painel.url %>" class="<%= classeItem %> <%= rotaAtual === painel.url ? 'active' : '' %>">
+    <i class="ti <%= painel.icone %>" aria-hidden="true"></i> <%= tituloPainel %>
+  </a>
+<% } %>

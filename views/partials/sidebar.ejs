@@ -46,56 +46,63 @@
       <i class="ti ti-home" aria-hidden="true"></i> Home
     </a>
 
-    <% if (paineisVisiveis.length) { %>
-      <div class="sidebar-label">Painéis</div>
-      <% paineisVisiveis.forEach(function (p) { %>
+    <%
+      // Painéis/atalhos com "categoria" saem da lista solta e são
+      // renderizados dentro do grupo da categoria (ver bloco "Logística"
+      // logo abaixo) — sem isso apareceriam duplicados.
+      var paineisSoltos = paineisVisiveis.filter(function (p) { return !p.categoria; });
+      var atalhosSoltos = atalhosVisiveis.filter(function (a) { return !a.categoria; });
+    %>
+
+    <% if (typeof categorias !== 'undefined') { %>
+      <% categorias.forEach(function (cat) { %>
         <%
-          // "somenteSlug" e "somenteRole" na subpágina se combinam com OU,
-          // igual ao mecanismo do painel (ex: Premiação é só do Wallac +
-          // qualquer gestor). Sem nenhum dos dois, fica liberada.
-          var subVisiveis = (p.subpaginas || []).filter(function (s) {
-            if (!s.somenteSlug && !s.somenteRole) return true;
-            if (s.somenteSlug && s.somenteSlug === usuario.slug) return true;
-            if (s.somenteRole && s.somenteRole === usuario.role) return true;
-            return false;
-          });
-          var subAtiva = subVisiveis.some(function (s) { return rotaAtual === s.url; });
-          // "tituloPorRole" troca o texto exibido pra quem tem aquele papel
-          // específico (ex: gestor vê "Indicadores Individuais" em vez de
-          // "Meus Indicadores"), sem mudar o painel em si.
-          var tituloPainel = (p.tituloPorRole && p.tituloPorRole[usuario.role]) || p.titulo;
+          var itensPaineis = paineisVisiveis.filter(function (p) { return p.categoria === cat.chave; });
+          var itensAtalhos = atalhosVisiveis.filter(function (a) { return a.categoria === cat.chave; });
         %>
-        <% if (subVisiveis.length) { %>
-          <div class="sidebar-group <%= subAtiva ? 'open' : '' %>">
+        <% if (itensPaineis.length || itensAtalhos.length) { %>
+          <div class="sidebar-label"><%= cat.titulo %></div>
+          <%
+            var catAtiva = itensPaineis.some(function (p) {
+              return rotaAtual === p.url || (p.subpaginas || []).some(function (s) { return rotaAtual === s.url; });
+            }) || itensAtalhos.some(function (a) { return rotaAtual === a.url; });
+          %>
+          <div class="sidebar-group <%= catAtiva ? 'open' : '' %>">
             <div class="sidebar-item-row">
-              <a href="<%= p.url %>" class="sidebar-item <%= !subAtiva && rotaAtual === p.url ? 'active' : '' %>">
-                <i class="ti <%= p.icone %>" aria-hidden="true"></i> <%= tituloPainel %>
-              </a>
-              <button type="button" class="sidebar-chev" onclick="alternarGrupoSidebar(this)" aria-label="Expandir <%= tituloPainel %>">
+              <button type="button" class="sidebar-item" onclick="alternarGrupoSidebar(this)">
+                <i class="ti <%= cat.icone %>" aria-hidden="true"></i> <%= cat.titulo %>
+              </button>
+              <button type="button" class="sidebar-chev" onclick="alternarGrupoSidebar(this)" aria-label="Expandir <%= cat.titulo %>">
                 <i class="ti ti-chevron-right" aria-hidden="true"></i>
               </button>
             </div>
             <div class="sidebar-sub">
               <div class="sidebar-sub-inner">
-                <% subVisiveis.forEach(function (s) { %>
-                  <a href="<%= s.url %>" class="sidebar-item sidebar-subitem <%= rotaAtual === s.url ? 'active' : '' %>">
-                    <i class="ti <%= s.icone || 'ti-point' %>" aria-hidden="true"></i> <%= s.titulo %>
+                <% itensPaineis.forEach(function (p) { %>
+                  <%- include('sidebar-painel-item', { painel: p, usuario: usuario, rotaAtual: rotaAtual, subitem: true }) %>
+                <% }); %>
+                <% itensAtalhos.forEach(function (a) { %>
+                  <a href="<%= a.url %>" class="sidebar-item sidebar-subitem" <% if (a.novaAba) { %>target="_blank" rel="noopener"<% } %>>
+                    <i class="ti <%= a.icone %>" aria-hidden="true"></i> <%= a.titulo %>
                   </a>
                 <% }); %>
               </div>
             </div>
           </div>
-        <% } else { %>
-          <a href="<%= p.url %>" class="sidebar-item <%= rotaAtual === p.url ? 'active' : '' %>">
-            <i class="ti <%= p.icone %>" aria-hidden="true"></i> <%= tituloPainel %>
-          </a>
         <% } %>
       <% }); %>
     <% } %>
 
-    <% if (atalhosVisiveis.length) { %>
+    <% if (paineisSoltos.length) { %>
+      <div class="sidebar-label">Painéis</div>
+      <% paineisSoltos.forEach(function (p) { %>
+        <%- include('sidebar-painel-item', { painel: p, usuario: usuario, rotaAtual: rotaAtual, subitem: false }) %>
+      <% }); %>
+    <% } %>
+
+    <% if (atalhosSoltos.length) { %>
       <div class="sidebar-label">Atalhos</div>
-      <% atalhosVisiveis.forEach(function (a) { %>
+      <% atalhosSoltos.forEach(function (a) { %>
         <a href="<%= a.url %>" class="sidebar-item" <% if (a.novaAba) { %>target="_blank" rel="noopener"<% } %>>
           <i class="ti <%= a.icone %>" aria-hidden="true"></i> <%= a.titulo %>
         </a>

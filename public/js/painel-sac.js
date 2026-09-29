@@ -583,12 +583,19 @@ function renderRV_Daniel(ind, block) {
   if (tmaLogo > 0 && tmaLogo <= 30) { logoVal = 50; logoS = 'ok'; }
   else if (tmaLogo > 30) logoS = 'bad';
 
-  const total = pedVal + csatVal + logoVal;
-  const max   = 275;
+  const tmrEE    = ind.tmr_erro_envio || 0;
+  let erroEnvioVal = 0, erroEnvioS = 'bad';
+  const erroEnvioLbl = tmrEE > 0 ? fmtHoras(tmrEE) : 'Sem dados';
+  if (tmrEE > 0 && tmrEE <= 1440) { erroEnvioVal = 50; erroEnvioS = 'ok'; }
+  else if (tmrEE > 1440) erroEnvioS = 'bad';
+
+  const total = pedVal + csatVal + logoVal + erroEnvioVal;
+  const max   = 325;
   rvRender(block, total, max, MESES[mesAtual], [
     rvItem('TMT Ped. Atrasados', pedLbl,  pedVal,  pedS,  'Meta: < 24h'),
     rvItem('CSAT',               csatLbl, csatVal, csatS, 'Meta: ≥ 95%'),
     rvItem('TMA Aprov. Logo',    logoLbl, logoVal, logoS, 'Meta: ≤ 30 min'),
+    rvItem('TMR Erro de Envio',  erroEnvioLbl, erroEnvioVal, erroEnvioS, 'Meta: < 24h'),
   ]);
 }
 
@@ -607,11 +614,18 @@ function renderRV_Gabrielle(ind, block) {
   const audLbl = auditorias + ' / ' + metaAuditoria;
   if (auditorias >= metaAuditoria) { audVal = 50; audS = 'ok'; }
 
-  const total = pedVal + audVal;
-  const max   = 200;
+  const tmrEE    = ind.tmr_erro_envio || 0;
+  let erroEnvioVal = 0, erroEnvioS = 'bad';
+  const erroEnvioLbl = tmrEE > 0 ? fmtHoras(tmrEE) : 'Sem dados';
+  if (tmrEE > 0 && tmrEE <= 1440) { erroEnvioVal = 50; erroEnvioS = 'ok'; }
+  else if (tmrEE > 1440) erroEnvioS = 'bad';
+
+  const total = pedVal + audVal + erroEnvioVal;
+  const max   = 250;
   rvRender(block, total, max, MESES[mesAtual], [
     rvItem('TMT Ped. Atrasados', pedLbl, pedVal, pedS, 'Meta: < 24h'),
     rvItem('Auditorias',         audLbl, audVal, audS, 'Meta: ' + metaAuditoria + '/mês'),
+    rvItem('TMR Erro de Envio',  erroEnvioLbl, erroEnvioVal, erroEnvioS, 'Meta: < 24h'),
   ]);
 }
 
