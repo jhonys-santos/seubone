@@ -27,8 +27,43 @@
   $('elChave').addEventListener('input', (e) => { e.target.value = mascaraChave(e.target.value); });
   $('elDDoc').addEventListener('input', (e) => { e.target.value = mascaraDoc(e.target.value); });
   $('elDCep').addEventListener('input', (e) => { e.target.value = mascaraCep(e.target.value); });
-  $('elDUf').addEventListener('input', (e) => { e.target.value = e.target.value.toUpperCase(); });
-  $('elDestino').addEventListener('input', (e) => { e.target.value = e.target.value.toUpperCase().replace(/[^A-Z]/g, ''); });
+  $('elDUf').addEventListener('input', (e) => { e.target.value = e.target.value.toUpperCase(); atualizarDestinoAutomatico(); });
+
+  // ── CEP: busca o endereço automaticamente (ViaCEP) ───────────────────
+  $('elDCep').addEventListener('input', async (e) => {
+    const digitos = e.target.value.replace(/\D/g, '');
+    if (digitos.length !== 8) return;
+    try {
+      const res = await fetch(`https://viacep.com.br/ws/${digitos}/json/`);
+      const dados = await res.json();
+      if (dados.erro) return; // CEP não encontrado — deixa o operador preencher na mão
+      $('elDRua').value = dados.logradouro || $('elDRua').value;
+      $('elDBairro').value = dados.bairro || $('elDBairro').value;
+      $('elDCidade').value = dados.localidade || $('elDCidade').value;
+      $('elDUf').value = (dados.uf || $('elDUf').value).toUpperCase();
+      atualizarDestinoAutomatico();
+    } catch (err) { /* sem internet ou ViaCEP fora do ar — segue com preenchimento manual */ }
+  });
+
+  // ── Entrega: retirada no aeroporto (escolhe na lista) x domicílio
+  // (a LATAM define o aeroporto pela UF do destinatário — sem escolha manual) ──
+  document.querySelectorAll('input[name="tipoEntrega"]').forEach((r) => r.addEventListener('change', atualizarTipoEntrega));
+  function atualizarTipoEntrega() {
+    const domicilio = $('elEntregaDomicilio').checked;
+    document.getElementById('elOpcaoRetirada').classList.toggle('el-ativo', !domicilio);
+    document.getElementById('elOpcaoDomicilio').classList.toggle('el-ativo', domicilio);
+    $('elBlocoRetirada').style.display = domicilio ? 'none' : '';
+    $('elBlocoDomicilio').style.display = domicilio ? '' : 'none';
+    if (domicilio) atualizarDestinoAutomatico();
+  }
+  function atualizarDestinoAutomatico() {
+    const uf = $('elDUf').value.toUpperCase();
+    const iata = (window.AEROPORTO_POR_UF || {})[uf];
+    const info = (window.AEROPORTOS_INFO || []).find((a) => a.iata === iata);
+    $('elDestinoAuto').textContent = iata
+      ? `${iata} — ${info ? info.cidade : ''}`
+      : (uf ? `UF "${uf}" sem aeroporto mapeado` : 'Preencha o CEP do destinatário');
+  }
 
   document.querySelectorAll('input[name="servico"]').forEach((r) => r.addEventListener('change', atualizarOpcaoServico));
   function atualizarOpcaoServico() {
@@ -147,7 +182,7 @@
         ${esc(d.endereco.logradouro)}, ${esc(d.endereco.numero)}${d.endereco.complemento ? ` — ${esc(d.endereco.complemento)}` : ''}<br>
         ${esc(d.endereco.bairro || '')} · ${esc(d.endereco.cidade)}/${esc(d.endereco.uf)} · ${esc(mascaraCep(d.endereco.cep || ''))}
       </dd></div>
-      <div><dt>Rota</dt><dd>${esc(p.origem || 'NAT')} → ${esc(p.destino)}</dd></div>
+      <div><dt>Rota</dt><dd>${esc(p.origem || 'NAT')} → ${esc(p.destino)} <small>${p.entregaDomicilio ? '(entrega no domicílio — aeroporto automático pela UF)' : '(retirada no aeroporto)'}</small></dd></div>
       <div><dt>NF-e</dt><dd class="el-mono">${n.chave ? esc(mascaraChave(n.chave)) : '—'}</dd></div>
       <div><dt>Volumes</dt><dd>${p.volumes.map((v) => `${v.quantidade}× ${v.pesoKg}kg (${v.alturaCm}×${v.larguraCm}×${v.comprimentoCm}cm)`).join('; ')}</dd></div>
       <div><dt>Seguro</dt><dd>${p.seguroTipo === 1 ? 'LATAM' : p.seguroTipo === 2 ? 'Próprio' : 'Sem seguro'}</dd></div>
@@ -285,7 +320,11 @@
     volumes = [volumeVazio()]; previaAtual = null; emissaoAtual = null;
     renderVolumes();
     form.reset();
-    document.querySelectorAll('.el-opcao').forEach((op, i) => op.classList.toggle('el-ativo', i === 0));
+    // form.reset() volta os radios pro "checked" declarado no HTML
+    // (Automático / Retirada no aeroporto) — só falta re-sincronizar as
+    // classes visuais el-ativo e o bloco retirada/domicílio com isso.
+    atualizarOpcaoServico();
+    atualizarTipoEntrega();
     mostrarErro('');
     irParaEtapa('form');
   });

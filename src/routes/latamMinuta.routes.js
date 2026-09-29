@@ -2,7 +2,7 @@ const express = require('express');
 const { requireAuth, requirePainel } = require('../middleware/auth');
 const env = require('../config/env');
 const {
-  previa, emitir, verificarPorChaveNfe, ErroMinuta, SERVICOS_MANUAIS, NOMES_SERVICO,
+  previa, emitir, verificarPorChaveNfe, ErroMinuta, SERVICOS_MANUAIS, NOMES_SERVICO, AEROPORTOS, AEROPORTO_POR_UF,
 } = require('../services/latamMinuta.service');
 
 const router = express.Router();
@@ -12,6 +12,10 @@ router.use(requireAuth, requirePainel('emissao-latam'));
 router.get('/', (req, res) => {
   res.render('emissao-latam/index', {
     servicos: SERVICOS_MANUAIS.map((s) => ({ chave: s, nome: NOMES_SERVICO[s] })),
+    aeroportos: Object.entries(AEROPORTOS)
+      .map(([iata, cidade]) => ({ iata, cidade }))
+      .sort((a, b) => a.cidade.localeCompare(b.cidade, 'pt-BR')),
+    aeroportoPorUf: AEROPORTO_POR_UF,
   });
 });
 

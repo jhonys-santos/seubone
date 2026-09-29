@@ -61,9 +61,29 @@
     </fieldset>
 
     <fieldset class="el-grupo">
-      <legend>Destino</legend>
-      <div class="el-linha4">
-        <label class="el-campo"><span>Aeroporto de destino (IATA)</span><input id="elDestino" maxlength="3" placeholder="GRU"></label>
+      <legend>Entrega</legend>
+      <div class="el-opcoes" role="radiogroup" aria-label="Tipo de entrega">
+        <label class="el-opcao el-ativo" id="elOpcaoRetirada">
+          <input type="radio" name="tipoEntrega" id="elEntregaRetirada" value="retirada" checked>
+          <span><b>Retirada no aeroporto</b></span>
+        </label>
+        <label class="el-opcao" id="elOpcaoDomicilio">
+          <input type="radio" name="tipoEntrega" id="elEntregaDomicilio" value="domicilio">
+          <span><b>Entrega no domicílio</b></span>
+        </label>
+      </div>
+      <div class="el-linha4" id="elBlocoRetirada">
+        <label class="el-campo"><span>Aeroporto de destino</span>
+          <select id="elDestino">
+            <option value="">Selecione…</option>
+            <% aeroportos.forEach(function (a) { %><option value="<%= a.iata %>"><%= a.iata %> — <%= a.cidade %></option><% }); %>
+          </select>
+        </label>
+      </div>
+      <div class="el-linha4" id="elBlocoDomicilio" style="display:none">
+        <label class="el-campo"><span>Aeroporto de destino <small>(automático pela UF do destinatário)</small></span>
+          <div id="elDestinoAuto" class="el-mono" style="padding:9px 11px;background:var(--surface-2);border:1px solid var(--border-strong);border-radius:7px;color:var(--text-muted)">Preencha o CEP do destinatário</div>
+        </label>
       </div>
     </fieldset>
 
@@ -106,10 +126,6 @@
           </select>
         </label>
       </div>
-      <label class="el-opcao" id="elOpcaoEntrega" style="align-self:flex-start">
-        <input type="checkbox" id="elEntregaDomicilio">
-        <span>Entrega no endereço do destinatário <small>(desmarcado = retirada no aeroporto)</small></span>
-      </label>
     </fieldset>
 
     <fieldset class="el-grupo">
@@ -159,6 +175,8 @@
 
 <script>
   window.SERVICOS_MANUAIS = <%- JSON.stringify(servicos) %>;
+  window.AEROPORTOS_INFO = <%- JSON.stringify(aeroportos) %>;
+  window.AEROPORTO_POR_UF = <%- JSON.stringify(aeroportoPorUf) %>;
 </script>
 <script src="/js/emissao-latam.js?v=<%= appVersion %>"></script>
 </body>

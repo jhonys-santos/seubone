@@ -550,6 +550,39 @@ function remetente(env) {
   };
 }
 
+/* ============================ localizacao.ts (recorte) ============================ */
+
+// Aeroportos atendidos pela LATAM Cargo no Brasil — tabela do próprio manual
+// da e-Minuta (portada de latam-cargo-crm/src/localizacao.ts). Usada pro
+// seletor de "retirada no aeroporto" no formulário do hub.
+const AEROPORTOS = {
+  AJU: 'Aracaju', AUX: 'Araguaína', BEL: 'Belém', BNU: 'Blumenau', BPS: 'Porto Seguro', BRA: 'Barreiras',
+  BSB: 'Brasília', BVB: 'Boa Vista', CAC: 'Cascavel', CGB: 'Cuiabá', CGH: 'São Paulo (Congonhas)',
+  CGR: 'Campo Grande', CLV: 'Caldas Novas', CNF: 'Belo Horizonte (Confins)', CWB: 'Curitiba', CXJ: 'Caxias do Sul',
+  FLN: 'Florianópolis', FOR: 'Fortaleza', GIG: 'Rio de Janeiro (Galeão)', GRU: 'São Paulo (Guarulhos)', GYN: 'Goiânia',
+  IGU: 'Foz do Iguaçu', IMP: 'Imperatriz', IOS: 'Ilhéus', JJG: 'Jaguaruna', JOI: 'Joinville', JPA: 'João Pessoa',
+  JTC: 'Bauru', LDB: 'Londrina', MAB: 'Marabá', MAO: 'Manaus', MCP: 'Macapá', MCZ: 'Maceió', MGF: 'Maringá',
+  NAT: 'Natal', NVT: 'Navegantes', PLU: 'Belo Horizonte (Pampulha)', PMW: 'Palmas', POA: 'Porto Alegre',
+  PVH: 'Porto Velho', QSB: 'São Bernardo do Campo', RAO: 'Ribeirão Preto', RBR: 'Rio Branco', REC: 'Recife',
+  ROO: 'Rondonópolis', SDU: 'Rio de Janeiro (Santos Dumont)', SJK: 'São José dos Campos', SJP: 'São José do Rio Preto',
+  SLZ: 'São Luís', SSA: 'Salvador', STM: 'Santarém', THE: 'Teresina', UDI: 'Uberlândia', VCP: 'Campinas (Viracopos)',
+  VDC: 'Vitória da Conquista', VIX: 'Vitória', XAP: 'Chapecó',
+};
+
+// Aeroporto LATAM Cargo mais próximo por UF — usado quando a entrega é no
+// domicílio do destinatário (o operador não escolhe manualmente; o sistema
+// preenche sozinho a partir da UF do endereço, decisão do usuário). Sempre
+// o hub/capital do estado dentre os aeroportos da tabela acima.
+const AEROPORTO_POR_UF = {
+  AC: 'RBR', AL: 'MCZ', AM: 'MAO', AP: 'MCP', BA: 'SSA', CE: 'FOR', DF: 'BSB', ES: 'VIX', GO: 'GYN',
+  MA: 'SLZ', MG: 'CNF', MS: 'CGR', MT: 'CGB', PA: 'BEL', PB: 'JPA', PE: 'REC', PI: 'THE', PR: 'CWB',
+  RJ: 'GIG', RN: 'NAT', RO: 'PVH', RR: 'BVB', RS: 'POA', SC: 'FLN', SE: 'AJU', SP: 'GRU', TO: 'PMW',
+};
+
+function aeroportoMaisProximo(uf) {
+  return AEROPORTO_POR_UF[String(uf || '').toUpperCase()] || null;
+}
+
 // Serviços liberados pro seletor manual no hub — STANDARD/VELOZ ficam de
 // fora da lista enquanto não tiverem código configurado (ver produtos.ts).
 const SERVICOS_MANUAIS = ['EFACIL', 'PROXIMO_VOO', 'JUNTOS'];
@@ -633,18 +666,26 @@ function montar(bruta, env) {
   const valorTotalNotas = notas.reduce((s, n) => s + (Number.isFinite(n.valor) ? n.valor : 0), 0);
   const servicoManual = texto2(e.servico) && e.servico !== 'AUTOMATICO' ? e.servico : undefined;
 
+  const entregaDomicilio = !!e.entregaDomicilio;
+  // Domicílio: o destino é sempre o aeroporto LATAM mais próximo da UF do
+  // destinatário (decisão do usuário — não é escolha manual nesse modo,
+  // fica definido pelo próprio sistema). Retirada: vem do seletor do form.
+  const destino = entregaDomicilio
+    ? aeroportoMaisProximo(destinatario.endereco.uf) || ''
+    : (texto2(e.destino) || '').toUpperCase();
+
   const envio = {
     remetente: remetente(env),
     destinatario,
     // tomador/pagador de propósito omitidos: tomador sempre = remetente (ver comentário na função remetente()).
     origem: (env && env.latamCargoOrigemIata) || 'NAT',
-    destino: (texto2(e.destino) || '').toUpperCase(),
+    destino,
     servico: servicoManual,
     notas,
     volumes,
     seguro: { tipo: Number(e.seguroTipo) || undefined },
     pagamento: e.pagamento === 'DESTINO' ? 'DESTINO' : 'ORIGEM',
-    entregaDomicilio: !!e.entregaDomicilio,
+    entregaDomicilio,
     observacao: texto2(e.observacao),
   };
   return { envio, valorTotalNotas };
@@ -727,6 +768,7 @@ function traduzir(e) {
 module.exports = {
   LatamErro, LatamCargo, ErroMinuta,
   remetente, SERVICOS_MANUAIS, NOMES_SERVICO, CODIGOS_SERVICO_PADRAO,
+  AEROPORTOS, AEROPORTO_POR_UF, aeroportoMaisProximo,
   previa, emitir, verificarPorChaveNfe, definirCliente,
   montarXmlMinuta, resolverServico, sugerirServico, servicosDisponiveis,
 };
