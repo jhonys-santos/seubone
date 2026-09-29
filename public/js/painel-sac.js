@@ -22,6 +22,12 @@ let slugAtivo = usuarioLogado.slug; // muda quando gestor usa "ver como"
 let tipoAtivo = usuarioLogado.tipo; // tipo de QUEM está sendo visualizado (não de quem está logado)
 let indicadoresPendentesAtivo = !!usuarioLogado.indicadoresPendentes; // true = ainda não tem KPIs mapeados na planilha
 let dadosCache = {};
+// Cada carregarPainel()/atualizarComLoading() pega o próprio número antes de
+// buscar os dados. Se, quando a resposta chega, requestSeq já avançou (o
+// usuário trocou de "ver como"/período/mês de novo enquanto essa ainda
+// estava em voo), a resposta é descartada em vez de renderizada — evita que
+// uma resposta atrasada de uma pessoa "vaze" pro cabeçalho/cards de outra.
+let requestSeq = 0;
 
 function nomeDoSlug(slug) {
   if (slug === usuarioLogado.slug) return usuarioLogado.nome;
@@ -137,18 +143,46 @@ function mostrarEmConstrucao() {
   document.getElementById('rv-block').style.display = 'none';
 }
 
+// Banner de erro/aviso no topo do painel. `tipo` 'erro' usa as cores padrão
+// (vermelho, definidas no CSS); 'aviso' sobrescreve pra amarelo/laranja — sem
+// isso, um aviso deixaria o inline style laranja "grudado" e um erro real
+// logo em seguida sairia colorido errado.
+function mostrarBanner(html, tipo) {
+  const b = document.getElementById('error-banner');
+  b.style.display = 'block';
+  if (tipo === 'aviso') {
+    b.style.background = 'var(--warn-bg)';
+    b.style.borderColor = 'rgba(255,158,44,0.25)';
+    b.style.color = 'var(--warn-text)';
+  } else {
+    b.style.background = '';
+    b.style.borderColor = '';
+    b.style.color = '';
+  }
+  b.innerHTML = html;
+}
+function esconderBanner() {
+  const b = document.getElementById('error-banner');
+  b.style.display = 'none';
+  b.style.background = '';
+  b.style.borderColor = '';
+  b.style.color = '';
+}
+
 // ── CARREGAR PAINEL ───────────────────────────────────────────
 async function carregarPainel() {
   if (indicadoresPendentesAtivo) {
     mostrarEmConstrucao();
     return;
   }
+  const meuSeq = ++requestSeq;
   const ls = document.getElementById('loading-screen');
   ls.classList.add('show');
   setLoadingTxt('Carregando indicadores...');
-  document.getElementById('error-banner').style.display = 'none';
+  esconderBanner();
   try {
     const dados = await fetchDados();
+    if (meuSeq !== requestSeq) return; // troca mais recente já em andamento — descarta esta resposta
     ls.classList.remove('show');
     document.getElementById('dash').classList.add('show');
     // Desfaz o que a tela "em construção" possa ter escondido numa troca de "ver como" anterior.
@@ -157,11 +191,10 @@ async function carregarPainel() {
     });
     renderTudo(dados);
   } catch(e) {
+    if (meuSeq !== requestSeq) return;
     ls.classList.remove('show');
     document.getElementById('dash').classList.add('show');
-    const b = document.getElementById('error-banner');
-    b.style.display = 'block';
-    b.innerHTML = `<i class="ti ti-alert-circle"></i> Erro ao carregar dados: ${e.message}`;
+    mostrarBanner(`<i class="ti ti-alert-circle"></i> Erro ao carregar dados: ${e.message}`, 'erro');
   }
 }
 
@@ -218,7 +251,7 @@ function renderTudo(dados) {
     const csatStr2 = (ind.csat !== null && ind.csat !== undefined) ? ind.csat + '%' : '—';
     document.getElementById('kpi-grid').innerHTML =
       kpiCard('ti-clock','TMA',tmaStr,s1,bdg(s1),'Meta: &lt; 30 min') +
-      kpiCard('ti-star','CSAT',csatStr2,s2,bdg(s2),'Meta: ≥ 95%') +
+      kpiCard('ti-star','CSAT',csatStr2,s2,bdg(s2, s2 === 'bad' ? 'abaixo da meta' : undefined),'Meta: ≥ 95%') +
       kpiCard('ti-refresh','TMR Refab.',fmtHoras(ind.tmr_refab||0),s3,bdg(s3),'Meta: &lt; 84h') +
       kpiCard('ti-headset','Atendimentos',ind.atendimentos||0,'neutral','',lbl) +
       kpiCard('ti-chart-bar','Pesquisas',ind.pesquisas||0,'neutral','',lbl) +
@@ -243,7 +276,7 @@ function renderTudo(dados) {
         kpiCard('ti-clock',     'TMR Erro de Envio',  tmrEEStr,               tmrEESp,   bdg(tmrEESp),   'Meta: &lt; 24h') +
         kpiCard('ti-ticket',    'Tickets Erro de Envio', ind.tickets_erro_envio || 0, 'neutral', '',     'resolvidos ' + lbl) +
         kpiCard('ti-clock',     'TMA Aprov. Logo',    tmaLogoStr,             tmaLogoSp, bdg(tmaLogoSp), 'Meta: &lt; 30 min') +
-        kpiCard('ti-star',      'CSAT',               csatStr,                csatSp,    bdg(csatSp),    'Meta: ≥ 95%') +
+        kpiCard('ti-star',      'CSAT',               csatStr,                csatSp,    bdg(csatSp, csatSp === 'bad' ? 'abaixo da meta' : undefined),    'Meta: ≥ 95%') +
         kpiCard('ti-chart-bar', 'Pesquisas',          ind.pesquisas || 0,     'neutral', '',             'esta semana') +
         kpiCard('ti-check',     'Testes Aprov.',      testesStr,              'neutral', '',             'aprovados') +
         kpiCard('ti-ticket',    'Tickets',            ind.tickets   || 0,     'neutral', '',             'resolvidos');
@@ -262,15 +295,21 @@ function renderTudo(dados) {
         kpiCard('ti-ticket',    'Tickets Ped. Atrasados', ind.tickets_pedido_atrasado || 0, 'neutral', '', 'resolvidos ' + lbl) +
         kpiCard('ti-clock',     'TMR Erro de Envio',  tmrEEStr,         tmrEESp,   bdg(tmrEESp),  'Meta: &lt; 24h') +
         kpiCard('ti-ticket',    'Tickets Erro de Envio', ind.tickets_erro_envio || 0, 'neutral', '', 'resolvidos ' + lbl) +
-        kpiCard('ti-star',      'CSAT',        csatStr,                csatSp,    bdg(csatSp),   'Meta: ≥ 95%') +
+        kpiCard('ti-star',      'CSAT',        csatStr,                csatSp,    bdg(csatSp, csatSp === 'bad' ? 'abaixo da meta' : undefined),   'Meta: ≥ 95%') +
         kpiCard('ti-chart-bar', 'Pesquisas',   ind.pesquisas || 0,     'neutral', '',            'esta semana') +
-        kpiCard('ti-clipboard-check','Auditorias', (ind.auditorias||0) + ' / ' + meta, auditSp, bdg(auditSp), 'Meta: ' + meta + (periodo==='semana'?'/semana':'/mês')) +
+        kpiCard('ti-clipboard-check','Auditorias', (ind.auditorias||0) + ' / ' + meta, auditSp, bdg(auditSp, auditSp === 'ok' ? 'dentro da meta' : 'abaixo da meta'), 'Meta: ' + meta + (periodo==='semana'?'/semana':'/mês')) +
         kpiCard('ti-ticket',    'Tickets',     ind.tickets || 0,       'neutral', '',            'resolvidos');
     } else {
       document.getElementById('kpi-grid').innerHTML =
         kpiCard('ti-clock','TMR PPF+1',(ind.tmr_ppf||0) > 0 ? fmtHoras(ind.tmr_ppf) : '—', sp, bdg(sp),'Meta: &lt; 480 min') +
         kpiCard('ti-ticket','Tickets',ind.tickets||0,'neutral','','resolvidos');
     }
+  }
+
+  if (ind._ticketsIndisponivel) {
+    mostrarBanner(`<i class="ti ti-alert-triangle"></i> Não foi possível buscar TMT Ped. Atrasados, TMR Erro de Envio e Tickets agora (Painel de Ticket instável) — os valores abaixo podem estar zerados sem serem reais. Tente atualizar em instantes.`, 'aviso');
+  } else {
+    esconderBanner();
   }
 
   renderEvolucao(ind.tendencia_tma||[], ind.tendencia_csat||[]);
@@ -615,11 +654,14 @@ function esconderAtualizando() {
 }
 
 async function atualizarComLoading() {
+  const meuSeq = ++requestSeq;
   mostrarAtualizando();
   try {
     const dados = await fetchDados();
+    if (meuSeq !== requestSeq) return; // troca mais recente já em andamento — descarta esta resposta
     renderTudo(dados);
   } catch (e) {
+    if (meuSeq !== requestSeq) return;
     await hubAlert('Erro ao atualizar indicadores: ' + e.message, 'erro');
   } finally {
     esconderAtualizando();

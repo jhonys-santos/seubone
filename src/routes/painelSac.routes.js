@@ -276,6 +276,13 @@ router.get('/api/dados', resolveSlug, async (req, res) => {
         json.indicadores.tickets_pedido_atrasado = ticketsResolucao.tickets_pedido_atrasado;
         json.indicadores.tickets_erro_envio = ticketsResolucao.tickets_erro_envio;
         json.indicadores.pico = ticketsResolucao.pico;
+      } else if (CONSULTORES_TICKETS_SLUGS.includes(req.slugAlvo)) {
+        // buscarTicketsResolucao só devolve null aqui quando a busca no Painel
+        // de Ticket falhou (rede/timeout/JSON inválido) — sem isso, TMT Ped.
+        // Atrasados/TMR Erro de Envio/Tickets ficam undefined e o front exibe
+        // "—"/0, indistinguível de "realmente zero no período". Avisa o front
+        // pra mostrar que o dado está indisponível, não zerado.
+        json.indicadores._ticketsIndisponivel = true;
       }
     }
 
