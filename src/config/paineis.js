@@ -104,4 +104,8 @@ module.exports = [
       { titulo: 'Correios', url: '/cotacoes/correios', icone: 'ti-mailbox' },
     ],
   },
+  {
+    chave: 'emissao-correios', titulo: 'Emissão Correios', descricao: 'Emite pré-postagem e etiqueta (SEDEX/PAC) a partir da NF-e',
+    url: '/emissao-correios', icone: 'ti-tag',
+  },
 ];

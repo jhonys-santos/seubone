@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<%- include('../partials/head') %>
+<title>Emissão Correios - SeuBoné</title>
+<link rel="stylesheet" href="/css/emissao-correios.css">
+</head>
+<body>
+<div class="app-shell">
+<%- include('../partials/sidebar') %>
+<div class="app-main">
+
+<div class="ec-scope">
+
+  <div class="ec-header">
+    <p class="ec-sobretitulo">Correios · contrato SeuBoné</p>
+    <h1><i class="ti ti-tag" aria-hidden="true"></i> Emitir etiqueta</h1>
+    <p class="ec-lede">Gera a pré-postagem nos Correios com o código de rastreio e as etiquetas para a impressora térmica 10x15 e para folha A4.</p>
+    <ol class="ec-passos" id="ecPassos" aria-label="Etapas">
+      <li data-passo="form" class="ec-ativo">1. Dados do envio</li>
+      <li data-passo="previa">2. Revisar</li>
+      <li data-passo="emitida">3. Etiqueta</li>
+    </ol>
+  </div>
+
+  <p class="ec-erro" id="ecErro" role="alert" style="display:none"></p>
+
+  <!-- Etapa 1: formulário -->
+  <form class="ec-form" id="ecForm" novalidate>
+    <fieldset class="ec-grupo">
+      <legend>Nota fiscal</legend>
+      <div class="ec-abas" role="tablist" aria-label="Como informar a NF-e">
+        <button type="button" role="tab" class="ec-aba ec-ativo" id="ecAbaXml" data-modo="xml">Enviar XML da NF-e</button>
+        <button type="button" role="tab" class="ec-aba" id="ecAbaManual" data-modo="manual">Digitar chave e dados</button>
+      </div>
+      <label class="ec-arquivo" id="ecBlocoXml">
+        <input id="ecXmlInput" type="file" accept=".xml,text/xml,application/xml">
+        <span id="ecXmlLabel">Escolher o arquivo XML da NF-e</span>
+        <small>O destinatário, o endereço, os itens e o peso bruto saem da nota.</small>
+      </label>
+      <label class="ec-campo" id="ecBlocoChave" style="display:none">
+        <span>Chave da NF-e</span>
+        <input id="ecChaveNFe" inputmode="numeric" autocomplete="off" placeholder="0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000">
+      </label>
+    </fieldset>
+
+    <div id="ecBlocoManual" style="display:none">
+      <fieldset class="ec-grupo">
+        <legend>Destinatário</legend>
+        <div class="ec-linha2">
+          <label class="ec-campo"><span>Nome completo</span><input id="ecDNome"></label>
+          <label class="ec-campo"><span>CPF ou CNPJ <small>(opcional)</small></span><input id="ecDDoc" inputmode="numeric"></label>
+          <label class="ec-campo"><span>Celular com DDD <small>(recomendado)</small></span><input id="ecDTel" inputmode="tel"></label>
+          <label class="ec-campo"><span>E-mail <small>(opcional)</small></span><input id="ecDEmail" type="email"></label>
+        </div>
+        <div class="ec-linhaEnd">
+          <label class="ec-campo"><span>CEP</span><input id="ecDCep" inputmode="numeric" placeholder="00000-000"></label>
+          <label class="ec-campo"><span>Rua</span><input id="ecDRua"></label>
+          <label class="ec-campo"><span>Número</span><input id="ecDNum" placeholder="S/N"></label>
+        </div>
+        <div class="ec-linhaEnd2">
+          <label class="ec-campo"><span>Complemento</span><input id="ecDCompl"></label>
+          <label class="ec-campo"><span>Bairro</span><input id="ecDBairro"></label>
+          <label class="ec-campo"><span>Cidade</span><input id="ecDCidade"></label>
+          <label class="ec-campo"><span>UF</span><input id="ecDUf" maxlength="2"></label>
+        </div>
+      </fieldset>
+
+      <fieldset class="ec-grupo">
+        <legend>Conteúdo (declaração obrigatória)</legend>
+        <div id="ecItens"></div>
+        <button type="button" class="ec-secundario" id="ecBtnAddItem">Adicionar item</button>
+      </fieldset>
+    </div>
+
+    <fieldset class="ec-grupo">
+      <legend>Serviço</legend>
+      <div class="ec-opcoes" role="radiogroup" aria-label="Serviço">
+        <label class="ec-opcao ec-ativo" id="ecOpcaoSedex">
+          <input type="radio" name="servico" id="ecServicoSedex" value="SEDEX" checked>
+          <span><b>SEDEX</b> <small>03220 · mais rápido</small></span>
+        </label>
+        <label class="ec-opcao" id="ecOpcaoPac">
+          <input type="radio" name="servico" id="ecServicoPac" value="PAC">
+          <span><b>PAC</b> <small>03298 · mais econômico</small></span>
+        </label>
+      </div>
+    </fieldset>
+
+    <fieldset class="ec-grupo">
+      <legend>Caixa</legend>
+      <div class="ec-linha4">
+        <label class="ec-campo"><span>Altura (cm)</span><input id="ecAlturaCm" inputmode="decimal"></label>
+        <label class="ec-campo"><span>Largura (cm)</span><input id="ecLarguraCm" inputmode="decimal"></label>
+        <label class="ec-campo"><span>Comprimento (cm)</span><input id="ecComprimentoCm" inputmode="decimal"></label>
+        <label class="ec-campo"><span>Peso (g) <small id="ecPesoDica" style="display:none">vazio = da NF</small></span><input id="ecPesoG" inputmode="numeric"></label>
+      </div>
+    </fieldset>
+
+    <fieldset class="ec-grupo">
+      <legend>Identificação <small>(opcional)</small></legend>
+      <div class="ec-linha2">
+        <label class="ec-campo"><span>Nº do pedido</span><input id="ecPedido" maxlength="25"></label>
+        <label class="ec-campo"><span>Observação na etiqueta</span><input id="ecObservacao" maxlength="50"></label>
+      </div>
+    </fieldset>
+
+    <button class="ec-botao" type="submit" id="ecBtnRevisar">Revisar antes de emitir</button>
+    <p class="ec-dica">Revisar não cria nada nos Correios.</p>
+  </form>
+
+  <!-- Etapa 2: prévia -->
+  <section class="ec-cartao" id="ecCartaoPrevia" style="display:none" aria-labelledby="ecTituloPrevia">
+    <h2 id="ecTituloPrevia" class="ec-h2">Confira antes de emitir</h2>
+    <dl class="ec-resumo" id="ecResumoPrevia"></dl>
+    <table class="ec-itens">
+      <thead><tr><th>Conteúdo</th><th>Qtd.</th><th>Valor unit.</th></tr></thead>
+      <tbody id="ecItensPrevia"></tbody>
+    </table>
+    <div id="ecAvisosPrevia"></div>
+    <div class="ec-acoes">
+      <button type="button" class="ec-secundario" id="ecBtnVoltar">Voltar e corrigir</button>
+      <button type="button" class="ec-botao" id="ecBtnEmitir">Emitir etiqueta</button>
+    </div>
+    <p class="ec-dica">Emitir cria a pré-postagem no contrato. Se não for postar, cancele depois; senão ela vence em 14 dias.</p>
+  </section>
+
+  <!-- Etapa 3: emitida -->
+  <section class="ec-cartao" id="ecCartaoEmitida" style="display:none" aria-labelledby="ecTituloEmitida">
+    <p class="ec-sobretitulo" id="ecStatusEmitida">Etiqueta emitida</p>
+    <h2 id="ecTituloEmitida" class="ec-codigo">—</h2>
+    <dl class="ec-resumo" id="ecResumoEmitida"></dl>
+    <div id="ecPendenteBloco" style="display:none" class="ec-aviso">
+      <p>Os Correios ainda estão liberando a etiqueta. O código acima já vale.</p>
+      <button type="button" class="ec-secundario" id="ecBtnBaixarDeNovo">Baixar etiquetas agora</button>
+    </div>
+    <div id="ecDownloads" class="ec-downloads"></div>
+    <div id="ecAvisosEmitida"></div>
+    <div class="ec-acoes">
+      <button type="button" class="ec-secundario" id="ecBtnNovaEtiqueta">Emitir outra etiqueta</button>
+      <span id="ecAreaCancelar"></span>
+    </div>
+  </section>
+
+</div>
+
+</div>
+</div>
+
+<script src="/js/emissao-correios.js?v=<%= appVersion %>"></script>
+</body>
+</html>
