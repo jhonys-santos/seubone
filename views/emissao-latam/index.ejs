@@ -44,7 +44,7 @@
       <div class="el-linha2">
         <label class="el-campo"><span>Nome completo / razão social</span><input id="elDNome"></label>
         <label class="el-campo"><span>CPF ou CNPJ</span><input id="elDDoc" inputmode="numeric"></label>
-        <label class="el-campo"><span>Inscrição estadual <small>(só CNPJ — vazio = ISENTO)</small></span><input id="elDIe"></label>
+        <label class="el-campo"><span>Inscrição estadual <small>(só CNPJ, vazio = ISENTO)</small></span><input id="elDIe"></label>
         <label class="el-campo"><span>Celular com DDD <small>(opcional)</small></span><input id="elDTel" inputmode="tel"></label>
       </div>
       <div class="el-linhaEnd">
@@ -76,7 +76,7 @@
         <label class="el-campo"><span>Aeroporto de destino</span>
           <select id="elDestino">
             <option value="">Selecione…</option>
-            <% aeroportos.forEach(function (a) { %><option value="<%= a.iata %>"><%= a.iata %> — <%= a.cidade %></option><% }); %>
+            <% aeroportos.forEach(function (a) { %><option value="<%= a.iata %>"><%= a.iata %> (<%= a.cidade %>)</option><% }); %>
           </select>
         </label>
       </div>
@@ -144,12 +144,12 @@
       <button type="button" class="el-secundario" id="elBtnVoltar">Voltar e corrigir</button>
       <button type="button" class="el-botao" id="elBtnEmitir">Emitir e-Minuta</button>
     </div>
-    <p class="el-dica">Emitir cria um AWB real no contrato. <b>Não existe cancelamento</b> — confira tudo com atenção antes de confirmar.</p>
+    <p class="el-dica">Emitir cria um AWB real no contrato. <b>Não existe cancelamento</b>, confira tudo com atenção antes de confirmar.</p>
   </section>
 
   <section class="el-cartao" id="elCartaoEmitida" style="display:none" aria-labelledby="elTituloEmitida">
     <p class="el-sobretitulo">e-Minuta emitida</p>
-    <h2 id="elTituloEmitida" class="el-codigo">—</h2>
+    <h2 id="elTituloEmitida" class="el-codigo">-</h2>
     <dl class="el-resumo" id="elResumoEmitida"></dl>
     <div id="elAvisoEmitida"></div>
     <div id="elDownloads" class="el-downloads"></div>
@@ -160,7 +160,7 @@
 
   <section class="el-cartao" id="elCartaoVerificar" style="display:none" aria-labelledby="elTituloVerificar">
     <h2 id="elTituloVerificar" class="el-h2">Verificar se já foi emitida</h2>
-    <p class="el-dica" style="margin-top:0">A LATAM não confirmou a emissão (erro de indisponibilidade). Antes de tentar de novo, confira pelo rastreio da NF-e se a e-Minuta já foi criada — reenviar sem checar pode duplicar o AWB.</p>
+    <p class="el-dica" style="margin-top:0">A LATAM não confirmou a emissão (erro de indisponibilidade). Antes de tentar de novo, confira pelo rastreio da NF-e se a e-Minuta já foi criada, reenviar sem checar pode duplicar o AWB.</p>
     <button type="button" class="el-secundario" id="elBtnVerificar">Verificar pela chave da NF-e</button>
     <div id="elResultadoVerificar"></div>
     <div class="el-acoes">

@@ -61,7 +61,7 @@
     const iata = (window.AEROPORTO_POR_UF || {})[uf];
     const info = (window.AEROPORTOS_INFO || []).find((a) => a.iata === iata);
     $('elDestinoAuto').textContent = iata
-      ? `${iata} — ${info ? info.cidade : ''}`
+      ? `${iata} (${info ? info.cidade : ''})`
       : (uf ? `UF "${uf}" sem aeroporto mapeado` : 'Preencha o CEP do destinatário');
   }
 
@@ -179,11 +179,11 @@
       <div><dt>Notas somam</dt><dd>${p.valorTotalNotas.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</dd></div>
       <div class="el-largo"><dt>Destinatário</dt><dd>
         <b>${esc(d.nome)}</b> <small>${d.cnpj ? 'CNPJ ' + esc(d.cnpj) : 'CPF ' + esc(d.cpf)}</small><br>
-        ${esc(d.endereco.logradouro)}, ${esc(d.endereco.numero)}${d.endereco.complemento ? ` — ${esc(d.endereco.complemento)}` : ''}<br>
+        ${esc(d.endereco.logradouro)}, ${esc(d.endereco.numero)}${d.endereco.complemento ? ` · ${esc(d.endereco.complemento)}` : ''}<br>
         ${esc(d.endereco.bairro || '')} · ${esc(d.endereco.cidade)}/${esc(d.endereco.uf)} · ${esc(mascaraCep(d.endereco.cep || ''))}
       </dd></div>
-      <div><dt>Rota</dt><dd>${esc(p.origem || 'NAT')} → ${esc(p.destino)} <small>${p.entregaDomicilio ? '(entrega no domicílio — aeroporto automático pela UF)' : '(retirada no aeroporto)'}</small></dd></div>
-      <div><dt>NF-e</dt><dd class="el-mono">${n.chave ? esc(mascaraChave(n.chave)) : '—'}</dd></div>
+      <div><dt>Rota</dt><dd>${esc(p.origem || 'NAT')} → ${esc(p.destino)} <small>${p.entregaDomicilio ? '(entrega no domicílio, aeroporto automático pela UF)' : '(retirada no aeroporto)'}</small></dd></div>
+      <div><dt>NF-e</dt><dd class="el-mono">${n.chave ? esc(mascaraChave(n.chave)) : '-'}</dd></div>
       <div><dt>Volumes</dt><dd>${p.volumes.map((v) => `${v.quantidade}× ${v.pesoKg}kg (${v.alturaCm}×${v.larguraCm}×${v.comprimentoCm}cm)`).join('; ')}</dd></div>
       <div><dt>Seguro</dt><dd>${p.seguroTipo === 1 ? 'LATAM' : p.seguroTipo === 2 ? 'Próprio' : 'Sem seguro'}</dd></div>
       <div><dt>Pagamento</dt><dd>${p.pagamento === 'DESTINO' ? 'A pagar no destino' : 'Pago na origem'}</dd></div>
@@ -239,81 +239,233 @@
 
   // ── Etiqueta pra impressão (a LATAM não devolve PDF pra e-Minuta — gera
   // aqui, no mesmo espírito das duas versões que os Correios já têm) ─────
-  function abrirEtiqueta(layout) {
+  function formatarTelefone(tel) {
+    const d = (tel && tel.numero) || '';
+    if (d.length === 11) return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
+    if (d.length === 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
+    return d || '';
+  }
+  function formatarDoc(d) {
+    return d.cnpj ? `CNPJ ${d.cnpj}` : `CPF ${d.cpf || ''}`;
+  }
+  function formatarEndereco(end) {
+    return `${end.logradouro}, ${end.numero} · ${end.bairro || ''} · ${end.cidade}/${end.uf} · CEP ${end.cep || ''}`;
+  }
+  function nomeAeroporto(iata) {
+    const info = (window.AEROPORTOS_INFO || []).find((a) => a.iata === iata);
+    return (info && info.cidade.replace(/\s*\([^)]*\)/, '')) || iata || '';
+  }
+
+  /** Monta os dados da etiqueta a partir da prévia/emissão atual — cada campo já
+   * com o ícone Tabler que vai usar. Campos com valor vazio saem do array (não
+   * aparecem na impressão) — feito uma vez só, reaproveitado pelos dois layouts. */
+  function montarBlocosEtiqueta() {
     const p = previaAtual, e = emissaoAtual;
-    if (!p || !e) return;
-    const r = p.remetente, d = p.destinatario;
+    const r = p.remetente, d = p.destinatario, n = p.notas[0] || {};
     const pesoTotal = p.volumes.reduce((s, v) => s + (Number(v.pesoKg) || 0) * (Number(v.quantidade) || 0), 0);
     const qtdVolumes = p.volumes.reduce((s, v) => s + (Number(v.quantidade) || 0), 0);
-    const doc = d.cnpj ? `CNPJ ${d.cnpj}` : `CPF ${d.cpf || ''}`;
-    const html = layout === 'termica' ? etiquetaTermicaHtml() : etiquetaA4Html();
+    const campo = (icone, rotulo, valor) => (valor ? { icone, rotulo, valor } : null);
+
+    return {
+      awb: e.minuta,
+      origemIata: p.origem || 'NAT', destinoIata: p.destino,
+      // Cidade/UF sempre a real do endereço (remetente é fixo; destinatário é o
+      // do formulário) — não a do aeroporto, que pode ser só o hub mais próximo
+      // e não a cidade de fato do cliente (ex.: aeroporto de SP pra cliente em Piracicaba).
+      origemLabel: `${r.endereco.cidade}/${r.endereco.uf}`, destinoLabel: `${d.endereco.cidade}/${d.endereco.uf}`,
+      chaveNfe: n.chave || '',
+      remetente: [
+        campo('building-skyscraper', 'Razão Social', r.nome),
+        campo('home', 'Origem', formatarEndereco(r.endereco)),
+      ].filter(Boolean),
+      destinatario: [
+        campo('user', 'Nome', d.nome),
+        campo('home', 'Endereço', formatarEndereco(d.endereco)),
+        campo('map-pin', 'Complemento', d.endereco.complemento),
+        campo('phone', 'Telefone', formatarTelefone(d.telefone)),
+        campo('id', 'CPF/CNPJ', formatarDoc(d)),
+        campo('file-certificate', 'Inscrição estadual', d.cnpj ? d.ie : null),
+      ].filter(Boolean),
+      carga: [
+        campo('file-text', 'NF', n.numero ? `${n.numero}/${n.serie || ''}` : null),
+        campo('currency-dollar', 'Valor NF', Number.isFinite(n.valor) ? n.valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : null),
+        campo('package', 'Volumes/Peso', `${qtdVolumes} volume(s) · ${pesoTotal.toFixed(2)} kg`),
+        campo('grid-dots', 'Conteúdo', 'CONFECÇÕES/TÊXTEIS'),
+        campo('settings', 'Serviço', p.servico.nome),
+        campo('truck-delivery', 'Modalidade de entrega', p.entregaDomicilio ? 'Entrega' : `Retirada (${nomeAeroporto(p.destino)})`),
+      ].filter(Boolean),
+    };
+  }
+
+  function abrirEtiqueta(layout) {
+    if (!previaAtual || !emissaoAtual) return;
+    const html = layout === 'termica' ? etiquetaTermicaHtml(montarBlocosEtiqueta()) : etiquetaA4Html(montarBlocosEtiqueta());
     const w = window.open('', '_blank');
     if (!w) { mostrarErro('O navegador bloqueou a janela da etiqueta. Permita pop-ups pra este site.'); return; }
     w.document.write(html);
     w.document.close();
+  }
 
-    function etiquetaTermicaHtml() {
-      return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>Etiqueta ${esc(e.minuta)}</title>
-        <style>
-          @page { size: 100mm 150mm; margin: 4mm; }
-          * { box-sizing: border-box; }
-          body { font-family: Arial, sans-serif; color: #111; margin: 0; }
-          .awb { font-size: 15px; letter-spacing: .04em; text-align: center; border: 2px solid #111; border-radius: 6px; padding: 8px 4px; font-weight: 800; font-family: ui-monospace, Consolas, monospace; }
-          .rota { text-align: center; font-size: 22px; font-weight: 800; margin: 8px 0; }
-          .bloco { border-top: 1px solid #111; padding: 6px 0; }
-          .bloco b { font-size: 12px; display: block; }
-          .bloco span { font-size: 11px; }
-          .rodape { font-size: 9px; color: #444; margin-top: 6px; }
-          .btn-imprimir { margin: 10px auto 0; display: block; font-size: 12px; padding: 6px 14px; }
-          @media print { .btn-imprimir { display: none; } }
-        </style></head><body>
-        <div class="awb">AWB ${esc(e.minuta)}</div>
-        <div class="rota">${esc(p.origem || 'NAT')} → ${esc(p.destino)}</div>
-        <div class="bloco"><b>De</b><span>${esc(r.nome)}</span></div>
-        <div class="bloco"><b>Para</b><span>${esc(d.nome)} — ${esc(doc)}</span>
-          <span>${esc(d.endereco.logradouro)}, ${esc(d.endereco.numero)}${d.endereco.complemento ? ' - ' + esc(d.endereco.complemento) : ''}</span>
-          <span>${esc(d.endereco.bairro || '')} — ${esc(d.endereco.cidade)}/${esc(d.endereco.uf)} — ${esc(d.endereco.cep || '')}</span>
+  /** Barras de código de barras (só visual/identificação rápida — a LATAM não
+   * pede que essa etiqueta seja escaneável, isso não é o rótulo oficial deles). */
+  function barrasFalsas(digitos, altura, cor) {
+    const seq = String(digitos || '').replace(/\D/g, '');
+    if (!seq) return '';
+    const corBarra = cor || '#161f2e';
+    const barras = seq.split('').map((d, i) => {
+      const largura = 1 + (Number(d) % 3);
+      const c = i % 2 === 0 ? corBarra : 'transparent';
+      return `<div style="width:${largura}px;height:100%;background:${c}"></div>`;
+    }).join('');
+    return `<div style="display:flex;align-items:stretch;height:${altura}px;gap:0">${barras}</div>`;
+  }
+
+  const TABLER_CSS = '/vendor/tabler-icons/tabler-icons.min.css';
+  const icone = (nome, cls) => `<i class="ti ti-${nome} ${cls || ''}" aria-hidden="true"></i>`;
+
+  // Térmica: preto sobre branco, sem nenhum fundo preenchido — impressora
+  // térmica não tem meio-tom de verdade, então área escura vira mancha
+  // cinza granulada e apaga o texto por cima (foi exatamente o que
+  // aconteceu com a barra de fundo escuro do AWB na primeira versão).
+  // Fonte grande e peso alto, separadores por linha (não por preenchimento).
+  function etiquetaTermicaHtml(b) {
+    const linhaCampo = (c) => `<div class="campo">${icone(c.icone, 'ic')}<span class="rotulo">${esc(c.rotulo)}:</span> <span class="valor">${esc(c.valor)}</span></div>`;
+    const secao = (icone1, titulo, linhas, id) => `
+      <div class="sec"${id ? ` id="${id}"` : ''}>
+        <div class="sec-titulo">${icone(icone1)} ${esc(titulo)}</div>
+        ${linhas.map(linhaCampo).join('')}
+      </div>`;
+    return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>Etiqueta ${esc(b.awb)}</title>
+      <link rel="stylesheet" href="${TABLER_CSS}">
+      <style>
+        @page { size: 100mm 150mm; margin: 0; }
+        * { box-sizing: border-box; }
+        html, body { width: 100mm; height: 150mm; }
+        body { font-family: Arial, Helvetica, sans-serif; color: #000; margin: 0; font-size: 11px; background: #fff; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        .cartao { border: 1.5px solid #000; width: 100%; height: 100%; padding: 2.5mm; overflow: hidden; }
+        .cabecalho { display: flex; align-items: center; justify-content: space-between; padding-bottom: 1.5mm; border-bottom: 1px solid #000; margin-bottom: 1.5mm; }
+        .marca { display: flex; align-items: center; gap: 4px; }
+        .marca .ti { font-size: 18px; }
+        .marca-txt div:first-child { font-size: 7px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+        .marca-txt div:last-child { font-size: 13px; font-weight: 800; letter-spacing: .01em; }
+        .cabecalho > .ti { font-size: 16px; }
+        .awb-box { border: 1.5px solid #000; border-radius: 3px; padding: 2px 6px; text-align: center; margin-bottom: 1.5mm; }
+        .awb-lbl { font-size: 8px; font-weight: 700; letter-spacing: .1em; }
+        .awb-num { display: block; font-size: 21px; font-weight: 800; letter-spacing: .01em; font-family: ui-monospace, Consolas, monospace; line-height: 1.2; }
+        .rota-bar { display: flex; align-items: center; justify-content: space-between; padding-bottom: 1.5mm; border-bottom: 1px solid #000; margin-bottom: 1.5mm; }
+        .rota-lado { text-align: center; }
+        .rota-lado .ti { font-size: 13px; }
+        .rota-iata { font-size: 17px; font-weight: 800; }
+        .rota-cidade { font-size: 8px; }
+        .rota-seta { font-size: 14px; padding: 0 5px; }
+        .sec-titulo { display: flex; align-items: center; gap: 4px; font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; margin-bottom: 1px; }
+        .sec { border-bottom: 1px solid #000; padding-bottom: 1.5mm; margin-bottom: 1.5mm; }
+        .campo { display: flex; gap: 4px; align-items: baseline; font-size: 10px; line-height: 1.25; margin-bottom: 0; }
+        .campo .ic { font-size: 10px; flex-shrink: 0; }
+        .rotulo { font-weight: 600; flex-shrink: 0; }
+        .valor { font-weight: 700; overflow-wrap: anywhere; }
+        #sec-destinatario .campo { font-size: 11px; }
+        .chave-lbl { display: flex; align-items: center; gap: 4px; font-size: 8px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; margin-bottom: 2px; }
+        .chave-num { font-size: 9px; font-family: ui-monospace, Consolas, monospace; letter-spacing: .01em; margin-bottom: 3px; }
+        .btn-imprimir { margin: 10px auto 0; display: block; font-size: 12px; padding: 6px 14px; }
+        @media print { .btn-imprimir { display: none; } }
+      </style></head><body>
+      <div class="cartao">
+        <div class="cabecalho">
+          <div class="marca">${icone('box-multiple')}<div class="marca-txt"><div>e-Minuta</div><div>LATAM CARGO</div></div></div>
+          ${icone('plane-departure')}
         </div>
-        <div class="bloco"><b>Serviço</b><span>${esc(p.servico.nome)} · ${qtdVolumes} vol. · ${pesoTotal.toFixed(2)} kg</span></div>
-        <div class="rodape">NF-e ${esc(mascaraChave(p.notas[0]?.chave || ''))}</div>
-        <button class="btn-imprimir" onclick="window.print()">Imprimir</button>
-        </body></html>`;
-    }
-    function etiquetaA4Html() {
-      return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>Etiqueta ${esc(e.minuta)}</title>
-        <style>
-          @page { size: A4; margin: 20mm; }
-          * { box-sizing: border-box; }
-          body { font-family: Arial, sans-serif; color: #111; }
-          .caixa { border: 2px solid #111; border-radius: 10px; padding: 24px; max-width: 560px; margin: 0 auto; }
-          .awb { font-size: 26px; letter-spacing: .04em; text-align: center; font-weight: 800; font-family: ui-monospace, Consolas, monospace; }
-          .rota { text-align: center; font-size: 34px; font-weight: 800; margin: 14px 0 22px; }
-          .grade { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 10px; }
-          .bloco { border-top: 1px solid #ccc; padding-top: 10px; }
-          .bloco b { font-size: 13px; text-transform: uppercase; letter-spacing: .04em; display: block; margin-bottom: 4px; color: #555; }
-          .bloco span { font-size: 15px; display: block; }
-          .rodape { font-size: 11px; color: #666; margin-top: 18px; text-align: center; }
-          .btn-imprimir { margin: 18px auto 0; display: block; font-size: 13px; padding: 8px 18px; }
-          @media print { .btn-imprimir { display: none; } }
-        </style></head><body>
-        <div class="caixa">
-          <div class="awb">AWB ${esc(e.minuta)}</div>
-          <div class="rota">${esc(p.origem || 'NAT')} → ${esc(p.destino)}</div>
-          <div class="grade">
-            <div class="bloco"><b>Remetente</b><span>${esc(r.nome)}</span><span>CNPJ ${esc(r.cnpj)}</span></div>
-            <div class="bloco"><b>Destinatário</b><span>${esc(d.nome)}</span><span>${esc(doc)}</span></div>
-            <div class="bloco" style="grid-column:1/-1"><b>Endereço de entrega</b>
-              <span>${esc(d.endereco.logradouro)}, ${esc(d.endereco.numero)}${d.endereco.complemento ? ' - ' + esc(d.endereco.complemento) : ''} — ${esc(d.endereco.bairro || '')}</span>
-              <span>${esc(d.endereco.cidade)}/${esc(d.endereco.uf)} — CEP ${esc(d.endereco.cep || '')}</span>
-            </div>
-            <div class="bloco"><b>Serviço</b><span>${esc(p.servico.nome)}</span></div>
-            <div class="bloco"><b>Volumes</b><span>${qtdVolumes} volume(s) · ${pesoTotal.toFixed(2)} kg</span></div>
+        <div class="awb-box"><span class="awb-lbl">${icone('barcode')} AWB</span><span class="awb-num">${esc(b.awb)}</span></div>
+        <div class="rota-bar">
+          <div class="rota-lado">${icone('map-pin-filled')}<div class="rota-iata">${esc(b.origemIata)}</div><div class="rota-cidade">${esc(b.origemLabel)}</div></div>
+          <span class="rota-seta">${icone('plane')} →</span>
+          <div class="rota-lado">${icone('map-pin-filled')}<div class="rota-iata">${esc(b.destinoIata)}</div><div class="rota-cidade">${esc(b.destinoLabel)}</div></div>
+        </div>
+        ${secao('user', 'Remetente', b.remetente)}
+        ${secao('map-pin', 'Destinatário', b.destinatario, 'sec-destinatario')}
+        ${secao('package', 'Carga', b.carga)}
+        <div>
+          <div class="chave-lbl">${icone('barcode')} Chave NF-e</div>
+          <div class="chave-num">${esc(mascaraChave(b.chaveNfe))}</div>
+          ${barrasFalsas(b.chaveNfe, 26, '#000')}
+        </div>
+      </div>
+      <button class="btn-imprimir" onclick="window.print()">Imprimir</button>
+      </body></html>`;
+  }
+
+  // A4: mesmo padrão da térmica — preto sobre branco, sem nenhum fundo
+  // preenchido (fica melhor pra imprimir e gasta menos tinta/toner também).
+  function etiquetaA4Html(b) {
+    const linhaCampo = (c) => `<div class="campo">${icone(c.icone, 'ic')}<div><span class="rotulo">${esc(c.rotulo)}:</span><br><span class="valor">${esc(c.valor)}</span></div></div>`;
+    return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>Etiqueta ${esc(b.awb)}</title>
+      <link rel="stylesheet" href="${TABLER_CSS}">
+      <style>
+        @page { size: A4; margin: 16mm; }
+        * { box-sizing: border-box; }
+        body { font-family: Arial, Helvetica, sans-serif; color: #000; background: #fff; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        .cartao { border: 2px solid #000; border-radius: 10px; max-width: 700px; margin: 0 auto; padding: 20px 24px; }
+        .cabecalho { display: flex; align-items: center; justify-content: space-between; padding-bottom: 14px; border-bottom: 2px solid #000; margin-bottom: 16px; }
+        .marca { display: flex; align-items: center; gap: 12px; }
+        .marca .ti { font-size: 36px; }
+        .marca-txt div:first-child { font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+        .marca-txt div:last-child { font-size: 26px; font-weight: 800; letter-spacing: .01em; }
+        .tagline { display: flex; align-items: center; gap: 12px; border-left: 1.5px solid #000; padding-left: 16px; }
+        .tagline .ti { font-size: 26px; }
+        .tagline div { font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; line-height: 1.5; }
+        .awb-box { border: 2px solid #000; border-radius: 6px; padding: 10px 18px; text-align: center; margin-bottom: 16px; }
+        .awb-lbl { font-size: 13px; font-weight: 700; letter-spacing: .1em; }
+        .awb-num { display: block; font-size: 36px; font-weight: 800; letter-spacing: .02em; font-family: ui-monospace, Consolas, monospace; }
+        .rota-bar { padding-bottom: 14px; border-bottom: 2px solid #000; margin-bottom: 16px; display: flex; align-items: center; justify-content: center; gap: 32px; }
+        .rota-lado { text-align: center; display: flex; align-items: center; gap: 8px; }
+        .rota-lado .ti { font-size: 26px; }
+        .rota-iata { font-size: 30px; font-weight: 800; }
+        .rota-cidade { font-size: 13px; font-weight: 600; }
+        .rota-seta { font-size: 22px; display: flex; align-items: center; }
+        .sec-titulo { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 10px; }
+        .sec-titulo .ti { font-size: 15px; }
+        .sec { padding-bottom: 16px; border-bottom: 1.5px dashed #000; margin-bottom: 16px; }
+        .campo { display: flex; gap: 8px; align-items: flex-start; font-size: 14px; line-height: 1.5; margin-bottom: 10px; }
+        .campo .ic { font-size: 15px; margin-top: 2px; flex-shrink: 0; }
+        .rotulo { font-size: 11px; text-transform: uppercase; letter-spacing: .03em; font-weight: 600; }
+        .valor { font-weight: 700; overflow-wrap: anywhere; }
+        .carga-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px 20px; }
+        .chave-lbl { display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; margin-bottom: 6px; }
+        .chave-num { font-size: 13px; font-family: ui-monospace, Consolas, monospace; letter-spacing: .02em; margin-bottom: 8px; }
+        .btn-imprimir { margin: 22px auto 0; display: block; font-size: 13px; padding: 8px 18px; }
+        @media print { .btn-imprimir { display: none; } }
+      </style></head><body>
+      <div class="cartao">
+        <div class="cabecalho">
+          <div class="marca">${icone('box-multiple')}<div class="marca-txt"><div>e-Minuta</div><div>LATAM CARGO</div></div></div>
+          <div class="tagline">${icone('plane-departure')}<div>Transporte aéreo<br>Carga expressa</div></div>
+        </div>
+        <div class="awb-box"><span class="awb-lbl">${icone('barcode')} AWB</span><span class="awb-num">${esc(b.awb)}</span></div>
+        <div class="rota-bar">
+          <div class="rota-lado">${icone('map-pin-filled')}<div><div class="rota-iata">${esc(b.origemIata)}</div><div class="rota-cidade">${esc(b.origemLabel)}</div></div></div>
+          <span class="rota-seta">${icone('plane')} →</span>
+          <div class="rota-lado">${icone('map-pin-filled')}<div><div class="rota-iata">${esc(b.destinoIata)}</div><div class="rota-cidade">${esc(b.destinoLabel)}</div></div></div>
+        </div>
+        <div class="sec" style="display:grid;grid-template-columns:1fr 1fr;gap:24px">
+          <div>
+            <div class="sec-titulo">${icone('user')} Remetente</div>
+            ${b.remetente.map(linhaCampo).join('')}
           </div>
-          <div class="rodape">NF-e ${esc(mascaraChave(p.notas[0]?.chave || ''))}</div>
+          <div>
+            <div class="sec-titulo">${icone('map-pin')} Destinatário</div>
+            ${b.destinatario.map(linhaCampo).join('')}
+          </div>
         </div>
-        <button class="btn-imprimir" onclick="window.print()">Imprimir</button>
-        </body></html>`;
-    }
+        <div class="sec-titulo">${icone('package')} Carga</div>
+        <div class="carga-grid sec">${b.carga.map(linhaCampo).join('')}</div>
+        <div>
+          <div class="chave-lbl">${icone('barcode')} Chave NF-e</div>
+          <div class="chave-num">${esc(mascaraChave(b.chaveNfe))}</div>
+          ${barrasFalsas(b.chaveNfe, 34, '#000')}
+        </div>
+      </div>
+      <button class="btn-imprimir" onclick="window.print()">Imprimir</button>
+      </body></html>`;
   }
 
   $('elBtnNovaMinuta').addEventListener('click', () => {
@@ -338,7 +490,7 @@
     try {
       const r = await chamar(`/emissao-latam/api/verificar?chave=${encodeURIComponent((ultimaChaveEnviada || '').replace(/\D/g, ''))}`, { method: 'GET' });
       $('elResultadoVerificar').innerHTML = r.encontrado
-        ? `<p class="el-aviso"><span><b>Encontrado!</b> AWB ${esc(r.awb)}${r.ultimoEvento ? ` — último evento: ${esc(r.ultimoEvento.descricao)} em ${esc(r.ultimoEvento.data)}` : ''}. A e-Minuta JÁ foi criada — não reenvie.</span></p>`
+        ? `<p class="el-aviso"><span><b>Encontrado!</b> AWB ${esc(r.awb)}${r.ultimoEvento ? `, último evento: ${esc(r.ultimoEvento.descricao)} em ${esc(r.ultimoEvento.data)}` : ''}. A e-Minuta JÁ foi criada, não reenvie.</span></p>`
         : `<p class="el-aviso"><span>Nada encontrado pra essa chave ainda. Pode tentar emitir de novo, ou aguarde alguns minutos e verifique outra vez antes de reenviar.</span></p>`;
     } catch (e) { /* erro já mostrado */ }
     btn.disabled = false;

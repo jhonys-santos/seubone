@@ -145,7 +145,7 @@ function sugerirServico(valorTotalNotas, codigos = CODIGOS_SERVICO_PADRAO, regra
     nome: NOMES_SERVICO[servico],
     codigo: codigos[servico] ?? null,
     automatico: true,
-    motivo: `Notas somam ${brl(valorTotalNotas)} — ${acima ? 'acima de' : 'até'} ${brl(regra.limite)} → ${NOMES_SERVICO[servico]}`,
+    motivo: `Notas somam ${brl(valorTotalNotas)}, ${acima ? 'acima de' : 'até'} ${brl(regra.limite)} → ${NOMES_SERVICO[servico]}`,
   };
 }
 
@@ -447,7 +447,7 @@ class LatamCargo {
       raiz = await this.chamar('eminuta', xml, { 'Content-Type': 'text/xml;charset=UTF-8' }, 1);
     } catch (e) {
       if (e instanceof LatamErro && e.tipo === 'INDISPONIVEL') {
-        throw new LatamErro('INDISPONIVEL', `${e.message} — a minuta PODE ter sido criada; confira pelo rastreio da NF antes de reenviar`, { status: e.status });
+        throw new LatamErro('INDISPONIVEL', `${e.message}. A minuta PODE ter sido criada; confira pelo rastreio da NF antes de reenviar`, { status: e.status });
       }
       throw e;
     }
@@ -463,7 +463,7 @@ class LatamCargo {
       const blocos = [...filhos(rs, 'Error'), ...filhos(rs, 'Errors'), ...filhos(buscar(rs, 'Response'), 'Errors')];
       const detalhes = blocos.map((e) => ({
         codigo: texto(e, 'errorCode') || texto(e, 'codeError') || '',
-        descricao: [texto(e, 'errorDescription'), texto(e, 'descriptionError'), texto(e, 'description')].filter(Boolean).join(' — '),
+        descricao: [texto(e, 'errorDescription'), texto(e, 'descriptionError'), texto(e, 'description')].filter(Boolean).join('; '),
       }));
       const msg = [st.message, ...detalhes.map((d) => `${d.codigo} ${d.descricao}`)].filter(Boolean).join('; ') || 'e-Minuta recusada sem descrição';
       throw new LatamErro(pareceTimeout(`${msg} ${st.nativeMessage || ''}`) ? 'INDISPONIVEL' : 'DADOS_INVALIDOS', msg, { codigoLatam: st.code, detalhes });
