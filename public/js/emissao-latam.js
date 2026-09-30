@@ -251,9 +251,16 @@
   function formatarEndereco(end) {
     return `${end.logradouro}, ${end.numero} · ${end.bairro || ''} · ${end.cidade}/${end.uf} · CEP ${end.cep || ''}`;
   }
+  // Nome do terminal pra "Retirada" na etiqueta — quando a cidade tem mais de
+  // um aeroporto LATAM, o nome do local já vem entre parênteses na tabela
+  // (ex.: GRU = "São Paulo (Guarulhos)", CGH = "São Paulo (Congonhas)") e é
+  // isso que precisa aparecer, não o nome da cidade repetido; quando só tem
+  // um aeroporto na cidade (ex.: NAT = "Natal"), usa o nome dele mesmo.
   function nomeAeroporto(iata) {
     const info = (window.AEROPORTOS_INFO || []).find((a) => a.iata === iata);
-    return (info && info.cidade.replace(/\s*\([^)]*\)/, '')) || iata || '';
+    const cidade = (info && info.cidade) || '';
+    const local = cidade.match(/\(([^)]+)\)/);
+    return (local ? local[1] : cidade) || iata || '';
   }
 
   /** Monta os dados da etiqueta a partir da prévia/emissão atual — cada campo já
@@ -268,10 +275,11 @@
 
     return {
       awb: e.minuta,
-      origemIata: p.origem || 'NAT', destinoIata: p.destino,
-      // Cidade/UF sempre a real do endereço (remetente é fixo; destinatário é o
-      // do formulário) — não a do aeroporto, que pode ser só o hub mais próximo
-      // e não a cidade de fato do cliente (ex.: aeroporto de SP pra cliente em Piracicaba).
+      // Em cima só a sigla do estado (remetente é fixo RN; destinatário é o
+      // do formulário); embaixo a cidade/UF real do endereço, não a do
+      // aeroporto, que pode ser só o hub mais próximo e não a cidade de fato
+      // do cliente (ex.: aeroporto de SP pra cliente em Piracicaba).
+      origemUf: r.endereco.uf, destinoUf: d.endereco.uf,
       origemLabel: `${r.endereco.cidade}/${r.endereco.uf}`, destinoLabel: `${d.endereco.cidade}/${d.endereco.uf}`,
       chaveNfe: n.chave || '',
       remetente: [
@@ -292,7 +300,7 @@
         campo('package', 'Volumes/Peso', `${qtdVolumes} volume(s) · ${pesoTotal.toFixed(2)} kg`),
         campo('grid-dots', 'Conteúdo', 'CONFECÇÕES/TÊXTEIS'),
         campo('settings', 'Serviço', p.servico.nome),
-        campo('truck-delivery', 'Modalidade de entrega', p.entregaDomicilio ? 'Entrega' : `Retirada (${nomeAeroporto(p.destino)})`),
+        campo('truck-delivery', 'Modalidade de entrega', p.entregaDomicilio ? 'Entrega' : `Retirada ${nomeAeroporto(p.destino)}`),
       ].filter(Boolean),
     };
   }
@@ -377,9 +385,9 @@
         </div>
         <div class="awb-box"><span class="awb-lbl">${icone('barcode')} AWB</span><span class="awb-num">${esc(b.awb)}</span></div>
         <div class="rota-bar">
-          <div class="rota-lado">${icone('map-pin-filled')}<div class="rota-iata">${esc(b.origemIata)}</div><div class="rota-cidade">${esc(b.origemLabel)}</div></div>
+          <div class="rota-lado">${icone('map-pin-filled')}<div class="rota-iata">${esc(b.origemUf)}</div><div class="rota-cidade">${esc(b.origemLabel)}</div></div>
           <span class="rota-seta">${icone('plane')} →</span>
-          <div class="rota-lado">${icone('map-pin-filled')}<div class="rota-iata">${esc(b.destinoIata)}</div><div class="rota-cidade">${esc(b.destinoLabel)}</div></div>
+          <div class="rota-lado">${icone('map-pin-filled')}<div class="rota-iata">${esc(b.destinoUf)}</div><div class="rota-cidade">${esc(b.destinoLabel)}</div></div>
         </div>
         ${secao('user', 'Remetente', b.remetente)}
         ${secao('map-pin', 'Destinatário', b.destinatario, 'sec-destinatario')}
@@ -442,9 +450,9 @@
         </div>
         <div class="awb-box"><span class="awb-lbl">${icone('barcode')} AWB</span><span class="awb-num">${esc(b.awb)}</span></div>
         <div class="rota-bar">
-          <div class="rota-lado">${icone('map-pin-filled')}<div><div class="rota-iata">${esc(b.origemIata)}</div><div class="rota-cidade">${esc(b.origemLabel)}</div></div></div>
+          <div class="rota-lado">${icone('map-pin-filled')}<div><div class="rota-iata">${esc(b.origemUf)}</div><div class="rota-cidade">${esc(b.origemLabel)}</div></div></div>
           <span class="rota-seta">${icone('plane')} →</span>
-          <div class="rota-lado">${icone('map-pin-filled')}<div><div class="rota-iata">${esc(b.destinoIata)}</div><div class="rota-cidade">${esc(b.destinoLabel)}</div></div></div>
+          <div class="rota-lado">${icone('map-pin-filled')}<div><div class="rota-iata">${esc(b.destinoUf)}</div><div class="rota-cidade">${esc(b.destinoLabel)}</div></div></div>
         </div>
         <div class="sec" style="display:grid;grid-template-columns:1fr 1fr;gap:24px">
           <div>
