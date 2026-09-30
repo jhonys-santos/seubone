@@ -545,7 +545,7 @@ function remetente(env) {
   return {
     nome: 'SEUBONE COM BONES PERSONALIZADOS LTDA',
     cnpj: '36153457000183',
-    ie: (env && env.latamCargoIeSeubone) || 'ISENTO',
+    ie: alfanumerico(env && env.latamCargoIeSeubone) || 'ISENTO',
     endereco: { cep: '59064510', logradouro: 'Rua Lafayete Lamartine', numero: '1945', bairro: 'Candelária', cidade: 'Natal', uf: 'RN' },
   };
 }
@@ -613,6 +613,10 @@ function obterCliente(env) {
 }
 
 const texto2 = (v) => (typeof v === 'string' && v.trim() ? v.trim() : undefined);
+/** A LATAM recusa ieCode com pontuação ("should be alphanumeric value" — confirmado em
+ * teste real 30/09/2026: "20.535.768-7" falha, "205357687" e "ISENTO" passam). Tira tudo
+ * que não é letra/número — nunca depender de alguém digitar certo, nem no .env nem no form. */
+const alfanumerico = (v) => String(v ?? '').replace(/[^a-zA-Z0-9]/g, '').trim();
 /** '17,5' / '17.5' / '1.234,50' → número (ponto só é separador de milhar quando também há vírgula) */
 const numero2 = (v) => {
   if (typeof v === 'number') return v;
@@ -628,7 +632,7 @@ function montarCliente(bruta) {
     nome: texto2(bruta.nome) || '',
     cnpj: ehCnpj ? doc : undefined,
     cpf: !ehCnpj ? doc : undefined,
-    ie: ehCnpj ? (texto2(bruta.ie) || 'ISENTO') : undefined,
+    ie: ehCnpj ? (alfanumerico(bruta.ie) || 'ISENTO') : undefined,
     email: texto2(bruta.email),
     telefone: texto2(bruta.telefone) ? { numero: (bruta.telefone || '').replace(/\D/g, '') } : undefined,
     endereco: {

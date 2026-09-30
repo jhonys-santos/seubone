@@ -10,6 +10,14 @@
     return String(v == null ? '' : v).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   }
 
+  // Código de rastreio vem da Lulu como "577-1234567" — o prefixo antes do
+  // hífen não é o que interessa no dia a dia, só o número depois dele.
+  function tkCodigoRastreioCurto(v) {
+    const s = String(v || '');
+    const i = s.indexOf('-');
+    return i === -1 ? s : s.slice(i + 1).trim();
+  }
+
   /* ================= ANEXOS (Drive / data URL) — mesma receita do Painel de Erros ================= */
   const MAX_FOTOS = 6;
   const MAX_ANEXOS_MB = 15;
@@ -1124,6 +1132,7 @@
             <datalist id="tkSetorTopoList">${SETOR_OPCOES.map((o) => `<option value="${tkEsc(o)}">`).join('')}</datalist>
           </div>
           <div class="tk-field"><label>ID da venda</label>${r.idVenda ? `<div><span class="tk-idchip tk-idchip-click" id="tkIdVendaCopy" data-copy="${tkEsc(r.idVenda)}" title="Clique para copiar">#${tkEsc(r.idVenda)}</span></div>` : `<div class="tk-readonly-block">—</div>`}</div>
+          ${r.codigoRastreio ? `<div class="tk-field"><label>Código de rastreio</label><div><span class="tk-idchip tk-idchip-click" data-copy="${tkEsc(tkCodigoRastreioCurto(r.codigoRastreio))}" title="Clique para copiar">${tkEsc(tkCodigoRastreioCurto(r.codigoRastreio))}</span></div></div>` : ''}
           <div class="tk-field"><label>Origem</label><div class="tk-readonly-block">${r.origem === 'manual' || !r.origem ? 'Manual' : 'Automático (' + tkEsc(r.origem) + ')'}</div></div>
           <div class="tk-field"><label>Aberto em</label><div class="tk-readonly-block">${fmtDataHora(r.dataAbertura)}</div></div>
           <div class="tk-field"><label>Fechado em</label><div class="tk-readonly-block">${fmtDataHora(r.dataFechamento)}</div></div>
@@ -1165,7 +1174,6 @@
           <div class="tk-field"><label>PPE (prazo previsto de entrega)</label><div class="tk-readonly-block">${fmtDataCurta(r.ppe)}</div></div>
           <div class="tk-field"><label>Previsão de finalização</label><div class="tk-readonly-block">${fmtDataCurta(r.previsaoFinalizacao)}</div></div>
           <div class="tk-field"><label>P. Folha (prazo de produção)</label><div class="tk-readonly-block">${fmtDataCurta(r.pFolha)}</div></div>
-          ${r.codigoRastreio ? `<div class="tk-field"><label>Código de rastreio</label><div><span class="tk-idchip tk-idchip-click" data-copy="${tkEsc(r.codigoRastreio)}" title="Clique para copiar">${tkEsc(r.codigoRastreio)}</span></div></div>` : ''}
           ${r.previsaoEntregaTransportadora ? `<div class="tk-field"><label>P. Entrega Transportadora</label><div class="tk-readonly-block">${fmtDataCurta(r.previsaoEntregaTransportadora)}</div></div>` : ''}
           <div class="tk-field">
             <label>Novo prazo para finalizar</label>
