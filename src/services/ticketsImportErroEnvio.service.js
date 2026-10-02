@@ -98,11 +98,15 @@ async function importarErrosEnvio() {
 
     const ticketsJson = await chamarAppsScript(env.ticketsAppsScriptUrl, { cache: true });
     if (!ticketsJson.ok || !Array.isArray(ticketsJson.tickets)) return;
-    // Mesma regra do importador de Pedido atrasado: uma vez que já existe
-    // QUALQUER ticket pra esse negócio (mesmo já Resolvido), nunca abrimos
-    // outro — "Resolvido" aqui significa "já tratamos isso".
+    // Uma vez que já existe um ticket de ERRO DE ENVIO pra esse negócio (mesmo
+    // já Resolvido), nunca abrimos outro — "Resolvido" aqui significa "já
+    // tratamos isso". Ticket de outro identificador (ex.: Pedido atrasado,
+    // que é atraso na produção) NÃO bloqueia: Erro de Envio é problema no
+    // transporte, outro assunto, e precisa do seu próprio ticket.
     const negociosComTicket = new Set(
-      ticketsJson.tickets.filter((t) => t.negocioId).map((t) => t.negocioId)
+      ticketsJson.tickets
+        .filter((t) => t.negocioId && t.identificador === 'Erro de Envio')
+        .map((t) => t.negocioId)
     );
 
     // Sequencial de propósito — mesmo motivo do importador de Pedido

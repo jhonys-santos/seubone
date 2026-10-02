@@ -323,13 +323,19 @@ function criarTicket_(f) {
     // tickets duplicados mesmo com uma checagem prévia do lado do Node —
     // aquela checagem é sempre sujeita a corrida porque acontece FORA do
     // lock. Aqui dentro é o único lugar onde dá pra garantir de verdade:
-    // se já existe um ticket com esse negocioId, devolve ele em vez de
-    // criar outro. Só se aplica a quem manda negocioId (import automática);
-    // tickets manuais não têm esse campo.
+    // se já existe um ticket com esse negocioId E o mesmo identificador,
+    // devolve ele em vez de criar outro. Só se aplica a quem manda negocioId
+    // (import automática); tickets manuais não têm esse campo.
+    // O identificador entra na chave de propósito: "Pedido atrasado" (atrasou
+    // na produção) e "Erro de Envio" (problema no transporte) são problemas
+    // diferentes do mesmo negócio e cada um precisa do seu ticket.
     if (f.negocioId && col.negocioId != null) {
       var negocioAlvo = String(f.negocioId).trim();
+      var identificadorAlvo = String(f.identificador).trim().toLowerCase();
       for (var i = 1; i < dados.length; i++) {
-        if (String(dados[i][col.negocioId] || '').trim() === negocioAlvo) {
+        var mesmoIdentificador = col.identificador != null &&
+          String(dados[i][col.identificador] || '').trim().toLowerCase() === identificadorAlvo;
+        if (mesmoIdentificador && String(dados[i][col.negocioId] || '').trim() === negocioAlvo) {
           return jsonOut_({ ok: true, rowIndex: i + 1, idTicket: String(dados[i][col.idTicket] || ''), jaExistia: true });
         }
       }

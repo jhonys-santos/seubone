@@ -113,13 +113,17 @@ async function importarAtrasosLulu() {
 
     const ticketsJson = await chamarAppsScript(env.ticketsAppsScriptUrl, { cache: true });
     if (!ticketsJson.ok || !Array.isArray(ticketsJson.tickets)) return;
-    // Uma vez que já existe QUALQUER ticket pra esse negócio (mesmo já
-    // Resolvido), nunca abrimos outro — mesmo que a Lulu ainda mostre o
-    // pedido como atrasado. Resolvido aqui significa "já tratamos isso",
-    // não "a Lulu concorda que terminou"; reabrir de novo só porque a Lulu
-    // ainda não atualizou geraria os mesmos duplicados de antes.
+    // Uma vez que já existe um ticket de PEDIDO ATRASADO pra esse negócio
+    // (mesmo já Resolvido), nunca abrimos outro — mesmo que a Lulu ainda
+    // mostre o pedido como atrasado. Resolvido aqui significa "já tratamos
+    // isso", não "a Lulu concorda que terminou"; reabrir de novo só porque a
+    // Lulu ainda não atualizou geraria os mesmos duplicados de antes. Ticket
+    // de outro identificador (ex.: Erro de Envio, problema no transporte)
+    // não bloqueia: é outro assunto do mesmo negócio.
     const negociosComTicket = new Set(
-      ticketsJson.tickets.filter((t) => t.negocioId).map((t) => t.negocioId)
+      ticketsJson.tickets
+        .filter((t) => t.negocioId && t.identificador === 'Pedido atrasado')
+        .map((t) => t.negocioId)
     );
 
     // Sequencial de propósito: evita disparar N chamadas simultâneas contra
