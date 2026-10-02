@@ -88,13 +88,10 @@
     </fieldset>
 
     <fieldset class="ec-grupo">
-      <legend>Caixa</legend>
-      <div class="ec-linha4">
-        <label class="ec-campo"><span>Altura (cm)</span><input id="ecAlturaCm" inputmode="decimal"></label>
-        <label class="ec-campo"><span>Largura (cm)</span><input id="ecLarguraCm" inputmode="decimal"></label>
-        <label class="ec-campo"><span>Comprimento (cm)</span><input id="ecComprimentoCm" inputmode="decimal"></label>
-        <label class="ec-campo"><span>Peso (g) <small id="ecPesoDica" style="display:none">vazio = da NF</small></span><input id="ecPesoG" inputmode="numeric"></label>
-      </div>
+      <legend>Caixas <small>(cada caixa gera uma etiqueta e um código de rastreio)</small></legend>
+      <div id="ecCaixas"></div>
+      <button type="button" class="ec-secundario" id="ecBtnAddCaixa">Adicionar caixa</button>
+      <p class="ec-dica ec-dicaCaixas" id="ecCaixasDica" style="display:none"></p>
     </fieldset>
 
     <fieldset class="ec-grupo">
@@ -113,6 +110,10 @@
   <section class="ec-cartao" id="ecCartaoPrevia" style="display:none" aria-labelledby="ecTituloPrevia">
     <h2 id="ecTituloPrevia" class="ec-h2">Confira antes de emitir</h2>
     <dl class="ec-resumo" id="ecResumoPrevia"></dl>
+    <table class="ec-itens">
+      <thead><tr><th>Caixa</th><th>Medidas (cm)</th><th>Peso</th></tr></thead>
+      <tbody id="ecVolumesPrevia"></tbody>
+    </table>
     <table class="ec-itens">
       <thead><tr><th>Conteúdo</th><th>Qtd.</th><th>Valor unit.</th></tr></thead>
       <tbody id="ecItensPrevia"></tbody>

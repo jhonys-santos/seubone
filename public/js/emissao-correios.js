@@ -1,7 +1,7 @@
 // Emissão de etiqueta Correios — porta o fluxo de 3 etapas de
 // correios-etiqueta-nextjs/src/app/etiquetas/page.tsx pra JS vanilla.
 // 1. Preencher (XML da NF-e ou chave + dados)  2. Revisar (nada é criado)
-// 3. Emitir (cria a pré-postagem real). Só conversa com
+// 3. Emitir (cria as pré-postagens reais, uma por caixa). Só conversa com
 // /emissao-correios/api/* (servidor); nenhuma credencial dos Correios
 // passa por aqui.
 (function () {
@@ -17,6 +17,7 @@
   const mascaraChave = (v) => v.replace(/\D/g, '').slice(0, 44).replace(/(\d{4})(?=\d)/g, '$1 ');
   const dataCurta = (iso) => new Date(iso).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
 
+  const MAX_CAIXAS = 10; // mesmo limite do servidor
   const LAYOUTS = [
     { layout: 'LINEAR_100_150', rotulo: 'Térmica 10x15', arquivo: '10x15' },
     { layout: 'PADRAO', rotulo: 'Folha A4', arquivo: 'a4' },
@@ -33,12 +34,19 @@
   let modo = 'xml';
   let xml = null; // { nome, conteudo }
   let itens = [{ descricao: '', quantidade: '1', valorUnitario: '' }];
+  let caixas = [caixaVazia()];
+  let volumesDaNf = 0; // quantos volumes a NF-e informa (só no modo XML)
   let previaAtual = null;
   let emissaoAtual = null;
-  let cancelada = false;
+  let idsCriados = []; // ids das pré-postagens já criadas (uma por caixa; null onde falta) — evita duplicar ao tentar de novo
+  let idsCancelados = new Set();
+  let ultimoErro = null;
   let urlsAtuais = {};
 
   function itemVazio() { return { descricao: '', quantidade: '1', valorUnitario: '' }; }
+  function caixaVazia() { return { alturaCm: '', larguraCm: '', comprimentoCm: '', pesoG: '' }; }
+  const caixaEmBranco = (c) => !c.alturaCm && !c.larguraCm && !c.comprimentoCm && !c.pesoG;
+  const jaCriouAlgo = () => idsCriados.some(Boolean);
 
   // ── Etapa 1: alternância XML/manual ──────────────────────────────────
   $('ecAbaXml').addEventListener('click', () => setModo('xml'));
@@ -52,7 +60,13 @@
     $('ecBlocoXml').style.display = m === 'xml' ? '' : 'none';
     $('ecBlocoChave').style.display = m === 'manual' ? '' : 'none';
     $('ecBlocoManual').style.display = m === 'manual' ? '' : 'none';
-    $('ecPesoDica').style.display = m === 'xml' ? '' : 'none';
+    renderCaixas();
+  }
+
+  // Quantos volumes a NF-e declara: soma de <qVol>, ou o número de blocos <vol>.
+  function volumesDoXml(texto) {
+    const soma = [...texto.matchAll(/<(?:\w+:)?qVol>\s*(\d+)\s*<\/(?:\w+:)?qVol>/g)].reduce((s, m) => s + Number(m[1]), 0);
+    return soma > 0 ? soma : (texto.match(/<(?:\w+:)?vol>/g) || []).length;
   }
 
   $('ecXmlInput').addEventListener('change', (e) => {
@@ -62,6 +76,12 @@
     leitor.onload = () => {
       xml = { nome: arq.name, conteudo: String(leitor.result || '') };
       $('ecXmlLabel').innerHTML = `XML carregado: <b>${esc(arq.name)}</b>`;
+      volumesDaNf = Math.min(volumesDoXml(xml.conteudo), MAX_CAIXAS);
+      // A NF diz que são N volumes e as caixas ainda estão vazias: já monta as N caixas.
+      if (volumesDaNf > 1 && !jaCriouAlgo() && caixas.every(caixaEmBranco)) {
+        caixas = Array.from({ length: volumesDaNf }, caixaVazia);
+      }
+      renderCaixas();
     };
     leitor.readAsText(arq, 'utf-8');
   });
@@ -69,7 +89,6 @@
   $('ecChaveNFe').addEventListener('input', (e) => { e.target.value = mascaraChave(e.target.value); });
   $('ecDCep').addEventListener('input', (e) => { e.target.value = mascaraCep(e.target.value); });
   $('ecDUf').addEventListener('input', (e) => { e.target.value = e.target.value.toUpperCase(); });
-  $('ecPesoG').addEventListener('input', (e) => { e.target.value = e.target.value.replace(/\D/g, ''); });
 
   ['ecServicoSedex', 'ecServicoPac'].forEach((id) => $(id).addEventListener('change', atualizarOpcaoServico));
   function atualizarOpcaoServico() {
@@ -99,6 +118,64 @@
   renderItens();
   $('ecBtnAddItem').addEventListener('click', () => { itens.push(itemVazio()); renderItens(); });
 
+  // ── Caixas (cada uma gera uma pré-postagem, um código e uma etiqueta) ─
+  function dicaCaixas() {
+    const partes = [];
+    if (modo === 'xml' && volumesDaNf > 1) {
+      partes.push(volumesDaNf === caixas.length
+        ? `A NF-e informa ${volumesDaNf} volumes.`
+        : `A NF-e informa ${volumesDaNf} volumes e há ${caixas.length} caixa${caixas.length > 1 ? 's' : ''} aqui. Confira.`);
+    }
+    if (modo === 'xml') {
+      partes.push(caixas.length > 1
+        ? 'Peso em branco em todas as caixas: o peso bruto da NF é dividido igualmente entre elas.'
+        : 'Peso em branco: usa o peso bruto da NF.');
+    } else if (caixas.length > 1) {
+      partes.push('Informe o peso de cada caixa.');
+    }
+    return partes.join(' ');
+  }
+
+  function bloquearSeJaCriou() {
+    if (!jaCriouAlgo()) return false;
+    mostrarErro('Já há etiquetas criadas nos Correios nesta emissão, então não dá para adicionar ou remover caixas agora. Volte à revisão e clique em Emitir para concluir sem duplicar.');
+    return true;
+  }
+
+  function renderCaixas() {
+    const varias = caixas.length > 1;
+    $('ecCaixas').innerHTML = caixas.map((c, i) => `
+      <div class="ec-linhaCaixa" data-i="${i}">
+        ${varias ? `<span class="ec-caixaTitulo">Caixa ${i + 1} de ${caixas.length}</span>` : ''}
+        <label class="ec-campo"><span>Altura (cm)</span><input class="ec-cx-alt" inputmode="decimal" value="${esc(c.alturaCm)}"></label>
+        <label class="ec-campo"><span>Largura (cm)</span><input class="ec-cx-lar" inputmode="decimal" value="${esc(c.larguraCm)}"></label>
+        <label class="ec-campo"><span>Comprimento (cm)</span><input class="ec-cx-com" inputmode="decimal" value="${esc(c.comprimentoCm)}"></label>
+        <label class="ec-campo"><span>Peso (g)</span><input class="ec-cx-peso" inputmode="numeric" value="${esc(c.pesoG)}"></label>
+        ${varias ? `<button type="button" class="ec-remover" data-i="${i}">Remover</button>` : ''}
+      </div>
+    `).join('');
+    $('ecCaixas').querySelectorAll('.ec-linhaCaixa').forEach((linha) => {
+      const i = Number(linha.dataset.i);
+      linha.querySelector('.ec-cx-alt').addEventListener('input', (e) => { caixas[i].alturaCm = e.target.value; });
+      linha.querySelector('.ec-cx-lar').addEventListener('input', (e) => { caixas[i].larguraCm = e.target.value; });
+      linha.querySelector('.ec-cx-com').addEventListener('input', (e) => { caixas[i].comprimentoCm = e.target.value; });
+      linha.querySelector('.ec-cx-peso').addEventListener('input', (e) => { caixas[i].pesoG = e.target.value.replace(/\D/g, ''); e.target.value = caixas[i].pesoG; });
+      const btnRm = linha.querySelector('.ec-remover');
+      if (btnRm) btnRm.addEventListener('click', () => { if (bloquearSeJaCriou()) return; caixas.splice(i, 1); renderCaixas(); });
+    });
+    $('ecBtnAddCaixa').disabled = caixas.length >= MAX_CAIXAS;
+    $('ecBtnAddCaixa').textContent = caixas.length >= MAX_CAIXAS ? `Limite de ${MAX_CAIXAS} caixas` : 'Adicionar caixa';
+    const dica = dicaCaixas();
+    $('ecCaixasDica').textContent = dica;
+    $('ecCaixasDica').style.display = dica ? '' : 'none';
+  }
+  renderCaixas();
+  $('ecBtnAddCaixa').addEventListener('click', () => {
+    if (bloquearSeJaCriou() || caixas.length >= MAX_CAIXAS) return;
+    caixas.push(caixaVazia());
+    renderCaixas();
+  });
+
   // ── Montagem do corpo da requisição ──────────────────────────────────
   function corpo() {
     return {
@@ -106,8 +183,7 @@
       xmlNFe: modo === 'xml' ? (xml && xml.conteudo) : undefined,
       chaveNFe: modo === 'manual' ? $('ecChaveNFe').value : undefined,
       servico: $('ecServicoSedex').checked ? 'SEDEX' : 'PAC',
-      caixa: { alturaCm: $('ecAlturaCm').value, larguraCm: $('ecLarguraCm').value, comprimentoCm: $('ecComprimentoCm').value },
-      pesoG: $('ecPesoG').value,
+      caixas: caixas.map((c) => ({ alturaCm: c.alturaCm, larguraCm: c.larguraCm, comprimentoCm: c.comprimentoCm, pesoG: c.pesoG })),
       pedido: $('ecPedido').value,
       observacao: $('ecObservacao').value,
       destinatario: modo === 'manual' ? {
@@ -115,7 +191,7 @@
         endereco: { cep: $('ecDCep').value, logradouro: $('ecDRua').value, numero: $('ecDNum').value, complemento: $('ecDCompl').value, bairro: $('ecDBairro').value, cidade: $('ecDCidade').value, uf: $('ecDUf').value },
       } : undefined,
       itens: modo === 'manual' ? itens : undefined,
-      idPrePostagem: emissaoAtual ? emissaoAtual.id : null,
+      idsPrePostagem: jaCriouAlgo() ? idsCriados : undefined,
     };
   }
 
@@ -127,10 +203,11 @@
 
   async function chamar(url, init) {
     mostrarErro('');
+    ultimoErro = null;
     try {
       const res = await fetch(url, init);
       const json = await res.json();
-      if (!res.ok) { mostrarErro(json.erro || 'Não foi possível concluir'); return null; }
+      if (!res.ok) { ultimoErro = json; mostrarErro(json.erro || 'Não foi possível concluir'); return null; }
       return json;
     } catch (e) {
       mostrarErro('Sem conexão com o servidor. Tente novamente.');
@@ -158,31 +235,35 @@
     if (r) { previaAtual = r; renderPrevia(); irParaEtapa('previa'); }
   });
 
+  const nEtiquetas = (n) => (n > 1 ? `${n} etiquetas` : 'etiqueta');
+
   function renderPrevia() {
     const p = previaAtual;
     const d = p.destinatario;
+    const n = p.volumes.length;
     $('ecResumoPrevia').innerHTML = `
       <div><dt>Serviço</dt><dd><b>${esc(p.servico)}</b> <small>${esc(p.codigoServico)}</small></dd></div>
       <div><dt>NF-e</dt><dd class="ec-mono">${p.chaveNFe ? esc(mascaraChave(p.chaveNFe)) : '—'}</dd></div>
       <div class="ec-largo"><dt>Destinatário</dt><dd>
         <b>${esc(d.nome)}</b><br>
-        ${esc(d.endereco.logradouro)}, ${esc(d.endereco.numero)}${d.endereco.complemento ? ` — ${esc(d.endereco.complemento)}` : ''}<br>
+        ${esc(d.endereco.logradouro)}, ${esc(d.endereco.numero)}${d.endereco.complemento ? `, ${esc(d.endereco.complemento)}` : ''}<br>
         ${esc(d.endereco.bairro)} · ${esc(d.endereco.cidade)}/${esc(d.endereco.uf)} · ${esc(mascaraCep(d.endereco.cep))}
         ${d.telefone ? `<br>${esc(d.telefone)}` : ''}
       </dd></div>
-      <div><dt>Caixa</dt><dd>${p.caixa.alturaCm} × ${p.caixa.larguraCm} × ${p.caixa.comprimentoCm} cm</dd></div>
-      <div><dt>Peso</dt><dd>${p.pesoG.toLocaleString('pt-BR')} g</dd></div>
+      <div><dt>Caixas</dt><dd>${n}${n > 1 ? ` <small>(${n} etiquetas e ${n} códigos de rastreio)</small>` : ''}</dd></div>
+      <div><dt>Peso${n > 1 ? ' total' : ''}</dt><dd>${p.pesoTotalG.toLocaleString('pt-BR')} g</dd></div>
       ${p.pedido ? `<div><dt>Pedido</dt><dd>${esc(p.pedido)}</dd></div>` : ''}
-      ${p.observacao ? `<div><dt>Observação</dt><dd>${esc(p.observacao)}</dd></div>` : ''}
+      ${p.observacao ? `<div><dt>Observação</dt><dd>${esc(p.observacao)}${n > 1 ? ' <small>(cada etiqueta leva também “Vol i/N”)</small>' : ''}</dd></div>` : ''}
     `;
+    $('ecVolumesPrevia').innerHTML = p.volumes.map((v, i) => `<tr><td>Caixa ${i + 1}</td><td>${v.alturaCm} × ${v.larguraCm} × ${v.comprimentoCm}</td><td>${v.pesoG.toLocaleString('pt-BR')} g</td></tr>`).join('');
     $('ecItensPrevia').innerHTML = p.itens.map((it) => `<tr><td>${esc(it.descricao)}</td><td>${it.quantidade}</td><td>${brl(it.valorUnitario)}</td></tr>`).join('');
     $('ecAvisosPrevia').innerHTML = (p.avisos || []).map((a) => `<p class="ec-aviso"><span>${esc(a)}</span></p>`).join('');
-    $('ecBtnEmitir').textContent = `Emitir etiqueta ${p.servico}`;
+    $('ecBtnEmitir').textContent = `Emitir ${nEtiquetas(n)} ${p.servico}`;
   }
 
   $('ecBtnVoltar').addEventListener('click', () => irParaEtapa('form'));
 
-  // ── Etapa 2 → 3: emitir (CRIA OBJETO REAL NOS CORREIOS) ─────────────
+  // ── Etapa 2 → 3: emitir (CRIA OBJETOS REAIS NOS CORREIOS) ───────────
   $('ecBtnEmitir').addEventListener('click', async () => {
     const btn = $('ecBtnEmitir');
     btn.disabled = true;
@@ -191,7 +272,18 @@
     const r = await chamar('/emissao-correios/api/emitir', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corpo()) });
     btn.disabled = false;
     btn.textContent = original;
-    if (r) { emissaoAtual = r; cancelada = false; renderEmitida(); irParaEtapa('emitida'); }
+    if (r) {
+      emissaoAtual = r;
+      idsCriados = r.idsPrePostagem || r.volumes.map((v) => v.id);
+      idsCancelados = new Set();
+      renderEmitida();
+      irParaEtapa('emitida');
+    } else if (ultimoErro && Array.isArray(ultimoErro.idsPrePostagem)) {
+      // Falhou no meio: o que já foi criado fica guardado; clicar de novo só cria o que falta.
+      idsCriados = ultimoErro.idsPrePostagem;
+      const feitas = idsCriados.filter(Boolean).length;
+      if (feitas) mostrarErro(`${ultimoErro.erro} (${feitas} de ${caixas.length} já criada${feitas > 1 ? 's' : ''} nos Correios. Clique em Emitir de novo para concluir sem duplicar.)`);
+    }
   });
 
   function liberarUrls() {
@@ -199,31 +291,39 @@
     urlsAtuais = {};
   }
 
+  const todasCanceladas = () => !!emissaoAtual && idsCancelados.size >= emissaoAtual.volumes.length;
+
   function renderEmitida() {
     liberarUrls();
     const e = emissaoAtual;
-    $('ecStatusEmitida').textContent = cancelada ? 'Pré-postagem cancelada' : 'Etiqueta emitida';
+    const n = e.volumes.length;
+    const cancelada = todasCanceladas();
+    $('ecStatusEmitida').textContent = cancelada
+      ? (n > 1 ? 'Pré-postagens canceladas' : 'Pré-postagem cancelada')
+      : (n > 1 ? `${n} etiquetas emitidas` : 'Etiqueta emitida');
     const titulo = $('ecTituloEmitida');
-    titulo.textContent = e.codigoObjeto || '—';
+    titulo.textContent = n > 1 ? `${n} etiquetas` : (e.volumes[0].codigoObjeto || '—');
     titulo.classList.toggle('ec-cancelado', cancelada);
     $('ecResumoEmitida').innerHTML = `
       <div><dt>Serviço</dt><dd>${esc(e.servico)}</dd></div>
       <div><dt>Levar à agência até</dt><dd>${e.prazoPostagem ? esc(dataCurta(e.prazoPostagem)) : '—'}</dd></div>
-      <div><dt>Id da pré-postagem</dt><dd class="ec-mono">${esc(e.id)}</dd></div>
+      <div class="ec-largo ec-volumes"><dt>${n > 1 ? 'Códigos de rastreio' : 'Id da pré-postagem'}</dt><dd>${e.volumes.map((v, i) => `
+        <span class="${idsCancelados.has(v.id) ? 'ec-cancelado' : ''}">${n > 1 ? `Caixa ${i + 1} · <b class="ec-mono">${esc(v.codigoObjeto || '—')}</b> ` : ''}<small class="ec-mono">${n > 1 ? 'id ' : ''}${esc(v.id)}</small></span>`).join('')}</dd></div>
     `;
 
     $('ecPendenteBloco').style.display = (!cancelada && e.pendente) ? '' : 'none';
     $('ecDownloads').style.display = (!cancelada && !e.pendente) ? '' : 'none';
     if (!cancelada && !e.pendente) {
       urlsAtuais = Object.fromEntries(Object.entries(e.etiquetas || {}).map(([k, b64]) => [k, pdfUrl(b64)]));
+      const nome = n > 1 ? `${e.volumes[0].codigoObjeto || e.volumes[0].id}-e-mais-${n - 1}` : (e.volumes[0].codigoObjeto || e.volumes[0].id);
       $('ecDownloads').innerHTML = LAYOUTS.map(({ layout, rotulo, arquivo }) => {
         const url = urlsAtuais[layout];
         if (!url) return '';
         return `<div class="ec-download">
-          <b>${esc(rotulo)}</b>
+          <b>${esc(rotulo)}${n > 1 ? ` · todas as ${n} etiquetas` : ''}</b>
           <div class="ec-acoes">
             <a class="ec-botao" href="${url}" target="_blank" rel="noreferrer">Abrir para imprimir</a>
-            <a class="ec-secundario" href="${url}" download="etiqueta-${arquivo}-${esc(e.codigoObjeto || e.id)}.pdf">Baixar PDF</a>
+            <a class="ec-secundario" href="${url}" download="etiquetas-${arquivo}-${esc(nome)}.pdf">Baixar PDF</a>
           </div>
         </div>`;
       }).join('');
@@ -241,9 +341,10 @@
     const original = btn.textContent;
     btn.textContent = 'Baixando…';
     mostrarErro('');
+    const ids = emissaoAtual.volumes.map((v) => v.id).join(',');
     const etiquetas = {};
     for (const { layout } of LAYOUTS) {
-      const res = await fetch(`/emissao-correios/api/${encodeURIComponent(emissaoAtual.id)}/pdf?layout=${layout}`);
+      const res = await fetch(`/emissao-correios/api/pdf?ids=${encodeURIComponent(ids)}&layout=${layout}`);
       if (!res.ok) {
         const j = await res.json().catch(() => null);
         mostrarErro((j && j.erro) || 'Etiqueta ainda não liberada. Tente em instantes.');
@@ -264,11 +365,12 @@
 
   function renderAreaCancelar() {
     const area = $('ecAreaCancelar');
-    if (cancelada) { area.innerHTML = ''; return; }
-    area.innerHTML = `<button type="button" class="ec-linkPerigo" id="ecBtnPedirCancelamento">Cancelar pré-postagem</button>`;
+    if (todasCanceladas()) { area.innerHTML = ''; return; }
+    const n = emissaoAtual.volumes.length;
+    area.innerHTML = `<button type="button" class="ec-linkPerigo" id="ecBtnPedirCancelamento">${n > 1 ? 'Cancelar todas as pré-postagens' : 'Cancelar pré-postagem'}</button>`;
     $('ecBtnPedirCancelamento').addEventListener('click', () => {
       area.innerHTML = `<span class="ec-confirmar">
-        Cancelar ${esc(emissaoAtual.codigoObjeto)}? O código deixa de valer.
+        ${n > 1 ? `Cancelar as ${n - idsCancelados.size} pré-postagens? Os códigos deixam de valer.` : `Cancelar ${esc(emissaoAtual.volumes[0].codigoObjeto)}? O código deixa de valer.`}
         <button type="button" class="ec-perigo" id="ecBtnConfirmarCancelamento">Sim, cancelar</button>
         <button type="button" class="ec-secundario" id="ecBtnNegarCancelamento">Não</button>
       </span>`;
@@ -281,18 +383,25 @@
     const btn = $('ecBtnConfirmarCancelamento');
     btn.disabled = true;
     btn.textContent = 'Cancelando…';
-    const r = await chamar(`/emissao-correios/api/${encodeURIComponent(emissaoAtual.id)}`, { method: 'DELETE' });
-    if (r) { cancelada = true; renderEmitida(); }
-    else renderAreaCancelar();
+    const falhas = [];
+    for (const v of emissaoAtual.volumes) {
+      if (idsCancelados.has(v.id)) continue;
+      const r = await chamar(`/emissao-correios/api/${encodeURIComponent(v.id)}`, { method: 'DELETE' });
+      if (r) idsCancelados.add(v.id);
+      else falhas.push(v.codigoObjeto || v.id);
+    }
+    renderEmitida();
+    if (falhas.length) mostrarErro(`Não consegui cancelar: ${falhas.join(', ')}. Tente de novo.`);
   }
 
   $('ecBtnNovaEtiqueta').addEventListener('click', () => {
     liberarUrls();
-    modo = 'xml'; xml = null; itens = [itemVazio()]; previaAtual = null; emissaoAtual = null; cancelada = false;
+    modo = 'xml'; xml = null; itens = [itemVazio()]; caixas = [caixaVazia()]; volumesDaNf = 0;
+    previaAtual = null; emissaoAtual = null; idsCriados = []; idsCancelados = new Set();
     setModo('xml');
     $('ecXmlLabel').textContent = 'Escolher o arquivo XML da NF-e';
     $('ecXmlInput').value = '';
-    $('ecChaveNFe').value = ''; $('ecPesoG').value = ''; $('ecPedido').value = ''; $('ecObservacao').value = '';
+    $('ecChaveNFe').value = ''; $('ecPedido').value = ''; $('ecObservacao').value = '';
     $('ecDNome').value = ''; $('ecDDoc').value = ''; $('ecDTel').value = ''; $('ecDEmail').value = '';
     $('ecDCep').value = ''; $('ecDRua').value = ''; $('ecDNum').value = ''; $('ecDCompl').value = ''; $('ecDBairro').value = ''; $('ecDCidade').value = ''; $('ecDUf').value = '';
     renderItens();

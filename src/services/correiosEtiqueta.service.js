@@ -745,104 +745,180 @@ const numero = (v) => {
 };
 const texto2 = (v) => (typeof v === 'string' && v.trim() ? v.trim() : undefined);
 
-/** Converte o formulário em NovoEnvio (XML/chave + preenchimento) e valida tudo. Não chama os Correios. */
+// Cada caixa vira uma pré-postagem própria (código de rastreio e etiqueta
+// próprios). Trava de sanidade contra um clique/digitação fora do normal.
+const MAX_CAIXAS = 10;
+
+/**
+ * Converte o formulário em um NovoEnvio POR CAIXA (XML/chave + preenchimento) e
+ * valida tudo. Não chama os Correios. NF-e, destinatário, serviço, pedido e
+ * declaração de conteúdo são os mesmos em todas as caixas; muda só a caixa
+ * (medidas e peso) e a observação, que ganha "Vol i/N" quando há mais de uma.
+ */
 function montar(bruta, env) {
   const e = bruta ?? {};
   if (e.modo === 'xml' && !texto2(e.xmlNFe)) throw new ErroEtiqueta('VALIDACAO', 'Envie o XML da NF-e');
   if (e.modo !== 'xml' && !texto2(e.chaveNFe)) throw new ErroEtiqueta('VALIDACAO', 'Informe a chave da NF-e (44 dígitos)');
 
+  const caixasBrutas = Array.isArray(e.caixas) ? e.caixas : [];
+  if (!caixasBrutas.length) throw new ErroEtiqueta('VALIDACAO', 'Informe ao menos uma caixa');
+  if (caixasBrutas.length > MAX_CAIXAS) throw new ErroEtiqueta('VALIDACAO', `No máximo ${MAX_CAIXAS} caixas por emissão`);
+  const total = caixasBrutas.length;
+
   const d = e.destinatario ?? {};
   const end = d.endereco ?? {};
-  const pesoG = texto2(String(e.pesoG ?? '')) ? numero(e.pesoG) : undefined;
   const itens = e.modo === 'manual'
     ? (e.itens ?? []).filter((i) => texto2(i.descricao) || texto2(String(i.quantidade ?? '')) || texto2(String(i.valorUnitario ?? '')))
       .map((i) => ({ descricao: String(i.descricao ?? '').trim(), quantidade: numero(i.quantidade), valorUnitario: numero(i.valorUnitario) }))
     : undefined;
 
-  try {
-    const { envio, avisos } = montarEnvio({
-      xmlNFe: e.modo === 'xml' ? e.xmlNFe : undefined,
-      chaveNFe: texto2(e.chaveNFe),
-      cnpjRemetente: REMETENTE.cpfCnpj,
-      dados: {
-        servico: resolverServico(e.servico),
-        alturaCm: numero(e.caixa?.alturaCm), larguraCm: numero(e.caixa?.larguraCm), comprimentoCm: numero(e.caixa?.comprimentoCm),
-        ...(pesoG !== undefined ? { pesoG } : {}),
-        ...(itens ? { itens } : {}),
-        ...(texto2(e.pedido) ? { pedido: texto2(e.pedido) } : {}),
-        ...(texto2(e.observacao) ? { observacao: texto2(e.observacao) } : {}),
-        // No modo XML, só o que foi preenchido substitui o XML; no manual, tudo vem daqui
-        destinatario: {
-          ...(texto2(d.nome) ? { nome: texto2(d.nome) } : {}),
-          ...(texto2(d.cpfCnpj) ? { cpfCnpj: texto2(d.cpfCnpj) } : {}),
-          ...(texto2(d.email) ? { email: texto2(d.email) } : {}),
-          ...(texto2(d.telefone) ? { telefone: texto2(d.telefone) } : {}),
-          endereco: Object.fromEntries(Object.entries(end).filter(([, v]) => texto2(v))),
-        },
-      },
-    });
-    if (!(envio.pesoG > 0)) throw new ErroEtiqueta('VALIDACAO', 'Informe o peso em gramas (a NF-e não traz peso bruto)');
-    obterCliente(env).montarRequisicao(envio); // validação completa — lista todos os problemas de uma vez
-    return { envio, avisos };
-  } catch (err) {
-    if (err instanceof CorreiosErro) throw new ErroEtiqueta('VALIDACAO', err.message.replace(/^Pré-postagem inválida: /, 'Corrija antes de emitir: '));
-    throw err;
+  const avisos = [];
+  const pesos = caixasBrutas.map((c) => (texto2(String(c?.pesoG ?? '')) ? numero(c.pesoG) : undefined));
+
+  let nfe = null;
+  if (e.modo === 'xml') {
+    try { nfe = lerNFe(e.xmlNFe); } catch (err) {
+      if (err instanceof CorreiosErro) throw new ErroEtiqueta('VALIDACAO', err.message);
+      throw err;
+    }
   }
+
+  // Várias caixas e nenhum peso informado, com XML: divide o peso bruto da NF por igual (e avisa).
+  // Qualquer outro peso faltando com mais de uma caixa é erro: a NF não diz quanto pesa cada uma.
+  if (total > 1) {
+    const faltando = pesos.map((p, i) => (p === undefined ? i + 1 : null)).filter(Boolean);
+    if (faltando.length === total && nfe?.pesoBrutoG) {
+      const cada = Math.round(nfe.pesoBrutoG / total);
+      pesos.fill(cada);
+      avisos.push(`Peso bruto da NF (${nfe.pesoBrutoG} g) dividido igualmente entre as ${total} caixas: ${cada} g cada. Confira.`);
+    } else if (faltando.length) {
+      throw new ErroEtiqueta('VALIDACAO', `Informe o peso ${faltando.length > 1 ? 'das caixas' : 'da caixa'} ${faltando.join(', ')} (em gramas)`);
+    }
+  }
+
+  const envios = [];
+  caixasBrutas.forEach((c, i) => {
+    const prefixo = total > 1 ? `Caixa ${i + 1}: ` : '';
+    let obs = [total > 1 ? `Vol ${i + 1}/${total}` : null, texto2(e.observacao)].filter(Boolean).join(' - ');
+    if (obs.length > 50) {
+      obs = obs.slice(0, 50);
+      const aviso = 'Observação cortada em 50 caracteres para caber na etiqueta.';
+      if (!avisos.includes(aviso)) avisos.push(aviso);
+    }
+    try {
+      const r = montarEnvio({
+        xmlNFe: e.modo === 'xml' ? e.xmlNFe : undefined,
+        chaveNFe: texto2(e.chaveNFe),
+        cnpjRemetente: REMETENTE.cpfCnpj,
+        dados: {
+          servico: resolverServico(e.servico),
+          alturaCm: numero(c?.alturaCm), larguraCm: numero(c?.larguraCm), comprimentoCm: numero(c?.comprimentoCm),
+          ...(pesos[i] !== undefined ? { pesoG: pesos[i] } : {}),
+          ...(itens ? { itens } : {}),
+          ...(texto2(e.pedido) ? { pedido: texto2(e.pedido) } : {}),
+          ...(obs ? { observacao: obs } : {}),
+          // No modo XML, só o que foi preenchido substitui o XML; no manual, tudo vem daqui
+          destinatario: {
+            ...(texto2(d.nome) ? { nome: texto2(d.nome) } : {}),
+            ...(texto2(d.cpfCnpj) ? { cpfCnpj: texto2(d.cpfCnpj) } : {}),
+            ...(texto2(d.email) ? { email: texto2(d.email) } : {}),
+            ...(texto2(d.telefone) ? { telefone: texto2(d.telefone) } : {}),
+            endereco: Object.fromEntries(Object.entries(end).filter(([, v]) => texto2(v))),
+          },
+        },
+      });
+      if (!(r.envio.pesoG > 0)) throw new ErroEtiqueta('VALIDACAO', 'Informe o peso em gramas (a NF-e não traz peso bruto)');
+      obterCliente(env).montarRequisicao(r.envio); // validação completa — lista todos os problemas de uma vez
+      envios.push(r.envio);
+      r.avisos.forEach((a) => { if (!avisos.includes(a)) avisos.push(a); });
+    } catch (err) {
+      if (err instanceof CorreiosErro) throw new ErroEtiqueta('VALIDACAO', prefixo + err.message.replace(/^Pré-postagem inválida: /, 'Corrija antes de emitir: '));
+      if (err instanceof ErroEtiqueta) throw new ErroEtiqueta(err.tipo, prefixo + err.message, err.detalhe);
+      throw err;
+    }
+  });
+  return { envios, avisos };
 }
 
 /** Mostra o que vai ser emitido, com os avisos. NÃO cria nada nos Correios. */
 function previa(bruta, env) {
-  const { envio, avisos } = montar(bruta, env);
-  const codigo = resolverServico(envio.servico);
+  const { envios, avisos } = montar(bruta, env);
+  const base = envios[0];
+  const codigo = resolverServico(base.servico);
   return {
     servico: nomeServico(codigo),
     codigoServico: codigo,
-    chaveNFe: envio.chaveNFe ?? null,
-    destinatario: envio.destinatario,
-    itens: envio.itens,
-    pesoG: Math.round(envio.pesoG),
-    caixa: { alturaCm: envio.alturaCm, larguraCm: envio.larguraCm, comprimentoCm: envio.comprimentoCm },
-    pedido: envio.pedido ?? null,
-    observacao: envio.observacao ?? null,
+    chaveNFe: base.chaveNFe ?? null,
+    destinatario: base.destinatario,
+    itens: base.itens,
+    volumes: envios.map((v) => ({
+      alturaCm: v.alturaCm, larguraCm: v.larguraCm, comprimentoCm: v.comprimentoCm, pesoG: Math.round(v.pesoG),
+    })),
+    pesoTotalG: envios.reduce((s, v) => s + Math.round(v.pesoG), 0),
+    pedido: base.pedido ?? null,
+    observacao: texto2(bruta?.observacao) ?? null,
     avisos,
   };
 }
 
 /**
- * Cria a pré-postagem (objeto REAL no contrato) e baixa as etiquetas térmica e A4.
- * Com `idPrePostagem` de uma emissão anterior ainda válida, só baixa de novo (não duplica).
+ * Cria uma pré-postagem por caixa (objetos REAIS no contrato) e baixa as etiquetas
+ * térmica e A4 de todas, juntas num PDF por layout.
+ * `idsPrePostagem` (um por caixa, na mesma ordem; null onde ainda não existe) reaproveita o
+ * que uma tentativa anterior já criou: se a 3ª de 4 falhar, tentar de novo só cria as que faltam.
+ * Em caso de falha no meio, o erro leva `idsPrePostagem` com o que já existe, pra tela guardar.
  */
 async function emitir(bruta, env) {
-  const { envio, avisos } = montar(bruta, env);
+  const { envios, avisos } = montar(bruta, env);
   const pp = obterCliente(env);
-  const idAnterior = texto2(bruta?.idPrePostagem ?? undefined);
+  const anteriores = Array.isArray(bruta?.idsPrePostagem) ? bruta.idsPrePostagem.map((v) => texto2(v ?? undefined)) : [];
+  const pres = new Array(envios.length).fill(null);
   try {
-    let pre = idAnterior ? await pp.consultar(idAnterior) : null;
-    if (pre && ['CANCELADO', 'EXPIRADO', 'ESTORNADO'].includes(pre.status)) pre = null;
-    if (!pre) pre = await pp.criar(envio);
+    for (let i = 0; i < envios.length; i++) {
+      let pre = anteriores[i] ? await pp.consultar(anteriores[i]) : null;
+      if (pre && ['CANCELADO', 'EXPIRADO', 'ESTORNADO'].includes(pre.status)) pre = null;
+      if (!pre) pre = await pp.criar(envios[i]);
+      pres[i] = pre;
+    }
+    const ids = pres.map((p) => p.id);
     const etiquetas = {};
     let pendente = false;
     for (const layout of Object.keys(LAYOUTS)) {
       try {
-        etiquetas[layout] = Buffer.from((await pp.etiqueta([pre.id], { layout, esperaMaxMs: 45000 })).pdf).toString('base64');
+        etiquetas[layout] = Buffer.from((await pp.etiqueta(ids, { layout, esperaMaxMs: 45000 })).pdf).toString('base64');
       } catch (e) {
         if (e instanceof CorreiosErro && e.tipo === 'PENDENTE') { pendente = true; break; }
         throw e;
       }
     }
-    return { id: pre.id, codigoObjeto: pre.codigoObjeto, servico: pre.nomeServico, prazoPostagem: pre.prazoPostagem, pendente, etiquetas: pendente ? {} : etiquetas, avisos };
+    return {
+      servico: pres[0].nomeServico,
+      prazoPostagem: pres[0].prazoPostagem,
+      volumes: pres.map((p) => ({ id: p.id, codigoObjeto: p.codigoObjeto, prazoPostagem: p.prazoPostagem })),
+      idsPrePostagem: ids,
+      pendente,
+      etiquetas: pendente ? {} : etiquetas,
+      avisos,
+    };
+  } catch (e) {
+    const erro = traduzir(e);
+    if (erro instanceof ErroEtiqueta) erro.idsPrePostagem = pres.map((p, k) => (p ? p.id : (anteriores[k] ?? null)));
+    throw erro;
+  }
+}
+
+/** Baixa (ou reimprime) as etiquetas de pré-postagens já criadas, juntas num PDF só. */
+async function baixarEtiquetas(ids, layout, env) {
+  try {
+    return (await obterCliente(env).etiqueta(ids, { layout, esperaMaxMs: 45000 })).pdf;
   } catch (e) {
     throw traduzir(e);
   }
 }
 
 /** Baixa (ou reimprime) a etiqueta de uma pré-postagem já criada. */
-async function baixarEtiqueta(id, layout, env) {
-  try {
-    return (await obterCliente(env).etiqueta([id], { layout, esperaMaxMs: 45000 })).pdf;
-  } catch (e) {
-    throw traduzir(e);
-  }
+function baixarEtiqueta(id, layout, env) {
+  return baixarEtiquetas([id], layout, env);
 }
 
 /** Consulta o status atual (PREPOSTADO, POSTADO, CANCELADO, EXPIRADO…). */
@@ -883,7 +959,7 @@ function traduzir(e) {
 module.exports = {
   CorreiosErro, CorreiosApi, CorreiosPrePostagem, normalizarPrePostagem,
   ErroEtiqueta, REMETENTE, LAYOUTS,
-  previa, emitir, baixarEtiqueta, consultar, cancelar, definirCliente,
+  MAX_CAIXAS, previa, emitir, baixarEtiqueta, baixarEtiquetas, consultar, cancelar, definirCliente,
   lerNFe, montarEnvio,
   resolverServico, nomeServico, SERVICOS,
 };
