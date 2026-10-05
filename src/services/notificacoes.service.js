@@ -1,6 +1,10 @@
 const { chamarAppsScript } = require('./appsScriptClient');
 const usuariosService = require('./usuarios.service');
 const env = require('../config/env');
+const banco = require('./notificacoesDb.service');
+
+const usaBanco = () => env.notificacoesBackend === 'db';
+const slugsDosUsuarios = () => usuariosService.listarUsuarios().map((u) => u.slug);
 
 // Notificações do sininho (topo da sidebar) — avisam quando uma solicitação
 // (Registro, Reembolso, Pagamento) volta do financeiro marcada como
@@ -54,6 +58,7 @@ async function podar(lista) {
 }
 
 async function listarNaoLidas(slug) {
+  if (usaBanco()) return banco.listarNaoLidas(slug);
   const lista = await listarTodas();
   return lista
     .filter((n) => (!n.destinatario || n.destinatario === slug) && !(n.lidaPor || []).includes(slug))
@@ -61,6 +66,7 @@ async function listarNaoLidas(slug) {
 }
 
 async function adicionar(mensagem, link, destinatarioSlug) {
+  if (usaBanco()) return banco.adicionar(mensagem, link, destinatarioSlug, slugsDosUsuarios());
   await chamarAppsScript(env.registroDemandasAppsScriptUrl, {
     method: 'POST',
     body: { action: 'criarNotificacao', mensagem, link: link || null, destinatario: destinatarioSlug || null },
@@ -69,6 +75,7 @@ async function adicionar(mensagem, link, destinatarioSlug) {
 }
 
 async function marcarLida(id, slug) {
+  if (usaBanco()) return banco.marcarLida(id, slug, slugsDosUsuarios());
   const json = await chamarAppsScript(env.registroDemandasAppsScriptUrl, {
     method: 'POST',
     body: { action: 'marcarNotificacaoLida', id, slug },
@@ -81,6 +88,7 @@ async function marcarLida(id, slug) {
 // ainda não leu, reaproveitando a mesma ação de marcar-lida por item (sem
 // precisar de uma ação nova no Apps Script). Devolve quantas foram limpas.
 async function marcarTodasLidas(slug) {
+  if (usaBanco()) return banco.marcarTodasLidas(slug, slugsDosUsuarios());
   const naoLidas = await listarNaoLidas(slug);
   await Promise.all(
     naoLidas.map((n) =>

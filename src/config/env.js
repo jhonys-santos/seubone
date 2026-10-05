@@ -31,6 +31,10 @@ module.exports = {
   // 'db' = painel de Tickets lê/escreve no Postgres; qualquer outro valor
   // (ou vazio) = continua na planilha via Apps Script, como sempre foi.
   ticketsBackend: required('TICKETS_BACKEND', 'sheets'),
+  // Mesma ideia para as notificações do sininho: 'db' = Postgres; padrão = planilha.
+  notificacoesBackend: required('NOTIFICACOES_BACKEND', 'sheets'),
+  // 'pg' = sessões de login no Postgres (sobrevivem a deploys); padrão = arquivos em disco.
+  sessionStore: required('SESSION_STORE', 'file'),
 
   wallacAppsScriptUrl: required('WALLAC_APPS_SCRIPT_URL', ''),
   pedidosUrgentesAppsScriptUrl: required('PEDIDOS_URGENTES_APPS_SCRIPT_URL', ''),

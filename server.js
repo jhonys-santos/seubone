@@ -1,8 +1,8 @@
-const fs = require('fs');
+
 const path = require('path');
 const express = require('express');
 const session = require('express-session');
-const FileStore = require('session-file-store')(session);
+const { criarStore } = require('./src/config/sessionStore');
 const helmet = require('helmet');
 const compression = require('compression');
 
@@ -23,12 +23,6 @@ const catalogoCategorias = require('./src/config/categorias');
 // dias, achando que já subiu.
 const APP_BOOT_VERSION = String(Date.now());
 
-// A pasta de sessões não é versionada (fica no .gitignore) — em um deploy
-// novo (ex: Render) ela simplesmente não existe ainda. Sem isso, a store
-// falha silenciosamente ao gravar e o cookie de sessão nunca é enviado,
-// deixando o login preso num loop de redirecionamento.
-const SESSIONS_DIR = path.join(env.dataDir, 'sessions');
-fs.mkdirSync(SESSIONS_DIR, { recursive: true });
 const authRoutes = require('./src/routes/auth.routes');
 const setupRoutes = require('./src/routes/setup.routes');
 const hubRoutes = require('./src/routes/hub.routes');
@@ -85,10 +79,8 @@ app.use(
   session({
     // Sessão gravada em disco (data/sessions) em vez de só na memória — assim
     // reiniciar o servidor (deploy, crash, atualização) não desloga o time.
-    store: new FileStore({
-      path: SESSIONS_DIR,
-      logFn: () => {}, // silencia os logs internos da lib no console
-    }),
+    // (arquivos em disco ou Postgres, conforme SESSION_STORE; ver src/config/sessionStore.js)
+    store: criarStore(),
     secret: env.sessionSecret,
     resave: false,
     saveUninitialized: false,

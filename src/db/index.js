@@ -62,4 +62,4 @@ async function fechar() {
   if (pool) { await pool.end(); pool = null; }
 }
 
-module.exports = { query, transaction, definirAdaptador, fechar };
+module.exports = { query, transaction, obterPool, definirAdaptador, fechar };
