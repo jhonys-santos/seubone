@@ -1,6 +1,7 @@
 const express = require('express');
 const { requireAuth, requirePainel } = require('../middleware/auth');
 const { chamarAppsScript } = require('../services/appsScriptClient');
+const ticketsStore = require('../services/ticketsStore');
 const env = require('../config/env');
 
 const router = express.Router();
@@ -76,7 +77,7 @@ function chaveDiaDoTicket_(isoTicket) {
 
 router.get('/api/resolucao', async (req, res) => {
   try {
-    const json = await chamarAppsScript(env.ticketsAppsScriptUrl, { cache: true });
+    const json = await ticketsStore.listar();
     if (!json.ok || !Array.isArray(json.tickets)) {
       return res.status(502).json({ ok: false, error: 'Falha ao buscar tickets.' });
     }

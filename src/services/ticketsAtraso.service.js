@@ -1,4 +1,4 @@
-const { chamarAppsScript } = require('./appsScriptClient');
+const ticketsStore = require('./ticketsStore');
 const notificacoesService = require('./notificacoes.service');
 const env = require('../config/env');
 
@@ -32,9 +32,9 @@ function diasParaPrazo(dataAberturaIso, identificador) {
 }
 
 async function checarAtrasos() {
-  if (!env.ticketsAppsScriptUrl) return;
+  if (env.ticketsBackend !== 'db' && !env.ticketsAppsScriptUrl) return;
   try {
-    const json = await chamarAppsScript(env.ticketsAppsScriptUrl);
+    const json = await ticketsStore.listar();
     if (!json.ok || !Array.isArray(json.tickets)) return;
 
     // Em paralelo — cada chamada ao Apps Script custa ~2-3s de latência
@@ -49,15 +49,9 @@ async function checarAtrasos() {
       if (atrasado && !t.atrasoNotificado) {
         const mensagem = `Ticket ${t.idTicket ? '#' + t.idTicket : '#' + t.rowIndex} (${t.pedido || 'sem cliente'}) está atrasado (${Math.abs(dias)} dia${Math.abs(dias) === 1 ? '' : 's'}).`;
         await notificacoesService.adicionar(mensagem, '/tickets#/t/' + t.rowIndex, t.responsavelSlug);
-        await chamarAppsScript(env.ticketsAppsScriptUrl, {
-          method: 'POST',
-          body: { action: 'marcarAtrasoNotificado', rowIndex: t.rowIndex, notificado: true },
-        });
+        await ticketsStore.marcarAtrasoNotificado({ rowIndex: t.rowIndex, notificado: true });
       } else if (!atrasado && t.atrasoNotificado) {
-        await chamarAppsScript(env.ticketsAppsScriptUrl, {
-          method: 'POST',
-          body: { action: 'marcarAtrasoNotificado', rowIndex: t.rowIndex, notificado: false },
-        });
+        await ticketsStore.marcarAtrasoNotificado({ rowIndex: t.rowIndex, notificado: false });
       }
     }));
   } catch (err) {

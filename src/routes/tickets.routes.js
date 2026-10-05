@@ -1,6 +1,6 @@
 const express = require('express');
 const { requireAuth, requirePainel, requireRole } = require('../middleware/auth');
-const { chamarAppsScript } = require('../services/appsScriptClient');
+const ticketsStore = require('../services/ticketsStore');
 const notificacoesService = require('../services/notificacoes.service');
 const usuariosService = require('../services/usuarios.service');
 const env = require('../config/env');
@@ -26,10 +26,7 @@ router.post('/webhook/n8n', async (req, res) => {
     // "idTicket" não vem mais de fora — é sempre gerado pelo Apps Script
     // (ver criarTicket_), pra ser o identificador único de dentro do hub,
     // e não um número de outro sistema.
-    const json = await chamarAppsScript(env.ticketsAppsScriptUrl, {
-      method: 'POST',
-      body: { action: 'criar', pedido, idVenda, identificador, fabrica, link, observacao, origem: 'Lulu 2.0', usuario: 'Lulu 2.0' },
-    });
+    const json = await ticketsStore.criar({ pedido, idVenda, identificador, fabrica, link, observacao, origem: 'Lulu 2.0', usuario: 'Lulu 2.0' });
     res.json(json);
   } catch (err) {
     res.status(502).json({ ok: false, erro: 'Falha ao processar ticket do CRM: ' + err.message });
@@ -55,7 +52,7 @@ router.get('/', (req, res) => {
 
 router.get('/api/tickets', async (req, res) => {
   try {
-    const json = await chamarAppsScript(env.ticketsAppsScriptUrl, { cache: true });
+    const json = await ticketsStore.listar();
     res.json(json);
   } catch (err) {
     res.status(502).json({ ok: false, erro: 'Falha ao buscar tickets: ' + err.message });
@@ -65,7 +62,7 @@ router.get('/api/tickets', async (req, res) => {
 router.get('/api/historico', async (req, res) => {
   try {
     const { rowIndex } = req.query;
-    const json = await chamarAppsScript(env.ticketsAppsScriptUrl, { params: { action: 'historico', rowIndex }, cache: true });
+    const json = await ticketsStore.historico(rowIndex);
     res.json(json);
   } catch (err) {
     res.status(502).json({ ok: false, erro: 'Falha ao buscar histórico: ' + err.message });
@@ -77,12 +74,9 @@ router.get('/api/historico', async (req, res) => {
 router.post('/api/criar', async (req, res) => {
   try {
     const { pedido, idVenda, identificador, fabrica, responsavel, responsavelSlug, link, observacao, fotos } = req.body;
-    const json = await chamarAppsScript(env.ticketsAppsScriptUrl, {
-      method: 'POST',
-      body: {
-        action: 'criar', pedido, idVenda, identificador, fabrica, responsavel, responsavelSlug, link, observacao,
-        fotos: fotos || [], origem: 'manual', usuario: req.session.user.nome, usuarioSlug: req.session.user.slug,
-      },
+    const json = await ticketsStore.criar({
+      pedido, idVenda, identificador, fabrica, responsavel, responsavelSlug, link, observacao,
+      fotos: fotos || [], origem: 'manual', usuario: req.session.user.nome, usuarioSlug: req.session.user.slug,
     });
     res.json(json);
   } catch (err) {
@@ -95,10 +89,7 @@ router.post('/api/criar', async (req, res) => {
 router.post('/api/atribuir', requireRole('gestor'), async (req, res) => {
   try {
     const { rowIndex, responsavel, responsavelSlug } = req.body;
-    const json = await chamarAppsScript(env.ticketsAppsScriptUrl, {
-      method: 'POST',
-      body: { action: 'atribuir', rowIndex, responsavel, responsavelSlug, usuario: req.session.user.nome, usuarioSlug: req.session.user.slug },
-    });
+    const json = await ticketsStore.atribuir({ rowIndex, responsavel, responsavelSlug, usuario: req.session.user.nome, usuarioSlug: req.session.user.slug });
     if (json.ok && responsavelSlug) {
       notificacoesService
         .adicionar(`Você foi atribuído ao ticket ${json.idTicket ? '#' + json.idTicket : '#' + rowIndex}.`, '/tickets#/t/' + rowIndex, responsavelSlug)
@@ -121,10 +112,7 @@ router.post('/api/status', async (req, res) => {
     if (!status) {
       return res.status(400).json({ ok: false, erro: 'Status ausente.' });
     }
-    const json = await chamarAppsScript(env.ticketsAppsScriptUrl, {
-      method: 'POST',
-      body: { action: 'mudarStatus', rowIndex, status, usuario: req.session.user.nome, usuarioSlug: req.session.user.slug },
-    });
+    const json = await ticketsStore.mudarStatus({ rowIndex, status, usuario: req.session.user.nome, usuarioSlug: req.session.user.slug });
     res.json(json);
   } catch (err) {
     res.status(502).json({ ok: false, erro: 'Falha ao mudar status: ' + err.message });
@@ -139,10 +127,7 @@ router.post('/api/comentar', async (req, res) => {
     if (!comentario || !String(comentario).trim()) {
       return res.status(400).json({ ok: false, erro: 'Comentário vazio.' });
     }
-    const json = await chamarAppsScript(env.ticketsAppsScriptUrl, {
-      method: 'POST',
-      body: { action: 'comentarTicket', rowIndex, comentario, usuario: req.session.user.nome, usuarioSlug: req.session.user.slug },
-    });
+    const json = await ticketsStore.comentar({ rowIndex, comentario, usuario: req.session.user.nome, usuarioSlug: req.session.user.slug });
     res.json(json);
   } catch (err) {
     res.status(502).json({ ok: false, erro: 'Falha ao comentar: ' + err.message });
@@ -158,10 +143,7 @@ router.post('/api/anexar', async (req, res) => {
     if (!fotos || !fotos.length) {
       return res.status(400).json({ ok: false, erro: 'Nenhum arquivo enviado.' });
     }
-    const json = await chamarAppsScript(env.ticketsAppsScriptUrl, {
-      method: 'POST',
-      body: { action: 'adicionarAnexos', rowIndex, fotos, usuario: req.session.user.nome, usuarioSlug: req.session.user.slug },
-    });
+    const json = await ticketsStore.adicionarAnexos({ rowIndex, fotos, usuario: req.session.user.nome, usuarioSlug: req.session.user.slug });
     res.json(json);
   } catch (err) {
     res.status(502).json({ ok: false, erro: 'Falha ao anexar arquivo(s): ' + err.message });
@@ -176,10 +158,7 @@ router.post('/api/anexos/remover', async (req, res) => {
     if (!url) {
       return res.status(400).json({ ok: false, erro: 'Anexo não informado.' });
     }
-    const json = await chamarAppsScript(env.ticketsAppsScriptUrl, {
-      method: 'POST',
-      body: { action: 'removerAnexo', rowIndex, url, usuario: req.session.user.nome, usuarioSlug: req.session.user.slug },
-    });
+    const json = await ticketsStore.removerAnexo({ rowIndex, url, usuario: req.session.user.nome, usuarioSlug: req.session.user.slug });
     res.json(json);
   } catch (err) {
     res.status(502).json({ ok: false, erro: 'Falha ao remover anexo: ' + err.message });
@@ -191,10 +170,7 @@ router.post('/api/anexos/remover', async (req, res) => {
 router.post('/api/fabrica', async (req, res) => {
   try {
     const { rowIndex, fabrica } = req.body;
-    const json = await chamarAppsScript(env.ticketsAppsScriptUrl, {
-      method: 'POST',
-      body: { action: 'atualizarFabrica', rowIndex, fabrica, usuario: req.session.user.nome, usuarioSlug: req.session.user.slug },
-    });
+    const json = await ticketsStore.atualizarFabrica({ rowIndex, fabrica, usuario: req.session.user.nome, usuarioSlug: req.session.user.slug });
     res.json(json);
   } catch (err) {
     res.status(502).json({ ok: false, erro: 'Falha ao salvar fábrica: ' + err.message });
@@ -208,10 +184,7 @@ router.post('/api/fabrica', async (req, res) => {
 router.post('/api/setor', async (req, res) => {
   try {
     const { rowIndex, setor } = req.body;
-    const json = await chamarAppsScript(env.ticketsAppsScriptUrl, {
-      method: 'POST',
-      body: { action: 'atualizarSetor', rowIndex, setor, usuario: req.session.user.nome, usuarioSlug: req.session.user.slug },
-    });
+    const json = await ticketsStore.atualizarSetor({ rowIndex, setor, usuario: req.session.user.nome, usuarioSlug: req.session.user.slug });
     res.json(json);
   } catch (err) {
     res.status(502).json({ ok: false, erro: 'Falha ao salvar setor: ' + err.message });
@@ -224,10 +197,7 @@ router.post('/api/setor', async (req, res) => {
 router.post('/api/novo-prazo', async (req, res) => {
   try {
     const { rowIndex, novoPrazo } = req.body;
-    const json = await chamarAppsScript(env.ticketsAppsScriptUrl, {
-      method: 'POST',
-      body: { action: 'atualizarNovoPrazo', rowIndex, novoPrazo, usuario: req.session.user.nome, usuarioSlug: req.session.user.slug },
-    });
+    const json = await ticketsStore.atualizarNovoPrazo({ rowIndex, novoPrazo, usuario: req.session.user.nome, usuarioSlug: req.session.user.slug });
     res.json(json);
   } catch (err) {
     res.status(502).json({ ok: false, erro: 'Falha ao salvar novo prazo: ' + err.message });
@@ -239,10 +209,7 @@ router.post('/api/novo-prazo', async (req, res) => {
 router.post('/api/acompanhamento', async (req, res) => {
   try {
     const { rowIndex, temEvento, dataEvento, entrega, aeroporto } = req.body;
-    const json = await chamarAppsScript(env.ticketsAppsScriptUrl, {
-      method: 'POST',
-      body: { action: 'atualizarAcompanhamento', rowIndex, temEvento, dataEvento, entrega, aeroporto, usuario: req.session.user.nome, usuarioSlug: req.session.user.slug },
-    });
+    const json = await ticketsStore.atualizarAcompanhamento({ rowIndex, temEvento, dataEvento, entrega, aeroporto, usuario: req.session.user.nome, usuarioSlug: req.session.user.slug });
     res.json(json);
   } catch (err) {
     res.status(502).json({ ok: false, erro: 'Falha ao salvar acompanhamento: ' + err.message });
@@ -257,10 +224,7 @@ router.post('/api/link', async (req, res) => {
     if (!link || !String(link).trim()) {
       return res.status(400).json({ ok: false, erro: 'Link vazio.' });
     }
-    const json = await chamarAppsScript(env.ticketsAppsScriptUrl, {
-      method: 'POST',
-      body: { action: 'definirLink', rowIndex, link, usuario: req.session.user.nome, usuarioSlug: req.session.user.slug },
-    });
+    const json = await ticketsStore.definirLink({ rowIndex, link, usuario: req.session.user.nome, usuarioSlug: req.session.user.slug });
     res.json(json);
   } catch (err) {
     res.status(502).json({ ok: false, erro: 'Falha ao salvar link: ' + err.message });

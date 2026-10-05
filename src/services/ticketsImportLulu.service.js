@@ -1,5 +1,5 @@
 const env = require('./../config/env');
-const { chamarAppsScript } = require('./appsScriptClient');
+const ticketsStore = require('./ticketsStore');
 
 // Importa pedidos com PPF vencido do sistema Lulu e abre um Ticket "Pedido
 // atrasado" pra cada negócio que ainda não tem um — mesmo espírito do
@@ -85,7 +85,6 @@ const LULU_BUSINESS_URL_BASE = 'https://lulu.seubone.com/business/?businessId=';
 // receber de volta o ticket que já existia, nunca um duplicado.
 async function criarTicketComRetry_(pedido) {
   const body = {
-    action: 'criar',
     identificador: 'Pedido atrasado',
     pedido: pedido.cliente || '',
     idVenda: pedido.id_venda != null ? String(pedido.id_venda) : '',
@@ -99,19 +98,19 @@ async function criarTicketComRetry_(pedido) {
     usuario: 'Lulu 2.0',
   };
   try {
-    return await chamarAppsScript(env.ticketsAppsScriptUrl, { method: 'POST', body });
+    return await ticketsStore.criar(body);
   } catch (err) {
-    return chamarAppsScript(env.ticketsAppsScriptUrl, { method: 'POST', body });
+    return ticketsStore.criar(body);
   }
 }
 
 async function importarAtrasosLulu() {
-  if (!env.ticketsAppsScriptUrl || !env.luluPedidosPpfVencidoUrl) return;
+  if ((env.ticketsBackend !== 'db' && !env.ticketsAppsScriptUrl) || !env.luluPedidosPpfVencidoUrl) return;
   try {
     const pedidos = await buscarPedidosAtrasados();
     if (!pedidos.length) return;
 
-    const ticketsJson = await chamarAppsScript(env.ticketsAppsScriptUrl, { cache: true });
+    const ticketsJson = await ticketsStore.listar();
     if (!ticketsJson.ok || !Array.isArray(ticketsJson.tickets)) return;
     // Uma vez que já existe um ticket de PEDIDO ATRASADO pra esse negócio
     // (mesmo já Resolvido), nunca abrimos outro — mesmo que a Lulu ainda

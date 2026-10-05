@@ -216,6 +216,28 @@ function doGet(e) {
       return jsonOut_({ ok: true, eventos: histFor_(p.rowIndex) });
     }
 
+    // Só pra migração pro banco (scripts/importar-tickets.js): TODOS os eventos
+    // do Histórico de uma vez, com a data completa em ISO (hora do script).
+    if (p.action === 'historicoCompleto') {
+      var hs = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(HIST_SHEET_NAME);
+      var todos = [];
+      if (hs) {
+        var hv = hs.getDataRange().getValues();
+        for (var hr = 1; hr < hv.length; hr++) {
+          todos.push({
+            quando: fmtDate_(hv[hr][0]),
+            rowIndex: hv[hr][1],
+            idTicket: String(hv[hr][2] || ''),
+            usuario: String(hv[hr][3] || ''),
+            acao: String(hv[hr][4] || ''),
+            detalhe: String(hv[hr][5] || ''),
+            slug: String(hv[hr][6] || ''),
+          });
+        }
+      }
+      return jsonOut_({ ok: true, eventos: todos });
+    }
+
     var sh = getSheet_();
     var values = sh.getDataRange().getValues();
     if (values.length < 2) return jsonOut_({ ok: true, tickets: [] });
@@ -291,6 +313,13 @@ function doPost(e) {
     if (action === 'atualizarAcompanhamento') return atualizarAcompanhamento_(body);
     if (action === 'definirLink') return definirLink_(body);
     if (action === 'marcarAtrasoNotificado') return marcarAtrasoNotificado_(body);
+
+    // Só salva os arquivos no Drive e devolve os links (o hub grava os links no
+    // banco). Não mexe na planilha. Usado quando o painel de Tickets roda no Postgres.
+    if (action === 'salvarFotos') {
+      var urlsSalvas = salvarFotos_(body.fotos, body.idTicket);
+      return jsonOut_(urlsSalvas ? { ok: true, urls: urlsSalvas } : { ok: false, error: 'Não consegui salvar os arquivos.' });
+    }
 
     return jsonOut_({ ok: false, error: 'Ação inválida: ' + action });
   } catch (err) {

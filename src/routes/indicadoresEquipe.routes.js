@@ -1,6 +1,7 @@
 const express = require('express');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const { chamarAppsScript } = require('../services/appsScriptClient');
+const ticketsStore = require('../services/ticketsStore');
 const env = require('../config/env');
 
 const router = express.Router();
@@ -63,7 +64,7 @@ function serieDeTickets_(tickets, dias) {
 async function buscarResolucaoEquipeDosTickets_(desde, ate) {
   if (!desde || !ate) return null;
 
-  const json = await chamarAppsScript(env.ticketsAppsScriptUrl, { cache: true });
+  const json = await ticketsStore.listar();
   if (!json || !json.ok || !Array.isArray(json.tickets)) return null;
 
   const resolvidosDaEquipe = json.tickets.filter(

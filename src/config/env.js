@@ -24,6 +24,14 @@ module.exports = {
 
   appsScriptSharedSecret: required('APPS_SCRIPT_SHARED_SECRET', ''),
 
+  // Banco (Supabase/Postgres). Use a string do POOLER (Project Settings >
+  // Database > "Session pooler" ou "Transaction pooler"), não a conexão
+  // direta: a direta é IPv6 e o Render não alcança.
+  databaseUrl: required('DATABASE_URL', ''),
+  // 'db' = painel de Tickets lê/escreve no Postgres; qualquer outro valor
+  // (ou vazio) = continua na planilha via Apps Script, como sempre foi.
+  ticketsBackend: required('TICKETS_BACKEND', 'sheets'),
+
   wallacAppsScriptUrl: required('WALLAC_APPS_SCRIPT_URL', ''),
   pedidosUrgentesAppsScriptUrl: required('PEDIDOS_URGENTES_APPS_SCRIPT_URL', ''),
   painelSacAppsScriptUrl: required('PAINEL_SAC_APPS_SCRIPT_URL', ''),

@@ -2,6 +2,7 @@ const express = require('express');
 const { requireAuth, requirePainel, requireRole } = require('../middleware/auth');
 const { resolveSlug } = require('../middleware/resolveSlug');
 const { chamarAppsScript } = require('../services/appsScriptClient');
+const ticketsStore = require('../services/ticketsStore');
 const { listarUsuarios } = require('../services/usuarios.service');
 const env = require('../config/env');
 
@@ -117,7 +118,7 @@ function tmrMinutosDe_(lista) {
 async function buscarTicketsResolucao(slugAlvo, periodo, mes, ano, semIni, semFim) {
   if (!CONSULTORES_TICKETS_SLUGS.includes(slugAlvo)) return null;
 
-  const json = await chamarAppsScript(env.ticketsAppsScriptUrl, { cache: true });
+  const json = await ticketsStore.listar();
   if (!json || !json.ok || !Array.isArray(json.tickets)) return null;
 
   const resolvidosNoPeriodo = json.tickets.filter(

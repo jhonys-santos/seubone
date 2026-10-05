@@ -1,5 +1,5 @@
 const env = require('./../config/env');
-const { chamarAppsScript } = require('./appsScriptClient');
+const ticketsStore = require('./ticketsStore');
 
 // Importa os cards que estão na coluna "Alerta de Entrega" da Lulu (atraso,
 // extravio, retido fiscal, tentativa de entrega falhou etc.) e abre um
@@ -70,7 +70,6 @@ const LULU_BUSINESS_URL_BASE = 'https://lulu.seubone.com/business/?businessId=';
 // ticket que já tinha acabado de criar na tentativa anterior.
 async function criarTicketComRetry_(card) {
   const body = {
-    action: 'criar',
     identificador: 'Erro de Envio',
     pedido: card.titulo_negocio || '',
     idVenda: card.id_pedido != null ? String(card.id_pedido) : '',
@@ -84,19 +83,19 @@ async function criarTicketComRetry_(card) {
     usuario: 'Lulu 2.0',
   };
   try {
-    return await chamarAppsScript(env.ticketsAppsScriptUrl, { method: 'POST', body });
+    return await ticketsStore.criar(body);
   } catch (err) {
-    return chamarAppsScript(env.ticketsAppsScriptUrl, { method: 'POST', body });
+    return ticketsStore.criar(body);
   }
 }
 
 async function importarErrosEnvio() {
-  if (!env.ticketsAppsScriptUrl || !env.luluAlertaEntregaUrl || !env.luluIntegracaoKey) return;
+  if ((env.ticketsBackend !== 'db' && !env.ticketsAppsScriptUrl) || !env.luluAlertaEntregaUrl || !env.luluIntegracaoKey) return;
   try {
     const cards = await buscarCardsAlertaEntrega();
     if (!cards.length) return;
 
-    const ticketsJson = await chamarAppsScript(env.ticketsAppsScriptUrl, { cache: true });
+    const ticketsJson = await ticketsStore.listar();
     if (!ticketsJson.ok || !Array.isArray(ticketsJson.tickets)) return;
     // Uma vez que já existe um ticket de ERRO DE ENVIO pra esse negócio (mesmo
     // já Resolvido), nunca abrimos outro — "Resolvido" aqui significa "já
