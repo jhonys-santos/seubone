@@ -51,6 +51,7 @@
 .dias-table td.td-ind { color: var(--text-hint); font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; text-align: left; padding-left: 8px; }
 .dias-table td.td-media { color: var(--gold); font-weight: 800; font-size: 12px; background: var(--gold-dim); }
 .dias-table td.td-score { color: #b39ddb; font-weight: 900; font-size: 14px; background: rgba(103,58,183,.1); }
+.dias-table td.td-score-ind { color: #b39ddb; font-weight: 800; font-size: 12px; }
 .dias-table td.ok { color: var(--ok-text, var(--ok)); }
 .dias-table td.warn { color: var(--warn-text, var(--warn)); }
 .dias-table td.empty { color: var(--border-strong); }
@@ -63,6 +64,7 @@
    escuro do painel de TV; no tema claro, ilegível sem essa versão mais
    escura. */
 html.light .dias-table td.td-score { color: #5B2E91; }
+html.light .dias-table td.td-score-ind { color: #5B2E91; }
 
 /* ALERTA MANIFESTO */
 #manifesto-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.88); z-index: 9999; align-items: center; justify-content: center; animation: overlayIn 0.4s ease; }

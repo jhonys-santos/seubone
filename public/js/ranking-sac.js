@@ -87,6 +87,8 @@ function parseATD(rows){
       if(key==='score'){
         DATA.atd.data[nome].score=safeNum(cleanStr(row[7]));
       } else {
+        // A planilha traz os pontos de cada indicador na coluna "Score" (col 7)
+        (DATA.atd.data[nome].scoreInd=DATA.atd.data[nome].scoreInd||{})[key]=safeNum(cleanStr(row[7]));
         DATA.atd.data[nome][key]=[1,2,3,4,5].map(ci=>{
           const v=cleanStr(row[ci]);
           if(!v||v==='-'||v==='—') return null;
@@ -218,7 +220,8 @@ function tabelaHTML(consultores,diasArr,rdefs,dataObj){
         if(r.tipo==='tempo') res=avgTime(vals)||'—';
         else if(r.tipo==='soma'){const s=sumQtd(vals);res=s!=null?s:'—';}
         else if(r.tipo==='pct'){const a=avgPct(vals);res=a!=null?a+'%':'—';}
-        h+=`<td class="td-media">${res}</td><td class="empty">—</td>`;
+        const pts=d.scoreInd&&d.scoreInd[r.key];
+        h+=`<td class="td-media">${res}</td>${pts!=null?`<td class="td-score-ind">${pts.toFixed(1)}</td>`:'<td class="empty">—</td>'}`;
       }
       h+='</tr>';
     });
@@ -240,6 +243,7 @@ function renderTabelaATD(data){
 function renderTabelaRSL(data){
   document.getElementById('rsl-tabela').innerHTML=tabelaHTML(DATA.rsl.consultores,DATA.rsl.dias,[
     {label:'TMR PPF+1',key:'tmrppf',tipo:'tempo',metaFn:v=>timeStrToMin(v)<=24*60},
+    {label:'TMR Erro Envio',key:'tmree',tipo:'tempo',metaFn:v=>timeStrToMin(v)<=24*60},
     {label:'Resolvidos',key:'tickets',tipo:'soma'},
     {label:'Score',key:'score',tipo:'score'},
   ],data);
