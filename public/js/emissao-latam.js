@@ -499,7 +499,7 @@
       const r = await chamar(`/emissao-latam/api/verificar?chave=${encodeURIComponent((ultimaChaveEnviada || '').replace(/\D/g, ''))}`, { method: 'GET' });
       $('elResultadoVerificar').innerHTML = r.encontrado
         ? `<p class="el-aviso"><span><b>Encontrado!</b> AWB ${esc(r.awb)}${r.ultimoEvento ? `, último evento: ${esc(r.ultimoEvento.descricao)} em ${esc(r.ultimoEvento.data)}` : ''}. A e-Minuta JÁ foi criada, não reenvie.</span></p>`
-        : `<p class="el-aviso"><span>Nada encontrado pra essa chave ainda. Pode tentar emitir de novo, ou aguarde alguns minutos e verifique outra vez antes de reenviar.</span></p>`;
+        : `<p class="el-aviso"><span><b>Nada encontrado no rastreio, mas isso NÃO prova que a e-Minuta não foi criada.</b> O rastreio da LATAM só mostra a e-Minuta depois que a carga é recebida no balcão. Confirme no portal da LATAM (ou com o atendimento) antes de emitir de novo, porque não existe cancelamento e reenviar pode duplicar o AWB.</span></p>`;
     } catch (e) { /* erro já mostrado */ }
     btn.disabled = false;
     btn.textContent = original;
