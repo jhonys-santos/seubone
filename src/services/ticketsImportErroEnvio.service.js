@@ -61,6 +61,7 @@ const LULU_BUSINESS_URL_BASE = 'https://lulu.seubone.com/business/?businessId=';
 async function criarTicketComRetry_(card) {
   const body = {
     identificador: 'Erro de Envio',
+    fabrica: entrega.nomeParaFabrica(card.transportadora, card.codigo_rastreio),
     pedido: card.titulo_negocio || '',
     idVenda: card.id_pedido != null ? String(card.id_pedido) : '',
     negocioId: card.negocio_id,
@@ -133,6 +134,8 @@ async function importarErrosEnvio() {
     if (env.ticketsBackend === 'db') {
       const liberadas = await entrega.liberarObservacoesAutomaticas();
       if (liberadas) console.log('[tickets-erro-envio] observações automáticas liberadas:', liberadas);
+      const preenchidas = await entrega.preencherFabricaComTransportadora();
+      if (preenchidas) console.log('[tickets-erro-envio] fábrica preenchida com a transportadora:', preenchidas);
     }
   } catch (err) {
     console.error('[tickets-erro-envio] falha na importação:', err.message);

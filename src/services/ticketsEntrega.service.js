@@ -76,6 +76,13 @@ function deduzirTransportadora(lulu, codigo) {
   return Object.keys(PROVEDORES).find((k) => PROVEDORES[k].codigoValido(txt(codigo))) || '';
 }
 
+/** Nome da transportadora como aparece no campo Fábrica do ticket ("Azul", "LATAM", "Correios"). */
+function nomeParaFabrica(transportadora, codigo) {
+  const t = txt(transportadora).toLowerCase() || deduzirTransportadora(null, codigo);
+  if (PROVEDORES[t]) return PROVEDORES[t].nome;
+  return t ? t.charAt(0).toUpperCase() + t.slice(1) : '';
+}
+
 // ── Retrato da Lulu ──────────────────────────────────────────────────────────
 /** Card do endpoint "alerta de entrega" da Lulu -> o pedaço que interessa guardar. */
 function resumirCardLulu(card) {
@@ -108,6 +115,8 @@ async function salvarLulu(rowIndex, card, q = db) {
   // O código de rastreio e a previsão da transportadora podem só ter aparecido na Lulu depois que o ticket
   // foi aberto: preenche o que estiver vazio (nunca troca um valor que já existe).
   const codigo = txt(card.codigo_rastreio);
+  const nomeTransp = nomeParaFabrica(card.transportadora, codigo);
+  if (nomeTransp) await q.query(`update tickets set fabrica = $2 where row_index = $1 and fabrica = ''`, [n, nomeTransp]); // só preenche vazio
   if (codigo) await q.query(`update tickets set codigo_rastreio = $2 where row_index = $1 and codigo_rastreio = ''`, [n, codigo]);
   const previsao = require('./ticketsDb.service').paraTimestampBrasilia(card.previsao_entrega);
   if (previsao) await q.query('update tickets set previsao_entrega_transportadora = $2::timestamp where row_index = $1 and previsao_entrega_transportadora is null', [n, previsao]);
@@ -133,6 +142,24 @@ async function liberarObservacoesAutomaticas() {
     }
     return r.rows.length;
   });
+}
+
+/**
+ * Em Erro de Envio, o campo Fábrica passa a mostrar a transportadora (Azul, LATAM, Correios). Preenche os tickets
+ * que ainda estão com Fábrica vazia (pela Lulu ou, na falta dela, pelo formato do código); nunca troca o que alguém escolheu.
+ */
+async function preencherFabricaComTransportadora() {
+  const r = await db.query(
+    `select t.row_index::int as ri, t.codigo_rastreio as codigo, e.lulu from tickets t left join ticket_entrega e on e.ticket_row_index = t.row_index
+      where t.identificador = 'Erro de Envio' and t.fabrica = ''`);
+  let n = 0;
+  for (const x of r.rows) {
+    const nome = nomeParaFabrica(x.lulu && x.lulu.transportadora, x.codigo || (x.lulu && x.lulu.codigoRastreio));
+    if (!nome) continue;
+    await db.query(`update tickets set fabrica = $2 where row_index = $1 and fabrica = ''`, [x.ri, nome]);
+    n++;
+  }
+  return n;
 }
 
 // ── Rastreio da transportadora: formato único para a tela ───────────────────
@@ -271,7 +298,7 @@ async function consultar(rowIndex, agora = Date.now()) {
 }
 
 module.exports = {
-  ler, consultar, salvarLulu, resumirCardLulu, liberarObservacoesAutomaticas,
+  ler, consultar, salvarLulu, resumirCardLulu, liberarObservacoesAutomaticas, preencherFabricaComTransportadora, nomeParaFabrica,
   resumirRastreioAzul, resumirRastreioCorreios, resumirRastreioLatam,
   deduzirTransportadora, provedorDe, definirConsulta, COOLDOWN_CONSULTA_MS,
 };

@@ -18,6 +18,16 @@
     return i === -1 ? s : s.slice(i + 1).trim();
   }
 
+  // LATAM: todo código começa com 957. Mostra "957-39571711" (com hífen, mesmo quando vem sem), mas ao
+  // clicar copia só o número depois do "957-" (é o que a LATAM pede nas consultas). Demais: como sempre.
+  function tkCodigoRastreioExibir(v) {
+    const s = String(v || '').trim();
+    const m = /^957-?(\d{8})$/.exec(s);
+    if (m) return { texto: '957-' + m[1], copia: m[1] };
+    const curto = tkCodigoRastreioCurto(s);
+    return { texto: curto, copia: curto };
+  }
+
   /* ================= ANEXOS (Drive / data URL) — mesma receita do Painel de Erros ================= */
   const MAX_FOTOS = 6;
   const MAX_ANEXOS_MB = 15;
@@ -123,7 +133,7 @@
   // Fábrica/fornecedor/transportadora — escolhido na criação do ticket,
   // editável depois também. Texto livre com datalist (igual o campo
   // "Responsável" do Painel de Erros), não uma lista fechada.
-  const FABRICA_OPCOES = ['Fábrica Cacinho', 'Fábrica Bonés Brasil', 'Fábrica CIA Bruto', '88 Brindes', 'Fábrica Neidinha', 'Fábrica LaserTools', 'Fábrica SLC', 'Fábrica (Outro)', 'Transportadora'];
+  const FABRICA_OPCOES = ['Fábrica Cacinho', 'Fábrica Bonés Brasil', 'Fábrica CIA Bruto', '88 Brindes', 'Fábrica Neidinha', 'Fábrica LaserTools', 'Fábrica SLC', 'Fábrica (Outro)', 'Transportadora', 'Azul', 'LATAM', 'Correios'];
   // "Setor" é a etapa de produção atual (Acompanhamento) — coluna própria,
   // separada de Fábrica (antes as duas dividiam a mesma coluna).
   const SETOR_OPCOES = ['Design', 'Separação', 'Bordado', 'Pintura', 'Sublimação', 'Revelação', 'Laser', 'Costura', 'Acabamento'];
@@ -1254,7 +1264,7 @@
             <datalist id="tkSetorTopoList">${SETOR_OPCOES.map((o) => `<option value="${tkEsc(o)}">`).join('')}</datalist>
           </div>
           <div class="tk-field"><label>ID da venda</label>${r.idVenda ? `<div><span class="tk-idchip tk-idchip-click" id="tkIdVendaCopy" data-copy="${tkEsc(r.idVenda)}" title="Clique para copiar">#${tkEsc(r.idVenda)}</span></div>` : `<div class="tk-readonly-block">—</div>`}</div>
-          ${r.codigoRastreio ? `<div class="tk-field"><label>Código de rastreio</label><div><span class="tk-idchip tk-idchip-click" data-copy="${tkEsc(tkCodigoRastreioCurto(r.codigoRastreio))}" title="Clique para copiar">${tkEsc(tkCodigoRastreioCurto(r.codigoRastreio))}</span></div></div>` : ''}
+          ${r.codigoRastreio ? (() => { const cod = tkCodigoRastreioExibir(r.codigoRastreio); return `<div class="tk-field"><label>Código de rastreio</label><div><span class="tk-idchip tk-idchip-click" data-copy="${tkEsc(cod.copia)}" title="Clique para copiar">${tkEsc(cod.texto)}</span></div></div>`; })() : ''}
           <div class="tk-field"><label>Origem</label><div class="tk-readonly-block">${r.origem === 'manual' || !r.origem ? 'Manual' : 'Automático (' + tkEsc(r.origem) + ')'}</div></div>
           <div class="tk-field"><label>Aberto em</label><div class="tk-readonly-block">${fmtDataHora(r.dataAbertura)}</div></div>
           <div class="tk-field"><label>Fechado em</label><div class="tk-readonly-block">${fmtDataHora(r.dataFechamento)}</div></div>
