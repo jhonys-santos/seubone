@@ -1,5 +1,6 @@
 const env = require('./../config/env');
 const ticketsStore = require('./ticketsStore');
+const entrega = require('./ticketsEntrega.service');
 
 // Importa os cards que estão na coluna "Alerta de Entrega" da Lulu (atraso,
 // extravio, retido fiscal, tentativa de entrega falhou etc.) e abre um
@@ -48,19 +49,8 @@ async function buscarCardsAlertaEntrega() {
   return cards;
 }
 
-// Junta as ocorrências do card (cada uma com categoria/descrição/local/data)
-// num texto só, por decisão do usuário — sem tentar categorizar/estruturar
-// isso no ticket por enquanto.
-function montarObservacao_(card) {
-  const alertas = card.alertas || [];
-  const linhas = alertas.map((a) => {
-    const quando = a.ocorrida_em ? new Date(a.ocorrida_em).toLocaleDateString('pt-BR') : '';
-    const partes = [a.categoria, a.descricao, a.local, quando].filter(Boolean);
-    return '- ' + partes.join(' · ');
-  });
-  const cabecalho = 'Situação: ' + (card.situacao || '—') + '.';
-  return linhas.length ? cabecalho + '\n' + linhas.join('\n') : cabecalho;
-}
+// O campo Observação fica livre para quem trata o ticket. O que a Lulu informa (situação, previsão e as
+// ocorrências) é guardado à parte (ticket_entrega) e aparece no cartão "Entrega" do ticket.
 
 const LULU_BUSINESS_URL_BASE = 'https://lulu.seubone.com/business/?businessId=';
 
@@ -75,17 +65,30 @@ async function criarTicketComRetry_(card) {
     idVenda: card.id_pedido != null ? String(card.id_pedido) : '',
     negocioId: card.negocio_id,
     link: LULU_BUSINESS_URL_BASE + card.negocio_id,
-    observacao: montarObservacao_(card),
+    observacao: '',
     ppe: card.ppe || '',
     codigoRastreio: card.codigo_rastreio || '',
     previsaoEntregaTransportadora: card.previsao_entrega || '',
     origem: 'Lulu 2.0',
     usuario: 'Lulu 2.0',
   };
+  let json;
   try {
-    return await ticketsStore.criar(body);
+    json = await ticketsStore.criar(body);
   } catch (err) {
-    return ticketsStore.criar(body);
+    json = await ticketsStore.criar(body);
+  }
+  await guardarRetratoLulu_(json && json.rowIndex, card);
+  return json;
+}
+
+// Só com o banco (a planilha não tem onde guardar). Nunca derruba a importação.
+async function guardarRetratoLulu_(rowIndex, card) {
+  if (env.ticketsBackend !== 'db' || !rowIndex) return;
+  try {
+    await entrega.salvarLulu(rowIndex, card);
+  } catch (err) {
+    console.error('[tickets-erro-envio] falha ao guardar dados de entrega do ticket ' + rowIndex + ':', err.message);
   }
 }
 
@@ -102,17 +105,20 @@ async function importarErrosEnvio() {
     // tratamos isso". Ticket de outro identificador (ex.: Pedido atrasado,
     // que é atraso na produção) NÃO bloqueia: Erro de Envio é problema no
     // transporte, outro assunto, e precisa do seu próprio ticket.
-    const negociosComTicket = new Set(
-      ticketsJson.tickets
-        .filter((t) => t.negocioId && t.identificador === 'Erro de Envio')
-        .map((t) => t.negocioId)
-    );
+    const ticketsErroEnvio = ticketsJson.tickets.filter((t) => t.negocioId && t.identificador === 'Erro de Envio');
+    const negociosComTicket = new Set(ticketsErroEnvio.map((t) => t.negocioId));
+    // Quem já tem ticket só ganha o retrato novo da Lulu (alertas e previsão mudam ao longo do dia).
+    const ticketPorNegocio = new Map(ticketsErroEnvio.map((t) => [t.negocioId, t.rowIndex]));
 
     // Sequencial de propósito — mesmo motivo do importador de Pedido
     // atrasado: evita N chamadas simultâneas contra o LockService do Apps
     // Script, e uma falha isolada não pode descartar o resto do lote.
     for (const card of cards) {
-      if (!card.negocio_id || negociosComTicket.has(card.negocio_id)) continue;
+      if (card.negocio_id && negociosComTicket.has(card.negocio_id)) {
+        await guardarRetratoLulu_(ticketPorNegocio.get(card.negocio_id), card);
+        continue;
+      }
+      if (!card.negocio_id) continue;
       try {
         const json = await criarTicketComRetry_(card);
         if (!json.ok) {
@@ -121,6 +127,12 @@ async function importarErrosEnvio() {
       } catch (err) {
         console.error('[tickets-erro-envio] falha ao criar ticket (após retentativa) pro negocio ' + card.negocio_id + ':', err.message);
       }
+    }
+    // Tickets antigos traziam as ocorrências escritas no campo Observação; agora elas aparecem no cartão "Entrega".
+    // Depois que o retrato da Lulu está guardado, libera o campo (o texto original fica salvo em ticket_entrega).
+    if (env.ticketsBackend === 'db') {
+      const liberadas = await entrega.liberarObservacoesAutomaticas();
+      if (liberadas) console.log('[tickets-erro-envio] observações automáticas liberadas:', liberadas);
     }
   } catch (err) {
     console.error('[tickets-erro-envio] falha na importação:', err.message);
@@ -142,4 +154,4 @@ function iniciarImportacaoErroEnvio() {
   agendarProximaExecucao_();
 }
 
-module.exports = { iniciarImportacaoErroEnvio, importarErrosEnvio };
+module.exports = { iniciarImportacaoErroEnvio, importarErrosEnvio, buscarCardsAlertaEntrega };

@@ -1093,6 +1093,123 @@
 
   function parseTicketHash() { const m = (location.hash || '').match(/^#\/t\/(-?\d+)/); return m ? Number(m[1]) : null; }
 
+  /* ================= ENTREGA (transportadora): retrato da Lulu + rastreio da Azul ================= */
+
+  const ENTREGA_ESTADO = {}; // idDoTicket -> { dados, consultando, todas }
+  const ENTREGA_SITUACAO = {
+    ENTREGUE: ['Entregue', 'ok'], COM_PROBLEMA: ['Com problema', 'bad'], EM_TRANSITO: ['Em trânsito', 'neutro'],
+    AGUARDANDO_RETIRADA: ['Aguardando retirada', 'warn'], DEVOLVIDO: ['Devolvido', 'bad'], CANCELADO: ['Cancelado', 'bad'],
+  };
+  const ENTREGA_NOME = { azul: 'Azul', correios: 'Correios', latam: 'LATAM' };
+  const ENTREGA_VISIVEIS = 6;
+
+  function entregaData(iso) {
+    const d = iso ? new Date(iso) : null;
+    if (!d || Number.isNaN(d.getTime())) return '—';
+    return d.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  }
+  const entregaUrl = (u) => (/^https?:\/\//i.test(String(u || '')) ? tkEsc(u) : '');
+  const entregaLink = (u, texto) => (entregaUrl(u) ? '<a href="' + entregaUrl(u) + '" target="_blank" rel="noopener" class="tk-ent-link">' + texto + '</a>' : '');
+
+  /** Alertas: os da Azul (completos) depois de consultar; antes disso, os que a Lulu trouxe. Mais recente primeiro. */
+  function entregaAlertas(e) {
+    if (e.azul) {
+      return e.azul.ocorrencias.filter((o) => o.alerta).reverse().map((o) => ({
+        codigo: o.codigo, descricao: o.descricao, quando: o.dataHora, local: [o.municipio, o.uf].filter(Boolean).join('/'), categoria: o.categoria, foto: o.fotos && o.fotos.insucesso,
+      }));
+    }
+    return ((e.lulu && e.lulu.alertas) || []).slice().reverse().map((a) => ({ codigo: a.codigo, descricao: a.descricao, quando: a.ocorridaEm, local: a.local, categoria: a.categoria, foto: a.fotoInsucesso }));
+  }
+
+  function entregaHTML(r, est) {
+    const e = est.dados;
+    const nome = ENTREGA_NOME[e.transportadora] || 'Transportadora';
+    const situacaoKey = (e.azul && e.azul.situacao) || (e.lulu && e.lulu.situacao) || '';
+    const sit = ENTREGA_SITUACAO[situacaoKey];
+    const alertas = entregaAlertas(e);
+    const previsao = (e.azul && e.azul.previsaoEntrega) || (e.lulu && e.lulu.previsaoEntrega) || r.previsaoEntregaTransportadora || '';
+    const entregueEm = e.azul && e.azul.entregueEm;
+    const ocs = e.azul ? e.azul.ocorrencias.slice().reverse() : [];
+    const visiveis = est.todas ? ocs : ocs.slice(0, ENTREGA_VISIVEIS);
+    const linhaConsulta = e.azulConsultadoEm
+      ? '<div class="tk-ent-row"><span>Última consulta à Azul</span><b>' + entregaData(e.azulConsultadoEm) + '</b></div>'
+      : (e.luluAtualizadoEm ? '<div class="tk-ent-row"><span>Última atualização do CRM</span><b>' + entregaData((e.lulu && e.lulu.ultimaConsulta) || e.luluAtualizadoEm) + '</b></div>' : '');
+
+    const htmlAlertas = alertas.length
+      ? '<div class="tk-ent-alertas"><div class="tk-ent-alertas-t"><i class="ti ti-alert-triangle" aria-hidden="true"></i> Alertas anteriores</div>'
+        + alertas.map((a) => '<div class="tk-ent-alerta"><div class="tk-ent-alerta-d">' + (a.codigo ? '[' + tkEsc(a.codigo) + '] ' : '') + tkEsc(a.descricao) + '</div>'
+          + '<div class="tk-ent-meta">' + [entregaData(a.quando), a.local, a.categoria].filter(Boolean).map(tkEsc).join(' · ') + '</div>'
+          + entregaLink(a.foto, 'Ver foto da tentativa') + '</div>').join('')
+        + '</div>'
+      : '';
+
+    let htmlAcao = '';
+    if (e.podeConsultar) {
+      htmlAcao = '<button type="button" class="tk-ent-btn" id="tkBtnConsultarAzul"' + (est.consultando ? ' disabled' : '') + '><i class="ti ti-refresh' + (est.consultando ? ' tk-girando' : '') + '" aria-hidden="true"></i> '
+        + (est.consultando ? 'Consultando a Azul...' : 'Consultar Azul agora') + '</button>';
+    } else if (!e.codigoRastreio) {
+      htmlAcao = '<div class="tk-ent-aviso">Este ticket ainda não tem código de rastreio.</div>';
+    }
+
+    const htmlOcorrencias = e.azul
+      ? '<div class="tk-ent-oc-t">Ocorrências da Azul</div><div class="tk-ent-oc">'
+        + visiveis.map((o) => '<div class="tk-ent-oc-i"><div class="tk-ent-oc-d">' + tkEsc(o.descricao) + '</div>'
+          + '<div class="tk-ent-meta">' + [entregaData(o.dataHora), [o.municipio, o.uf].filter(Boolean).join('/') || o.unidade].filter(Boolean).map(tkEsc).join(' · ') + '</div>'
+          + (o.alerta ? '<div class="tk-ent-oc-alerta">' + tkEsc(o.descricao) + '</div>' : '')
+          + entregaLink(o.fotos && o.fotos.comprovante, 'Comprovante de entrega') + entregaLink(o.fotos && o.fotos.insucesso, 'Ver foto da tentativa') + '</div>').join('')
+        + '</div>'
+        + (ocs.length > ENTREGA_VISIVEIS ? '<button type="button" class="tk-ent-todas" id="tkBtnEntregaTodas">' + (est.todas ? 'Mostrar menos' : 'Ver todas (' + ocs.length + ')') + '</button>' : '')
+      : '';
+
+    return '<div class="tk-ent"><div class="tk-ent-head"><div class="tk-ent-title"><i class="ti ti-plane-departure" aria-hidden="true"></i> Entrega (' + tkEsc(nome) + ')</div>'
+      + (sit ? '<span class="tk-ent-badge ' + sit[1] + '">' + sit[0] + '</span>' : '') + '</div>'
+      + htmlAlertas
+      + '<div class="tk-ent-rows"><div class="tk-ent-row"><span>Previsão de entrega</span><b>' + (previsao ? entregaData(previsao) : '—') + '</b></div>'
+      + (entregueEm ? '<div class="tk-ent-row"><span>Entrega confirmada em</span><b>' + entregaData(entregueEm) + '</b></div>' : '')
+      + linhaConsulta + '</div>'
+      + htmlAcao + htmlOcorrencias + '</div>';
+  }
+
+  function pintarEntrega(r) {
+    const box = document.getElementById('tkEntregaBox');
+    const est = ENTREGA_ESTADO[r.id];
+    if (!box || !est || !est.dados) return;
+    box.innerHTML = entregaHTML(r, est);
+    const btn = document.getElementById('tkBtnConsultarAzul');
+    if (btn) btn.addEventListener('click', () => consultarAzulAgora(r));
+    const todas = document.getElementById('tkBtnEntregaTodas');
+    if (todas) todas.addEventListener('click', () => { est.todas = !est.todas; pintarEntrega(r); });
+  }
+
+  async function carregarEntrega(r) {
+    if (!document.getElementById('tkEntregaBox')) return;
+    const est = (ENTREGA_ESTADO[r.id] = ENTREGA_ESTADO[r.id] || { dados: null, consultando: false, todas: false });
+    if (est.dados) pintarEntrega(r); // já carregado: mostra na hora e atualiza em seguida
+    try {
+      const json = await fetch('/tickets/api/entrega?rowIndex=' + encodeURIComponent(r.id)).then((x) => x.json());
+      if (!json.ok) return; // planilha, ticket sem entrega etc.: simplesmente não mostra o cartão
+      est.dados = json.entrega;
+      if (CASO_ATUAL === r.id) pintarEntrega(r);
+    } catch (err) { /* o cartão é complemento: sem ele o ticket continua utilizável */ }
+  }
+
+  async function consultarAzulAgora(r) {
+    const est = ENTREGA_ESTADO[r.id];
+    if (!est || est.consultando) return;
+    est.consultando = true; pintarEntrega(r);
+    try {
+      const json = await fetch('/tickets/api/entrega/consultar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rowIndex: r.id }) }).then((x) => x.json());
+      if (!json.ok) throw new Error(json.erro || 'Erro desconhecido');
+      est.dados = json.entrega;
+      toast('Azul consultada', true);
+    } catch (err) {
+      toast(err.message, false);
+    } finally {
+      est.consultando = false;
+      if (CASO_ATUAL === r.id) pintarEntrega(r);
+    }
+  }
+
   function drawerInnerHTML(r) {
     const horas = tempoTicket(r);
     const respOptions = ['<option value="">— não atribuído —</option>']
@@ -1147,6 +1264,7 @@
               </div>`}
         </div>
         ${r.observacao ? `<div class="tk-field" style="margin-bottom:16px"><label>Observação</label><div class="tk-readonly-block" style="font-style:italic">${tkEsc(r.observacao)}</div></div>` : ''}
+        ${r.identificador === 'Erro de Envio' || r.codigoRastreio ? '<div id="tkEntregaBox" style="margin-bottom:16px"></div>' : ''}
 
         <div class="tk-sec-title" style="margin-top:20px">Anexos${(() => { const n = tkParseFotos(r.anexos).length; return n ? ` (${n})` : ''; })()}</div>
         ${(() => {
@@ -1302,6 +1420,7 @@
   function wireDrawer(r) {
     const $ = (i) => document.getElementById(i);
     carregarHistoricoTicket(r.id);
+    carregarEntrega(r);
     $('tkDrwClose').addEventListener('click', () => closeDrawer(false));
     const resolver = $('tkDrwResolver'); if (resolver) resolver.addEventListener('click', () => setTicketStatus(r, STATUS_RESOLVIDO));
 

@@ -1,6 +1,7 @@
 const express = require('express');
 const { requireAuth, requirePainel, requireRole } = require('../middleware/auth');
 const ticketsStore = require('../services/ticketsStore');
+const ticketsEntrega = require('../services/ticketsEntrega.service');
 const notificacoesService = require('../services/notificacoes.service');
 const usuariosService = require('../services/usuarios.service');
 const env = require('../config/env');
@@ -66,6 +67,29 @@ router.get('/api/historico', async (req, res) => {
     res.json(json);
   } catch (err) {
     res.status(502).json({ ok: false, erro: 'Falha ao buscar histórico: ' + err.message });
+  }
+});
+
+// Entrega do ticket (retrato da Lulu + rastreio da Azul). Só existe com o banco: a planilha não guarda isso.
+const semBanco = { ok: false, erro: 'Os dados de entrega só estão disponíveis com o painel rodando no banco.' };
+
+router.get('/api/entrega', async (req, res) => {
+  try {
+    if (env.ticketsBackend !== 'db') return res.json(semBanco);
+    res.json(await ticketsEntrega.ler(req.query.rowIndex));
+  } catch (err) {
+    res.status(502).json({ ok: false, erro: 'Falha ao buscar dados de entrega: ' + err.message });
+  }
+});
+
+// Consulta a Azul agora (API oficial) e guarda o resultado. Qualquer um com acesso ao painel pode pedir,
+// como o resto do painel; o serviço limita a 1 consulta a cada poucos segundos por ticket.
+router.post('/api/entrega/consultar', async (req, res) => {
+  try {
+    if (env.ticketsBackend !== 'db') return res.json(semBanco);
+    res.json(await ticketsEntrega.consultarAzul(req.body.rowIndex));
+  } catch (err) {
+    res.status(502).json({ ok: false, erro: 'Falha ao consultar a Azul: ' + err.message });
   }
 });
 

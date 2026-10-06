@@ -3,7 +3,7 @@
 <head>
 <%- include('../partials/head') %>
 <title>Painel de Ticket - SeuBoné</title>
-<link rel="stylesheet" href="/css/tickets.css">
+<link rel="stylesheet" href="/css/tickets.css?v=<%= appVersion %>">
 </head>
 <body>
 <div class="app-shell">
@@ -55,6 +55,6 @@
   window.USUARIO_SESSAO = <%- JSON.stringify(usuario) %>;
   window.USUARIOS_HUB = <%- JSON.stringify(usuariosHub || []) %>;
 </script>
-<script src="/js/tickets.js"></script>
+<script src="/js/tickets.js?v=<%= appVersion %>"></script>
 </body>
 </html>
