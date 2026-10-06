@@ -37,6 +37,11 @@ module.exports = {
   errosBackend: required('ERROS_BACKEND', 'sheets'),
   // Registro de Demandas, Reembolso, Pagamento e Corridas Avulsas: 'db' = Postgres; padrão = planilhas.
   financeiroBackend: required('FINANCEIRO_BACKEND', 'sheets'),
+  // Usuários do hub (login/senha/painéis), Quitações, Auditoria e Foco/Agenda da Semana: 'db' = Postgres; padrão = planilhas.
+  usuariosBackend: required('USUARIOS_BACKEND', 'sheets'),
+  quitacoesBackend: required('QUITACOES_BACKEND', 'sheets'),
+  auditoriaBackend: required('AUDITORIA_BACKEND', 'sheets'),
+  agendaBackend: required('AGENDA_BACKEND', 'sheets'),
   // Backup automático do banco de volta pras planilhas (seg-sex 20h, abas "bkp AAAA-MM-DD ..."). 'on' liga.
   backupPlanilhas: required('BACKUP_PLANILHAS', 'off'),
   // 'pg' = sessões de login no Postgres (sobrevivem a deploys); padrão = arquivos em disco.

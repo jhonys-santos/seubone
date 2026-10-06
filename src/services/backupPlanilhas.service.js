@@ -76,6 +76,23 @@ const ABAS = {
   ]),
 };
 
+const S_N = (c) => `case when ${c} then 'Sim' else 'Nao' end`;
+ABAS.quitacoes = aba('Quitacoes', 'quitacoes', 'ordem', [
+  ['id', 'id'], ['dataCadastro', TSZ('data_cadastro')], ['idVendaOmie', 'id_venda_omie'], ['cliente', 'cliente'], ['dataPrevista', D('data_prevista')], ['linkCrm', 'link_crm'],
+  ['modalidade', 'modalidade'], ['tipoEnvioAereo', 'tipo_envio_aereo'], ['aeroporto', 'aeroporto'], ['freteDedicado', "case when frete_dedicado then 'true' else 'false' end"],
+  ['transportadora', 'transportadora'], ['entregador', 'entregador'], ['observacao', 'observacao'], ['cadastradoPorSlug', 'cadastrado_por_slug'], ['cadastradoPorNome', 'cadastrado_por_nome'],
+  ['status', 'status'], ['dataPagamento', TSZ('data_pagamento')],
+]);
+ABAS.auditoria = aba('Sistema_Registro', 'auditorias', 'ordem', [
+  ['Timestamp', TSZ('registrado_em')], ['Data', D('data')], ['Semana', 'semana'], ['AuditadoPor', 'auditado_por'], ['Agente', 'agente'], ['TipoOcorrencia', 'tipo_ocorrencia'], ['Canal', 'canal'],
+  ['ConversationId', 'conversation_id'],
+  ...['c11', 'c12', 'c13', 'c14', 'c21', 'c22', 'c23', 'c24', 'c31', 'c32', 'c33', 'c34'].map((c) => [c, `${c}::float8`, N]),
+  ['S1', 's1::float8', N], ['S2', 's2::float8', N], ['S3', 's3::float8', N], ['Total', 'total::float8', N], ['Classificacao', 'classificacao'],
+  ['FG1', S_N('fg1')], ['FG2', S_N('fg2')], ['FG3', S_N('fg3')], ['FG4', S_N('fg4')], ['FalhaGrave', S_N('falha_grave')], ['Observacoes', 'observacoes'],
+]);
+ABAS.agendaFoco = aba('Foco', 'agenda_foco', 'id', [['Foco da semana', 'texto']]);
+ABAS.agendaEventos = aba('Agenda', 'agenda_eventos', 'id', [['Linha', 'id::int', N], ['Dia', 'dia'], ['Horario', 'hora'], ['Descricao', 'descricao'], ['Tipo', 'tipo']]);
+
 // Cada área = uma planilha (um Apps Script). "ativa" diz se ela já está no banco.
 const AREAS = [
   { chave: 'tickets', rotulo: 'Tickets', url: () => env.ticketsAppsScriptUrl, abas: [{ aba: ABAS.tickets, ativa: () => env.ticketsBackend === 'db' }, { aba: ABAS.ticketsHistorico, ativa: () => env.ticketsBackend === 'db' }] },
@@ -85,6 +102,9 @@ const AREAS = [
     abas: [{ aba: ABAS.registro, ativa: () => env.financeiroBackend === 'db' }, { aba: ABAS.reembolso, ativa: () => env.financeiroBackend === 'db' }, { aba: ABAS.notificacoes, ativa: () => env.notificacoesBackend === 'db' }],
   },
   { chave: 'pagamentos', rotulo: 'Pagamentos', url: () => env.corridasPagamentosAppsScriptUrl, abas: [{ aba: ABAS.pagamentos, ativa: () => env.financeiroBackend === 'db' }] },
+  { chave: 'quitacoes', rotulo: 'Quitações Pendentes', url: () => env.quitacoesAppsScriptUrl, abas: [{ aba: ABAS.quitacoes, ativa: () => env.quitacoesBackend === 'db' }] },
+  { chave: 'auditoria', rotulo: 'Auditoria de Qualidade', url: () => env.auditoriaAppsScriptUrl, abas: [{ aba: ABAS.auditoria, ativa: () => env.auditoriaBackend === 'db' }] },
+  { chave: 'agenda', rotulo: 'Foco e Agenda da Semana', url: () => env.agendaSemanaAppsScriptUrl, abas: [{ aba: ABAS.agendaFoco, ativa: () => env.agendaBackend === 'db' }, { aba: ABAS.agendaEventos, ativa: () => env.agendaBackend === 'db' }] },
   { chave: 'corridas', rotulo: 'Corridas Avulsas', url: () => env.corridasAvulsasAppsScriptUrl, abas: [{ aba: ABAS.corridas, ativa: () => env.financeiroBackend === 'db' }] },
 ];
 

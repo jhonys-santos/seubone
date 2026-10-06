@@ -1,7 +1,6 @@
 const express = require('express');
 const { requireAuth, requirePainel } = require('../middleware/auth');
-const { chamarAppsScript } = require('../services/appsScriptClient');
-const env = require('../config/env');
+const quitacoes = require('../services/quitacoesStore');
 
 const router = express.Router();
 
@@ -21,8 +20,8 @@ function podeVer(usuario, item) {
 router.post('/api/cadastrar', async (req, res) => {
   try {
     const u = req.session.user;
-    const payload = { ...req.body, action: 'cadastrar', cadastradoPorSlug: u.slug, cadastradoPorNome: u.nome };
-    const json = await chamarAppsScript(env.quitacoesAppsScriptUrl, { method: 'POST', body: payload });
+    const payload = { ...req.body, cadastradoPorSlug: u.slug, cadastradoPorNome: u.nome };
+    const json = await quitacoes.cadastrar(payload);
     res.json(json);
   } catch (err) {
     res.status(502).json({ ok: false, erro: 'Falha ao cadastrar: ' + err.message });
@@ -31,7 +30,7 @@ router.post('/api/cadastrar', async (req, res) => {
 
 router.get('/api/lista', async (req, res) => {
   try {
-    const json = await chamarAppsScript(env.quitacoesAppsScriptUrl, { params: { action: 'lista', status: 'pendente' }, cache: true });
+    const json = await quitacoes.listar('pendente');
     if (!json.ok) return res.json(json);
     res.json({ ok: true, itens: (json.itens || []).filter((i) => podeVer(req.session.user, i)) });
   } catch (err) {
@@ -42,7 +41,7 @@ router.get('/api/lista', async (req, res) => {
 router.get('/api/historico', async (req, res) => {
   try {
     const { desde, ate } = req.query;
-    const json = await chamarAppsScript(env.quitacoesAppsScriptUrl, { params: { action: 'lista', status: 'pago', desde, ate }, cache: true });
+    const json = await quitacoes.listar('pago', desde, ate);
     if (!json.ok) return res.json(json);
     res.json({ ok: true, itens: (json.itens || []).filter((i) => podeVer(req.session.user, i)) });
   } catch (err) {
@@ -59,14 +58,14 @@ router.post('/api/marcar-pago', async (req, res) => {
     // gestor) antes de marcar como pago — nunca confia na lista que já
     // estava desenhada na tela do navegador.
     if (u.role !== 'gestor') {
-      const atual = await chamarAppsScript(env.quitacoesAppsScriptUrl, { params: { action: 'lista', status: 'pendente' } });
+      const atual = await quitacoes.listar('pendente', undefined, undefined, { cache: false });
       const item = (atual.itens || []).find((i) => String(i.id) === String(id));
       if (!item || item.cadastradoPorSlug !== u.slug) {
         return res.status(403).json({ ok: false, erro: 'Você só pode marcar como pago pedidos que você mesmo cadastrou.' });
       }
     }
 
-    const json = await chamarAppsScript(env.quitacoesAppsScriptUrl, { method: 'POST', body: { action: 'marcarPago', id } });
+    const json = await quitacoes.marcarPago(id);
     res.json(json);
   } catch (err) {
     res.status(502).json({ ok: false, erro: 'Falha ao marcar como pago: ' + err.message });

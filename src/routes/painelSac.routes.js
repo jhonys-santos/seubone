@@ -3,6 +3,7 @@ const { requireAuth, requirePainel, requireRole } = require('../middleware/auth'
 const { resolveSlug } = require('../middleware/resolveSlug');
 const { chamarAppsScript } = require('../services/appsScriptClient');
 const ticketsStore = require('../services/ticketsStore');
+const auditoriaStore = require('../services/auditoriaStore');
 const { listarUsuarios } = require('../services/usuarios.service');
 const env = require('../config/env');
 
@@ -58,7 +59,7 @@ async function buscarAuditoriaSac(slugAlvo, periodo, mes, ano, semIni, semFim) {
   const agente = SAC_AGENTE_POR_SLUG[slugAlvo];
   if (!agente) return null;
 
-  const json = await chamarAppsScript(env.auditoriaAppsScriptUrl, { cache: true });
+  const json = await auditoriaStore.listar();
   if (!json || !json.ok) return null;
 
   const doPeriodo = (json.data || [])
@@ -84,7 +85,7 @@ async function contarAuditoriasFeitas(slugAlvo, periodo, mes, ano, semIni, semFi
   const nome = AUDITOR_POR_SLUG[slugAlvo];
   if (!nome) return null;
 
-  const json = await chamarAppsScript(env.auditoriaAppsScriptUrl, { cache: true });
+  const json = await auditoriaStore.listar();
   if (!json || !json.ok) return null;
 
   const alvo = nome.toLowerCase();

@@ -1,6 +1,9 @@
 const bcrypt = require('bcryptjs');
 const env = require('../config/env');
 const { chamarAppsScript } = require('./appsScriptClient');
+const banco = require('./usuariosDb.service');
+
+const usaBanco = () => env.usuariosBackend === 'db';
 
 // Os usuários do hub (login, senha, papel, slug, painéis liberados) ficam
 // numa aba própria ("HubUsuarios") da planilha do Painel SAC, em vez de um
@@ -15,6 +18,7 @@ async function inicializar() {
 }
 
 async function buscarUsuariosRemoto() {
+  if (usaBanco()) return banco.listar();
   const json = await chamarAppsScript(env.painelSacAppsScriptUrl, {
     params: { action: 'hubListarUsuarios' },
   });
@@ -24,6 +28,14 @@ async function buscarUsuariosRemoto() {
     );
   }
   return json.usuarios;
+}
+
+async function salvarRemoto(registro) {
+  if (usaBanco()) return banco.salvar(registro);
+  return chamarAppsScript(env.painelSacAppsScriptUrl, {
+    method: 'POST',
+    body: { action: 'hubSalvarUsuario', ...registro },
+  });
 }
 
 function listarUsuarios() {
@@ -93,10 +105,7 @@ async function criarOuAtualizarUsuario({ usuario, senha, nome, slug, role, tipo,
     indicadoresPendentes: !!indicadoresPendentes,
   };
 
-  await chamarAppsScript(env.painelSacAppsScriptUrl, {
-    method: 'POST',
-    body: { action: 'hubSalvarUsuario', ...registro },
-  });
+  await salvarRemoto(registro);
 
   if (existente) {
     Object.assign(existente, registro);
@@ -117,10 +126,7 @@ async function alterarSenha(usuario, senhaAtual, senhaNova) {
   const senhaHash = await bcrypt.hash(senhaNova, 10);
   const registro = { ...existente, senhaHash };
 
-  await chamarAppsScript(env.painelSacAppsScriptUrl, {
-    method: 'POST',
-    body: { action: 'hubSalvarUsuario', ...registro },
-  });
+  await salvarRemoto(registro);
 
   Object.assign(existente, registro);
   return { ok: true };

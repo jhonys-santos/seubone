@@ -7,12 +7,14 @@
  * antigas (guarda só os últimos N dias, N vem do hub, hoje 7). As abas originais
  * NUNCA são lidas nem alteradas: só abas cujo nome começa com "bkp " são tocadas.
  *
- * COMO INSTALAR (em cada um dos 5 scripts):
+ * COMO INSTALAR (em cada script: tickets, erros, registro-demandas, corridas-pagamentos, corridas-avulsas e,
+ * conforme forem migrados, quitacoes, auditoria e agenda-semana):
  *  1) Cole TODA a função salvarBackup_ abaixo (de "function salvarBackup_" até o fim) no Code.gs.
  *  2) No doPost, junto das outras linhas "if (action === ...)", adicione UMA linha:
- *       - tickets e erros (planilha onde o script foi criado, usam jsonOut_):
+ *       - tickets, erros e auditoria (planilha onde o script foi criado, usam jsonOut_; na auditoria a linha
+ *         vai logo DEPOIS da checagem do segredo e ANTES da validação de campos obrigatórios):
  *           if (action === 'salvarBackup') return jsonOut_(salvarBackup_(body, SpreadsheetApp.getActiveSpreadsheet()));
- *       - registro-demandas, corridas-pagamentos e corridas-avulsas (usam out e SHEET_ID):
+ *       - registro-demandas, corridas-pagamentos, corridas-avulsas, quitacoes e agenda-semana (usam out e SHEET_ID):
  *           if (body.action === 'salvarBackup') return out(salvarBackup_(body, SpreadsheetApp.openById(SHEET_ID)));
  *  3) Implantar > Gerenciar implantações > editar > Nova versão > Implantar.
  */
