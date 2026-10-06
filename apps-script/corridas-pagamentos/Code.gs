@@ -36,6 +36,8 @@ function doPost(e) {
     if (body.segredo !== SEGREDO_HUB) return out({ ok: false, erro: 'Nao autorizado' });
     if (body.action === 'create') return out(criarPagamento(body));
     if (body.action === 'marcar') return out(marcarPagamento(body));
+    // Só salva os anexos no Drive e devolve os links (o hub grava no banco). Não mexe na planilha.
+    if (body.action === 'salvarAnexos') return out({ ok: true, anexos: processarAnexos(body.anexos) });
     return out({ ok: false, erro: 'Acao desconhecida' });
   } catch (err) {
     return out({ ok: false, erro: err.message });

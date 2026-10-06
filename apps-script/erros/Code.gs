@@ -438,6 +438,28 @@ function doGet(e) {
     if (p.action === 'fotos') {
       return jsonOut_({ ok: true, arquivos: listarFotosDiagnostico_() });
     }
+    // Só pra migração pro banco (scripts/importar-erros.js): TODOS os eventos do
+    // Histórico de uma vez, com a data completa em ISO (hora do script).
+    if (p.action === 'historicoCompleto') {
+      var hs = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(HIST_SHEET_NAME);
+      var todos = [];
+      if (hs) {
+        var hv = hs.getDataRange().getValues();
+        for (var hr = 1; hr < hv.length; hr++) {
+          var hd = hv[hr][0];
+          todos.push({
+            quando: (hd instanceof Date) ? Utilities.formatDate(hd, Session.getScriptTimeZone(), "yyyy-MM-dd'T'HH:mm:ss") : String(hd),
+            rowIndex: hv[hr][1],
+            idVenda: String(hv[hr][2] || ''),
+            usuario: String(hv[hr][3] || ''),
+            acao: String(hv[hr][4] || ''),
+            detalhe: String(hv[hr][5] || ''),
+            slug: String(hv[hr][6] || ''),
+          });
+        }
+      }
+      return jsonOut_({ ok: true, eventos: todos });
+    }
     var sh = getSheet_();
     var values = sh.getDataRange().getValues();
     if (values.length < 2) return jsonOut_({ ok: true, rows: [] });
@@ -517,6 +539,16 @@ function doPost(e) {
     if (action === 'comentarCaso') return comentarCaso_(body.rowIndex, body.comentario, body.usuario, body.usuarioSlug);
     if (action === 'adicionarAnexos') return adicionarAnexos_(body.rowIndex, body.fotos, body.usuario, body.usuarioSlug);
     if (action === 'salvarFotoPreCaso') return salvarFotoPreCaso_(body.fotos);
+    // Só salva no Drive e devolve os links (o hub grava no banco). Não mexe na planilha.
+    // Usado por "anexar" depois que o Painel de Erros passa a rodar no Postgres.
+    if (action === 'salvarFotos') {
+      try {
+        var resFotos = salvarFotos_(body.fotos, body.idVenda);
+        return jsonOut_({ ok: true, urls: resFotos.urls, falhas: resFotos.falhas, erroExemplo: resFotos.erroExemplo });
+      } catch (eFotos) {
+        return jsonOut_({ ok: false, error: String(eFotos && eFotos.message || eFotos) });
+      }
+    }
 
     return jsonOut_({ ok: false, error: 'Ação desconhecida: ' + action });
   } catch (err) {

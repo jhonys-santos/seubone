@@ -1,6 +1,6 @@
 const express = require('express');
 const { requireAuth } = require('../middleware/auth');
-const { chamarAppsScript } = require('../services/appsScriptClient');
+const financeiroStore = require('../services/financeiroStore');
 const notificacoesService = require('../services/notificacoes.service');
 const env = require('../config/env');
 
@@ -19,10 +19,7 @@ router.post('/webhook/n8n', async (req, res) => {
     if (!id) {
       return res.status(400).json({ ok: false, erro: 'Informe "id".' });
     }
-    const json = await chamarAppsScript(env.corridasPagamentosAppsScriptUrl, {
-      method: 'POST',
-      body: { action: 'marcar', id, concluidoPor: concluidoPor || 'Financeiro (n8n)', anexos: anexos || [] },
-    });
+    const json = await financeiroStore.marcarPagamento({ id, concluidoPor: concluidoPor || 'Financeiro (n8n)', anexos: anexos || [] });
     if (json.ok) {
       // Link pro histórico dentro de Solicitações Financeiro — é lá que
       // fica a lista de todos os pagamentos, venham de Corridas Avulsas
@@ -67,10 +64,7 @@ router.post('/api/solicitar-pagamento', async (req, res) => {
     const { anexos, ...campos } = req.body;
     // "solicitanteSlug" vem sempre da sessão, nunca do corpo enviado pelo
     // cliente — é o que a notificação de retorno usa pra saber quem avisar.
-    const json = await chamarAppsScript(env.corridasPagamentosAppsScriptUrl, {
-      method: 'POST',
-      body: { action: 'create', ...req.body, solicitanteSlug: req.session.user.slug },
-    });
+    const json = await financeiroStore.criarPagamento({ ...req.body, solicitanteSlug: req.session.user.slug });
     if (json.ok) {
       notificarN8nPagamento({ id: json.id, ...campos, anexos: json.anexos || [] });
     }
@@ -85,8 +79,7 @@ router.post('/api/cadastrar', async (req, res) => {
     const u = req.session.user;
     // registradoPor sempre vem da sessão, nunca do corpo enviado pelo
     // cliente — mesma regra usada nos outros painéis do hub.
-    const payload = { ...req.body, action: 'cadastrar', registradoPorSlug: u.slug, registradoPorNome: u.nome };
-    const json = await chamarAppsScript(env.corridasAvulsasAppsScriptUrl, { method: 'POST', body: payload });
+    const json = await financeiroStore.cadastrarCorrida({ ...req.body, registradoPorSlug: u.slug, registradoPorNome: u.nome });
     res.json(json);
   } catch (err) {
     res.status(502).json({ ok: false, erro: 'Falha ao cadastrar: ' + err.message });
@@ -96,7 +89,7 @@ router.post('/api/cadastrar', async (req, res) => {
 router.get('/api/lista', async (req, res) => {
   try {
     const { desde, ate } = req.query;
-    const json = await chamarAppsScript(env.corridasAvulsasAppsScriptUrl, { params: { action: 'lista', desde, ate }, cache: true });
+    const json = await financeiroStore.listarCorridas(desde, ate);
     res.json(json);
   } catch (err) {
     res.status(502).json({ ok: false, erro: 'Falha ao buscar corridas: ' + err.message });

@@ -1,6 +1,6 @@
 const express = require('express');
 const { requireAuth } = require('../middleware/auth');
-const { chamarAppsScript } = require('../services/appsScriptClient');
+const financeiroStore = require('../services/financeiroStore');
 const notificacoesService = require('../services/notificacoes.service');
 const env = require('../config/env');
 
@@ -20,11 +20,8 @@ router.post('/webhook/n8n', async (req, res) => {
       return res.status(400).json({ ok: false, erro: 'Informe "id" e "tipo" ("registro" ou "reembolso").' });
     }
 
-    const action = tipo === 'reembolso' ? 'marcarReembolso' : 'marcar';
-    const json = await chamarAppsScript(env.registroDemandasAppsScriptUrl, {
-      method: 'POST',
-      body: { action, id, status: 'Feito', marcadoPor: concluidoPor || 'Financeiro (n8n)', anexos: anexos || [] },
-    });
+    const dados = { id, status: 'Feito', marcadoPor: concluidoPor || 'Financeiro (n8n)', anexos: anexos || [] };
+    const json = tipo === 'reembolso' ? await financeiroStore.marcarReembolso(dados) : await financeiroStore.marcarRegistro(dados);
     if (json.ok) {
       const link = tipo === 'reembolso' ? '/registro-demandas/historico-reembolso' : '/registro-demandas/historico';
       const referencia = json.referencia || id;
@@ -105,7 +102,7 @@ router.get('/historico-pagamento', (req, res) => {
 
 router.get('/api/list', async (req, res) => {
   try {
-    const json = await chamarAppsScript(env.registroDemandasAppsScriptUrl, { params: { action: 'list' }, cache: true });
+    const json = await financeiroStore.listarRegistros();
     res.json(json);
   } catch (err) {
     res.status(502).json({ erro: 'Falha ao buscar demandas: ' + err.message });
@@ -114,7 +111,7 @@ router.get('/api/list', async (req, res) => {
 
 router.get('/api/list-reembolso', async (req, res) => {
   try {
-    const json = await chamarAppsScript(env.registroDemandasAppsScriptUrl, { params: { action: 'listReembolso' }, cache: true });
+    const json = await financeiroStore.listarReembolsos();
     res.json(json);
   } catch (err) {
     res.status(502).json({ erro: 'Falha ao buscar reembolsos: ' + err.message });
@@ -123,7 +120,7 @@ router.get('/api/list-reembolso', async (req, res) => {
 
 router.get('/api/list-pagamento', async (req, res) => {
   try {
-    const json = await chamarAppsScript(env.corridasPagamentosAppsScriptUrl, { params: { action: 'list' }, cache: true });
+    const json = await financeiroStore.listarPagamentos();
     res.json(json);
   } catch (err) {
     res.status(502).json({ erro: 'Falha ao buscar pagamentos: ' + err.message });
@@ -135,10 +132,7 @@ router.post('/api/create', async (req, res) => {
     // "solicitanteSlug" vem sempre da sessão, nunca do corpo enviado pelo
     // cliente — é o que a notificação de retorno usa pra saber quem avisar,
     // não pode ser algo que o navegador possa forjar.
-    const json = await chamarAppsScript(env.registroDemandasAppsScriptUrl, {
-      method: 'POST',
-      body: { action: 'create', ...req.body, solicitanteSlug: req.session.user.slug },
-    });
+    const json = await financeiroStore.criarRegistro({ ...req.body, solicitanteSlug: req.session.user.slug });
     if (json.ok) {
       const { anexos, ...campos } = req.body;
       notificarN8n('registro', { id: json.id, ...campos, anexos: json.anexos || [] });
@@ -153,10 +147,7 @@ router.post('/api/create-reembolso', async (req, res) => {
   try {
     // "solicitanteSlug" vem sempre da sessão — ver comentário equivalente
     // em /api/create.
-    const json = await chamarAppsScript(env.registroDemandasAppsScriptUrl, {
-      method: 'POST',
-      body: { action: 'createReembolso', ...req.body, solicitanteSlug: req.session.user.slug },
-    });
+    const json = await financeiroStore.criarReembolso({ ...req.body, solicitanteSlug: req.session.user.slug });
     if (json.ok) {
       // "id" no req.body é a referência que a pessoa digitou no formulário
       // (coluna IDReferencia na planilha), não o ID interno gerado pelo
@@ -178,10 +169,7 @@ router.post('/api/create-pagamento', async (req, res) => {
     const { anexos, ...campos } = req.body;
     // "solicitanteSlug" vem sempre da sessão — ver comentário equivalente
     // em /api/create.
-    const json = await chamarAppsScript(env.corridasPagamentosAppsScriptUrl, {
-      method: 'POST',
-      body: { action: 'create', ...req.body, solicitanteSlug: req.session.user.slug },
-    });
+    const json = await financeiroStore.criarPagamento({ ...req.body, solicitanteSlug: req.session.user.slug });
     if (json.ok) {
       notificarN8nPagamento({ id: json.id, ...campos, anexos: json.anexos || [] });
     }
@@ -194,10 +182,7 @@ router.post('/api/create-pagamento', async (req, res) => {
 router.post('/api/marcar', async (req, res) => {
   try {
     const { id, status, marcadoPor } = req.body;
-    const json = await chamarAppsScript(env.registroDemandasAppsScriptUrl, {
-      method: 'POST',
-      body: { action: 'marcar', id, status, marcadoPor },
-    });
+    const json = await financeiroStore.marcarRegistro({ id, status, marcadoPor });
     res.json(json);
   } catch (err) {
     res.status(502).json({ ok: false, erro: 'Falha ao atualizar status: ' + err.message });
@@ -207,10 +192,7 @@ router.post('/api/marcar', async (req, res) => {
 router.post('/api/marcar-reembolso', async (req, res) => {
   try {
     const { id, status, marcadoPor } = req.body;
-    const json = await chamarAppsScript(env.registroDemandasAppsScriptUrl, {
-      method: 'POST',
-      body: { action: 'marcarReembolso', id, status, marcadoPor },
-    });
+    const json = await financeiroStore.marcarReembolso({ id, status, marcadoPor });
     res.json(json);
   } catch (err) {
     res.status(502).json({ ok: false, erro: 'Falha ao atualizar status: ' + err.message });

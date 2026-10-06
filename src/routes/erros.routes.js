@@ -1,6 +1,6 @@
 const express = require('express');
 const { requireAuth, requirePainel, requireRole } = require('../middleware/auth');
-const { chamarAppsScript } = require('../services/appsScriptClient');
+const errosStore = require('../services/errosStore');
 const notificacoesService = require('../services/notificacoes.service');
 const usuariosService = require('../services/usuarios.service');
 const env = require('../config/env');
@@ -31,7 +31,7 @@ router.get('/', (req, res) => {
 // painel, escrita de auditoria só pra gestor (ver abaixo).
 router.get('/api/casos', async (req, res) => {
   try {
-    const json = await chamarAppsScript(env.errosAppsScriptUrl, { cache: true });
+    const json = await errosStore.listar();
     res.json(json);
   } catch (err) {
     res.status(502).json({ ok: false, error: 'Falha ao buscar casos: ' + err.message });
@@ -41,7 +41,7 @@ router.get('/api/casos', async (req, res) => {
 router.get('/api/historico', async (req, res) => {
   try {
     const { rowIndex } = req.query;
-    const json = await chamarAppsScript(env.errosAppsScriptUrl, { params: { action: 'historico', rowIndex }, cache: true });
+    const json = await errosStore.historico(rowIndex);
     res.json(json);
   } catch (err) {
     res.status(502).json({ ok: false, error: 'Falha ao buscar histórico: ' + err.message });
@@ -52,14 +52,8 @@ router.get('/api/historico', async (req, res) => {
 // "registrar" é true até pra colaborador — só "auditar" é restrito).
 router.post('/api/criar', async (req, res) => {
   try {
-    const json = await chamarAppsScript(env.errosAppsScriptUrl, {
-      method: 'POST',
-      // "usuario"/"usuarioSlug" vêm sempre da sessão, nunca do que o
-      // navegador manda — mesma regra de autoria de todo o resto do hub.
-      // "usuarioSlug" é o que permite notificar essa pessoa de volta quando
-      // o caso for aprovado/reprovado na fila de Refabricação.
-      body: { action: 'criar', fields: req.body.fields || {}, usuario: req.session.user.nome, usuarioSlug: req.session.user.slug },
-    });
+    // "usuario"/"usuarioSlug" vêm sempre da sessão, nunca do que o navegador manda — mesma regra de autoria do hub.
+    const json = await errosStore.criar(req.body.fields || {}, req.session.user.nome, req.session.user.slug);
     if (json.ok && json.entrouAprovacaoRefab) {
       notificarGestoresRefab(req.body.fields && req.body.fields.idVenda, req.body.fields && req.body.fields.nomeCard, json.rowIndex);
     }
@@ -89,10 +83,7 @@ router.post('/api/salvar-foto-pre-caso', async (req, res) => {
     if (!fotos || !fotos.length) {
       return res.status(400).json({ ok: false, error: 'Nenhum arquivo enviado.' });
     }
-    const json = await chamarAppsScript(env.errosAppsScriptUrl, {
-      method: 'POST',
-      body: { action: 'salvarFotoPreCaso', fotos },
-    });
+    const json = await errosStore.salvarFotoPreCaso(fotos);
     res.json(json);
   } catch (err) {
     res.status(502).json({ ok: false, error: 'Falha ao salvar anexo: ' + err.message });
@@ -104,10 +95,7 @@ router.post('/api/salvar-foto-pre-caso', async (req, res) => {
 // requireRole('gestor') reforçado no servidor, não só escondido na tela.
 router.post('/api/audit', requireRole('gestor'), async (req, res) => {
   try {
-    const json = await chamarAppsScript(env.errosAppsScriptUrl, {
-      method: 'POST',
-      body: { action: 'audit', rowIndex: req.body.rowIndex, fields: req.body.fields || {}, usuario: req.session.user.nome, usuarioSlug: req.session.user.slug },
-    });
+    const json = await errosStore.auditar(req.body.rowIndex, req.body.fields || {}, req.session.user.nome, req.session.user.slug);
     if (json.ok && json.entrouAprovacaoRefab) {
       // No /api/audit, o form não reenvia idVenda/nomeCard — vêm do próprio
       // Apps Script (auditarCaso_ os lê da planilha), não de req.body.fields.
@@ -125,10 +113,7 @@ router.post('/api/audit', requireRole('gestor'), async (req, res) => {
 router.post('/api/refab/decidir', requireRole('gestor'), async (req, res) => {
   try {
     const { rowIndex, decisao, comentario } = req.body;
-    const json = await chamarAppsScript(env.errosAppsScriptUrl, {
-      method: 'POST',
-      body: { action: 'decidirRefab', rowIndex, decisao, comentario, usuario: req.session.user.nome, usuarioSlug: req.session.user.slug },
-    });
+    const json = await errosStore.decidirRefab(rowIndex, decisao, comentario, req.session.user.nome, req.session.user.slug);
     if (json.ok && json.registradoPorSlug) {
       const aprovado = json.decisao === 'Aprovado';
       const mensagem = `Refabricação do caso #${json.idVenda || rowIndex} (${json.nomeCard || 'sem nome'}) foi ${aprovado ? 'aprovada' : 'reprovada'}.${comentario ? ' Comentário: ' + comentario : ''}`;
@@ -147,10 +132,7 @@ router.post('/api/refab/decidir', requireRole('gestor'), async (req, res) => {
 // casos que ele mesmo registrou.
 router.post('/api/refab/finalizar', async (req, res) => {
   try {
-    const json = await chamarAppsScript(env.errosAppsScriptUrl, {
-      method: 'POST',
-      body: { action: 'finalizarRefab', rowIndex: req.body.rowIndex, usuario: req.session.user.nome, usuarioSlug: req.session.user.slug },
-    });
+    const json = await errosStore.finalizarRefab(req.body.rowIndex, req.session.user.nome, req.session.user.slug);
     res.json(json);
   } catch (err) {
     res.status(502).json({ ok: false, error: 'Falha ao finalizar Refabricação: ' + err.message });
@@ -159,10 +141,7 @@ router.post('/api/refab/finalizar', async (req, res) => {
 
 router.post('/api/set-status', requireRole('gestor'), async (req, res) => {
   try {
-    const json = await chamarAppsScript(env.errosAppsScriptUrl, {
-      method: 'POST',
-      body: { action: 'setStatus', rowIndex: req.body.rowIndex, status: req.body.status, usuario: req.session.user.nome },
-    });
+    const json = await errosStore.setStatus(req.body.rowIndex, req.body.status, req.session.user.nome);
     res.json(json);
   } catch (err) {
     res.status(502).json({ ok: false, error: 'Falha ao alterar status: ' + err.message });
@@ -173,10 +152,7 @@ router.post('/api/set-status', requireRole('gestor'), async (req, res) => {
 // gestor das outras ações de auditoria.
 router.post('/api/set-setor', requireRole('gestor'), async (req, res) => {
   try {
-    const json = await chamarAppsScript(env.errosAppsScriptUrl, {
-      method: 'POST',
-      body: { action: 'setSetor', rowIndex: req.body.rowIndex, setor: req.body.setor, usuario: req.session.user.nome },
-    });
+    const json = await errosStore.setSetor(req.body.rowIndex, req.body.setor, req.session.user.nome);
     res.json(json);
   } catch (err) {
     res.status(502).json({ ok: false, error: 'Falha ao preencher setor: ' + err.message });
@@ -192,10 +168,7 @@ router.post('/api/set-descricao', requireRole('gestor'), async (req, res) => {
     if (!descricao || !String(descricao).trim()) {
       return res.status(400).json({ ok: false, error: 'Descrição vazia.' });
     }
-    const json = await chamarAppsScript(env.errosAppsScriptUrl, {
-      method: 'POST',
-      body: { action: 'setDescricao', rowIndex, descricao, usuario: req.session.user.nome },
-    });
+    const json = await errosStore.setDescricao(rowIndex, descricao, req.session.user.nome);
     res.json(json);
   } catch (err) {
     res.status(502).json({ ok: false, error: 'Falha ao salvar descrição: ' + err.message });
@@ -212,10 +185,7 @@ router.post('/api/anexar', async (req, res) => {
     if (!fotos || !fotos.length) {
       return res.status(400).json({ ok: false, error: 'Nenhum arquivo enviado.' });
     }
-    const json = await chamarAppsScript(env.errosAppsScriptUrl, {
-      method: 'POST',
-      body: { action: 'adicionarAnexos', rowIndex, fotos, usuario: req.session.user.nome, usuarioSlug: req.session.user.slug },
-    });
+    const json = await errosStore.adicionarAnexos(rowIndex, fotos, req.session.user.nome, req.session.user.slug);
     res.json(json);
   } catch (err) {
     res.status(502).json({ ok: false, error: 'Falha ao anexar arquivo(s): ' + err.message });
@@ -232,10 +202,7 @@ router.post('/api/comentar', async (req, res) => {
     if (!comentario || !String(comentario).trim()) {
       return res.status(400).json({ ok: false, error: 'Comentário vazio.' });
     }
-    const json = await chamarAppsScript(env.errosAppsScriptUrl, {
-      method: 'POST',
-      body: { action: 'comentarCaso', rowIndex, comentario, usuario: req.session.user.nome, usuarioSlug: req.session.user.slug },
-    });
+    const json = await errosStore.comentarCaso(rowIndex, comentario, req.session.user.nome, req.session.user.slug);
     if (json.ok) {
       const mensagem = `${req.session.user.nome} comentou no caso #${json.idVenda || rowIndex}${json.nomeCard ? ' (' + json.nomeCard + ')' : ''}.`;
       usuariosService

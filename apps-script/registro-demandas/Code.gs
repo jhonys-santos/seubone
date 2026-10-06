@@ -48,6 +48,8 @@ function doPost(e) {
     if (body.action === 'marcarReembolso') {
       return out(marcarGenerico({ nomeAba: ABA_REEMBOLSO, colStatus: 16, colFeitoPor: 17, colAnexos: 15, colReferencia: 3, colSolicitanteSlug: 19 }, body));
     }
+    // Só salva os anexos no Drive e devolve os links (o hub grava no banco). Não mexe na planilha.
+    if (body.action === 'salvarAnexos') return out({ ok: true, anexos: processarAnexos(body.anexos) });
     if (body.action === 'criarNotificacao') return out(criarNotificacao(body));
     if (body.action === 'marcarNotificacaoLida') return out(marcarNotificacaoLida(body));
     if (body.action === 'excluirNotificacao') return out(excluirNotificacao(body));

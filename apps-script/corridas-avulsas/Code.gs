@@ -36,6 +36,12 @@ function doPost(e) {
     const body = JSON.parse(e.postData.contents);
     if (body.segredo !== SEGREDO_HUB) return out({ ok: false, erro: 'Nao autorizado' });
     if (body.action === 'cadastrar') return out(cadastrarCorrida(body));
+    // Só salva os prints no Drive e devolve os links (o hub grava no banco). Não mexe na planilha.
+    if (body.action === 'salvarPrints') {
+      const imgs = Array.isArray(body.imagens) ? body.imagens : [];
+      const links = imgs.map((img, i) => salvarPrint(img.base64, img.tipo, imgs.length > 1 ? body.id + '-' + (i + 1) : body.id));
+      return out({ ok: true, urls: links });
+    }
     return out({ ok: false, erro: 'Acao desconhecida' });
   } catch (err) {
     return out({ ok: false, erro: err.message });

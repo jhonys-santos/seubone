@@ -33,6 +33,10 @@ module.exports = {
   ticketsBackend: required('TICKETS_BACKEND', 'sheets'),
   // Mesma ideia para as notificações do sininho: 'db' = Postgres; padrão = planilha.
   notificacoesBackend: required('NOTIFICACOES_BACKEND', 'sheets'),
+  // Painel de Erros: 'db' = Postgres; padrão = planilha.
+  errosBackend: required('ERROS_BACKEND', 'sheets'),
+  // Registro de Demandas, Reembolso, Pagamento e Corridas Avulsas: 'db' = Postgres; padrão = planilhas.
+  financeiroBackend: required('FINANCEIRO_BACKEND', 'sheets'),
   // 'pg' = sessões de login no Postgres (sobrevivem a deploys); padrão = arquivos em disco.
   sessionStore: required('SESSION_STORE', 'file'),
 
