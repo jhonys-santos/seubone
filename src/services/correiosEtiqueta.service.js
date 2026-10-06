@@ -959,7 +959,7 @@ function traduzir(e) {
 module.exports = {
   CorreiosErro, CorreiosApi, CorreiosPrePostagem, normalizarPrePostagem,
   ErroEtiqueta, REMETENTE, LAYOUTS,
-  MAX_CAIXAS, previa, emitir, baixarEtiqueta, baixarEtiquetas, consultar, cancelar, definirCliente,
+  MAX_CAIXAS, previa, emitir, baixarEtiqueta, baixarEtiquetas, consultar, cancelar, definirCliente, obterCliente,
   lerNFe, montarEnvio,
   resolverServico, nomeServico, SERVICOS,
 };

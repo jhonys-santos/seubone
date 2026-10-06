@@ -1100,7 +1100,8 @@
     ENTREGUE: ['Entregue', 'ok'], COM_PROBLEMA: ['Com problema', 'bad'], EM_TRANSITO: ['Em trânsito', 'neutro'],
     AGUARDANDO_RETIRADA: ['Aguardando retirada', 'warn'], DEVOLVIDO: ['Devolvido', 'bad'], CANCELADO: ['Cancelado', 'bad'],
   };
-  const ENTREGA_NOME = { azul: 'Azul', correios: 'Correios', latam: 'LATAM' };
+  // Preposições para frases como "Última consulta à Azul" / "Ocorrências dos Correios"
+  const ENTREGA_PREP = { azul: { a: 'à Azul', de: 'da Azul' }, correios: { a: 'aos Correios', de: 'dos Correios' }, latam: { a: 'à LATAM', de: 'da LATAM' } };
   const ENTREGA_VISIVEIS = 6;
 
   function entregaData(iso) {
@@ -1111,10 +1112,10 @@
   const entregaUrl = (u) => (/^https?:\/\//i.test(String(u || '')) ? tkEsc(u) : '');
   const entregaLink = (u, texto) => (entregaUrl(u) ? '<a href="' + entregaUrl(u) + '" target="_blank" rel="noopener" class="tk-ent-link">' + texto + '</a>' : '');
 
-  /** Alertas: os da Azul (completos) depois de consultar; antes disso, os que a Lulu trouxe. Mais recente primeiro. */
+  /** Alertas: os da transportadora (completos) depois de consultar; antes disso, os que a Lulu trouxe. Mais recente primeiro. */
   function entregaAlertas(e) {
-    if (e.azul) {
-      return e.azul.ocorrencias.filter((o) => o.alerta).reverse().map((o) => ({
+    if (e.rastreio) {
+      return e.rastreio.ocorrencias.filter((o) => o.alerta).reverse().map((o) => ({
         codigo: o.codigo, descricao: o.descricao, quando: o.dataHora, local: [o.municipio, o.uf].filter(Boolean).join('/'), categoria: o.categoria, foto: o.fotos && o.fotos.insucesso,
       }));
     }
@@ -1123,16 +1124,18 @@
 
   function entregaHTML(r, est) {
     const e = est.dados;
-    const nome = ENTREGA_NOME[e.transportadora] || 'Transportadora';
-    const situacaoKey = (e.azul && e.azul.situacao) || (e.lulu && e.lulu.situacao) || '';
+    const nome = e.nomeTransportadora || 'Transportadora';
+    const prep = ENTREGA_PREP[e.transportadora] || { a: 'à transportadora', de: 'da transportadora' };
+    const rast = e.rastreio;
+    const situacaoKey = (rast && rast.situacao) || (e.lulu && e.lulu.situacao) || '';
     const sit = ENTREGA_SITUACAO[situacaoKey];
     const alertas = entregaAlertas(e);
-    const previsao = (e.azul && e.azul.previsaoEntrega) || (e.lulu && e.lulu.previsaoEntrega) || r.previsaoEntregaTransportadora || '';
-    const entregueEm = e.azul && e.azul.entregueEm;
-    const ocs = e.azul ? e.azul.ocorrencias.slice().reverse() : [];
+    const previsao = (rast && rast.previsaoEntrega) || (e.lulu && e.lulu.previsaoEntrega) || r.previsaoEntregaTransportadora || '';
+    const entregueEm = rast && rast.entregueEm;
+    const ocs = rast ? rast.ocorrencias.slice().reverse() : [];
     const visiveis = est.todas ? ocs : ocs.slice(0, ENTREGA_VISIVEIS);
-    const linhaConsulta = e.azulConsultadoEm
-      ? '<div class="tk-ent-row"><span>Última consulta à Azul</span><b>' + entregaData(e.azulConsultadoEm) + '</b></div>'
+    const linhaConsulta = e.rastreioConsultadoEm
+      ? '<div class="tk-ent-row"><span>Última consulta ' + prep.a + '</span><b>' + entregaData(e.rastreioConsultadoEm) + '</b></div>'
       : (e.luluAtualizadoEm ? '<div class="tk-ent-row"><span>Última atualização do CRM</span><b>' + entregaData((e.lulu && e.lulu.ultimaConsulta) || e.luluAtualizadoEm) + '</b></div>' : '');
 
     const htmlAlertas = alertas.length
@@ -1145,27 +1148,29 @@
 
     let htmlAcao = '';
     if (e.podeConsultar) {
-      htmlAcao = '<button type="button" class="tk-ent-btn" id="tkBtnConsultarAzul"' + (est.consultando ? ' disabled' : '') + '><i class="ti ti-refresh' + (est.consultando ? ' tk-girando' : '') + '" aria-hidden="true"></i> '
-        + (est.consultando ? 'Consultando a Azul...' : 'Consultar Azul agora') + '</button>';
+      htmlAcao = '<button type="button" class="tk-ent-btn" id="tkBtnConsultarRastreio"' + (est.consultando ? ' disabled' : '') + '><i class="ti ti-refresh' + (est.consultando ? ' tk-girando' : '') + '" aria-hidden="true"></i> '
+        + (est.consultando ? 'Consultando...' : 'Consultar ' + tkEsc(nome) + ' agora') + '</button>';
     } else if (!e.codigoRastreio) {
       htmlAcao = '<div class="tk-ent-aviso">Este ticket ainda não tem código de rastreio.</div>';
     }
 
-    const htmlOcorrencias = e.azul
-      ? '<div class="tk-ent-oc-t">Ocorrências da Azul</div><div class="tk-ent-oc">'
+    const htmlOcorrencias = rast
+      ? '<div class="tk-ent-oc-t">Ocorrências ' + prep.de + '</div><div class="tk-ent-oc">'
         + visiveis.map((o) => '<div class="tk-ent-oc-i"><div class="tk-ent-oc-d">' + tkEsc(o.descricao) + '</div>'
           + '<div class="tk-ent-meta">' + [entregaData(o.dataHora), [o.municipio, o.uf].filter(Boolean).join('/') || o.unidade].filter(Boolean).map(tkEsc).join(' · ') + '</div>'
+          + (o.comentario ? '<div class="tk-ent-meta">' + tkEsc(o.comentario) + '</div>' : '')
           + (o.alerta ? '<div class="tk-ent-oc-alerta">' + tkEsc(o.descricao) + '</div>' : '')
           + entregaLink(o.fotos && o.fotos.comprovante, 'Comprovante de entrega') + entregaLink(o.fotos && o.fotos.insucesso, 'Ver foto da tentativa') + '</div>').join('')
         + '</div>'
         + (ocs.length > ENTREGA_VISIVEIS ? '<button type="button" class="tk-ent-todas" id="tkBtnEntregaTodas">' + (est.todas ? 'Mostrar menos' : 'Ver todas (' + ocs.length + ')') + '</button>' : '')
       : '';
 
-    return '<div class="tk-ent"><div class="tk-ent-head"><div class="tk-ent-title"><i class="ti ti-plane-departure" aria-hidden="true"></i> Entrega (' + tkEsc(nome) + ')</div>'
+    return '<div class="tk-ent"><div class="tk-ent-head"><div class="tk-ent-title"><i class="ti ' + (e.transportadora === 'correios' ? 'ti-truck-delivery' : 'ti-plane-departure') + '" aria-hidden="true"></i> Entrega (' + tkEsc(nome) + ')</div>'
       + (sit ? '<span class="tk-ent-badge ' + sit[1] + '">' + sit[0] + '</span>' : '') + '</div>'
       + htmlAlertas
       + '<div class="tk-ent-rows"><div class="tk-ent-row"><span>Previsão de entrega</span><b>' + (previsao ? entregaData(previsao) : '—') + '</b></div>'
       + (entregueEm ? '<div class="tk-ent-row"><span>Entrega confirmada em</span><b>' + entregaData(entregueEm) + '</b></div>' : '')
+      + (rast && rast.localizacao ? '<div class="tk-ent-row"><span>Localização atual</span><b>' + tkEsc(rast.localizacao) + '</b></div>' : '')
       + linhaConsulta + '</div>'
       + htmlAcao + htmlOcorrencias + '</div>';
   }
@@ -1175,8 +1180,8 @@
     const est = ENTREGA_ESTADO[r.id];
     if (!box || !est || !est.dados) return;
     box.innerHTML = entregaHTML(r, est);
-    const btn = document.getElementById('tkBtnConsultarAzul');
-    if (btn) btn.addEventListener('click', () => consultarAzulAgora(r));
+    const btn = document.getElementById('tkBtnConsultarRastreio');
+    if (btn) btn.addEventListener('click', () => consultarRastreioAgora(r));
     const todas = document.getElementById('tkBtnEntregaTodas');
     if (todas) todas.addEventListener('click', () => { est.todas = !est.todas; pintarEntrega(r); });
   }
@@ -1193,7 +1198,7 @@
     } catch (err) { /* o cartão é complemento: sem ele o ticket continua utilizável */ }
   }
 
-  async function consultarAzulAgora(r) {
+  async function consultarRastreioAgora(r) {
     const est = ENTREGA_ESTADO[r.id];
     if (!est || est.consultando) return;
     est.consultando = true; pintarEntrega(r);
@@ -1201,7 +1206,7 @@
       const json = await fetch('/tickets/api/entrega/consultar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rowIndex: r.id }) }).then((x) => x.json());
       if (!json.ok) throw new Error(json.erro || 'Erro desconhecido');
       est.dados = json.entrega;
-      toast('Azul consultada', true);
+      toast((est.dados.nomeTransportadora || 'Transportadora') + ' consultada', true);
     } catch (err) {
       toast(err.message, false);
     } finally {
@@ -1263,7 +1268,7 @@
                 <button class="tk-btn tk-btn-ghost" type="button" id="tkBtnSalvarLink">Adicionar</button>
               </div>`}
         </div>
-        ${r.observacao ? `<div class="tk-field" style="margin-bottom:16px"><label>Observação</label><div class="tk-readonly-block" style="font-style:italic">${tkEsc(r.observacao)}</div></div>` : ''}
+        ${r.observacao && r.identificador !== 'Erro de Envio' ? `<div class="tk-field" style="margin-bottom:16px"><label>Observação</label><div class="tk-readonly-block" style="font-style:italic">${tkEsc(r.observacao)}</div></div>` : ''}
         ${r.identificador === 'Erro de Envio' || r.codigoRastreio ? '<div id="tkEntregaBox" style="margin-bottom:16px"></div>' : ''}
 
         <div class="tk-sec-title" style="margin-top:20px">Anexos${(() => { const n = tkParseFotos(r.anexos).length; return n ? ` (${n})` : ''; })()}</div>

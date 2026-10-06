@@ -82,14 +82,14 @@ router.get('/api/entrega', async (req, res) => {
   }
 });
 
-// Consulta a Azul agora (API oficial) e guarda o resultado. Qualquer um com acesso ao painel pode pedir,
+// Consulta a transportadora agora (API oficial: Azul, Correios ou LATAM) e guarda o resultado. Qualquer um com acesso ao painel pode pedir,
 // como o resto do painel; o serviço limita a 1 consulta a cada poucos segundos por ticket.
 router.post('/api/entrega/consultar', async (req, res) => {
   try {
     if (env.ticketsBackend !== 'db') return res.json(semBanco);
-    res.json(await ticketsEntrega.consultarAzul(req.body.rowIndex));
+    res.json(await ticketsEntrega.consultar(req.body.rowIndex));
   } catch (err) {
-    res.status(502).json({ ok: false, erro: 'Falha ao consultar a Azul: ' + err.message });
+    res.status(502).json({ ok: false, erro: 'Falha ao consultar a transportadora: ' + err.message });
   }
 });
 
