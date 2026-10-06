@@ -37,6 +37,8 @@ module.exports = {
   errosBackend: required('ERROS_BACKEND', 'sheets'),
   // Registro de Demandas, Reembolso, Pagamento e Corridas Avulsas: 'db' = Postgres; padrão = planilhas.
   financeiroBackend: required('FINANCEIRO_BACKEND', 'sheets'),
+  // Backup automático do banco de volta pras planilhas (seg-sex 20h, abas "bkp AAAA-MM-DD ..."). 'on' liga.
+  backupPlanilhas: required('BACKUP_PLANILHAS', 'off'),
   // 'pg' = sessões de login no Postgres (sobrevivem a deploys); padrão = arquivos em disco.
   sessionStore: required('SESSION_STORE', 'file'),
 

@@ -16,13 +16,19 @@ async function importar(lista, db, { refazer = false } = {}) {
       await tx.query('delete from notificacoes');
     }
     let n = 0;
+    const usados = new Set();
     for (const x of lista) {
       if (!x.id) continue;
+      // A planilha gerava o id pelo milissegundo: avisos criados juntos (um por gestor) tinham o MESMO id.
+      // Cada um é uma notificação de verdade, então o repetido ganha um sufixo e nada é descartado.
+      let id = String(x.id);
+      for (let k = 2; usados.has(id); k++) id = `${x.id}-${k}`;
+      usados.add(id);
       const criada = x.criadoEm && !Number.isNaN(Date.parse(x.criadoEm)) ? new Date(x.criadoEm).toISOString() : null;
       await tx.query(
         `insert into notificacoes (id, mensagem, link, destinatario, lida_por, criada_em)
          values ($1, $2, $3, $4, $5::text[], coalesce($6::timestamptz, now()))`,
-        [String(x.id), String(x.mensagem || ''), x.link || null, x.destinatario || '', Array.isArray(x.lidaPor) ? x.lidaPor : [], criada],
+        [id, String(x.mensagem || ''), x.link || null, x.destinatario || '', Array.isArray(x.lidaPor) ? x.lidaPor : [], criada],
       );
       n++;
     }

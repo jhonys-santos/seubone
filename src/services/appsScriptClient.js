@@ -51,7 +51,7 @@ function invalidarCacheDoScript(urlBase) {
   }
 }
 
-async function chamarAppsScript(urlBase, { method = 'GET', params = {}, body = null, cache: cacheavel = false } = {}) {
+async function chamarAppsScript(urlBase, { method = 'GET', params = {}, body = null, cache: cacheavel = false, timeoutMs = TIMEOUT_MS } = {}) {
   if (!urlBase) {
     throw new Error('URL do Apps Script não configurada no .env.');
   }
@@ -88,7 +88,7 @@ async function chamarAppsScript(urlBase, { method = 'GET', params = {}, body = n
 
   const executar = async () => {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
     try {
       const resp = await fetch(url, { ...init, signal: controller.signal });
       const texto = await resp.text();
@@ -100,7 +100,7 @@ async function chamarAppsScript(urlBase, { method = 'GET', params = {}, body = n
       }
     } catch (err) {
       if (err.name === 'AbortError') {
-        throw new Error(`Apps Script não respondeu em ${TIMEOUT_MS / 1000}s (tempo limite excedido).`);
+        throw new Error(`Apps Script não respondeu em ${timeoutMs / 1000}s (tempo limite excedido).`);
       }
       throw err;
     } finally {
