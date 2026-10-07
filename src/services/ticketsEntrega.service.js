@@ -3,6 +3,7 @@
 // LATAM). Só existe com TICKETS_BACKEND=db.
 const db = require('../db');
 const env = require('../config/env');
+const octadesk = require('./octadeskConversa.service');
 
 const COOLDOWN_CONSULTA_MS = 15000;
 const ultimaConsulta = new Map(); // rowIndex -> instante da última chamada à transportadora (protege a API de cliques repetidos)
@@ -93,6 +94,8 @@ function resumirCardLulu(card) {
     previsaoEntrega: txt(card.previsao_entrega) || null,
     ultimaConsulta: txt(card.ultima_consulta) || null,
     emAlertaDesde: txt(card.em_alerta_desde) || null,
+    // Só o necessário para falar com o cliente (nome e telefone); CPF/CNPJ e e-mail não são guardados.
+    cliente: { nome: txt(card.cliente && card.cliente.razao_social), telefone: txt(card.cliente && card.cliente.telefone) },
     alertas: (card.alertas || []).map((a) => ({
       codigo: txt(a.codigo),
       descricao: txt(a.descricao),
@@ -240,6 +243,7 @@ function montarResposta(ticket, linha) {
       rastreio: (linha && linha.rastreio) || null,
       rastreioFonte: (linha && linha.rastreio_fonte) || null,
       rastreioConsultadoEm: iso(linha && linha.rastreio_consultado_em),
+      conversa: octadesk.resumoParaTela(lulu, linha),
     },
   };
 }
@@ -249,7 +253,7 @@ async function ler(rowIndex) {
   if (n == null) return { ok: false, erro: 'rowIndex ausente' };
   const ticket = await carregarTicket(n);
   if (!ticket) return { ok: false, erro: 'Ticket não encontrado.' };
-  const r = await db.query('select lulu, lulu_atualizado_em, rastreio, rastreio_fonte, rastreio_consultado_em from ticket_entrega where ticket_row_index = $1', [n]);
+  const r = await db.query('select lulu, lulu_atualizado_em, rastreio, rastreio_fonte, rastreio_consultado_em, conversa_aberta_em, conversa_aberta_por from ticket_entrega where ticket_row_index = $1', [n]);
   return montarResposta(ticket, r.rows[0]);
 }
 

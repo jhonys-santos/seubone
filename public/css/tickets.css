@@ -350,3 +350,11 @@
 .tk-ent-oc-alerta { font-size: 12.5px; color: var(--bad); }
 .tk-ent-todas { display: block; margin: 12px auto 0; background: none; border: none; font-family: inherit; font-size: 12.5px; font-weight: 700; color: var(--text); cursor: pointer; }
 .tk-ent-todas:hover { color: var(--gold); }
+
+/* ===== Conversa com o cliente (Octadesk) ===== */
+.tk-conv { margin-top: 12px; }
+.tk-conv-cli { font-size: 13.5px; color: var(--text); margin-bottom: 10px; }
+.tk-conv-ok { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 700; color: var(--ok); margin-bottom: 10px; }
+.tk-conv-overlay { z-index: 1200; }
+.tk-conv-modal { max-width: 480px; }
+.tk-conv-aviso { background: var(--warn-bg); border: 1px solid var(--warn); border-radius: var(--radius-sm); padding: 11px 13px; font-size: 13px; line-height: 1.5; margin-bottom: 12px; }

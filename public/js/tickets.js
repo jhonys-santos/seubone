@@ -1185,11 +1185,71 @@
       + htmlAcao + htmlOcorrencias + '</div>';
   }
 
+  /* ---- Conversa com o cliente (Octadesk) ---- */
+  function conversaHTML(e, est) {
+    const c = e.conversa;
+    if (!c) return '';
+    let corpo = '';
+    if (c.nome || c.telefone) corpo += '<div class="tk-conv-cli"><b>' + tkEsc(c.nome || 'Cliente') + '</b>' + (c.telefone ? ' · ' + tkEsc(c.telefone) : '') + '</div>';
+    if (c.abertaEm) corpo += '<div class="tk-conv-ok"><i class="ti ti-circle-check" aria-hidden="true"></i> Conversa aberta em ' + tkEsc(entregaData(c.abertaEm)) + (c.abertaPor ? ' por ' + tkEsc(c.abertaPor) : '') + '</div>';
+    if (c.podeAbrir) {
+      corpo += '<button type="button" class="tk-ent-btn" id="tkBtnAbrirConversa"' + (est.abrindoConversa ? ' disabled' : '') + '><i class="ti ti-brand-whatsapp" aria-hidden="true"></i> '
+        + (est.abrindoConversa ? 'Abrindo conversa...' : (c.abertaEm ? 'Abrir conversa de novo' : 'Abrir conversa com o cliente')) + '</button>';
+    } else {
+      corpo += '<div class="tk-ent-aviso">' + tkEsc(c.motivoSemBotao || '') + '</div>';
+    }
+    return '<div class="tk-ent tk-conv"><div class="tk-ent-head"><div class="tk-ent-title"><i class="ti ti-message-circle" aria-hidden="true"></i> Conversa com o cliente</div></div>' + corpo + '</div>';
+  }
+
+  function confirmarAberturaConversa(c) {
+    return new Promise((resolve) => {
+      const ov = document.createElement('div');
+      ov.className = 'tk-overlay tk-conv-overlay';
+      const repetida = c.abertaEm ? '<div class="tk-conv-aviso"><b>Esta conversa já foi aberta</b> em ' + tkEsc(entregaData(c.abertaEm)) + (c.abertaPor ? ' por ' + tkEsc(c.abertaPor) : '') + '. Abrir de novo envia a mensagem outra vez para o cliente.</div>' : '';
+      ov.innerHTML = '<div class="tk-modal tk-conv-modal" role="alertdialog" aria-modal="true" aria-label="Abrir conversa com o cliente">'
+        + '<div class="tk-modal-head"><div style="flex:1"><div class="title">Abrir conversa com o cliente?</div></div></div>'
+        + '<div class="tk-modal-body">' + repetida
+        + '<p style="margin:0 0 10px;line-height:1.5">Vai ser enviada uma mensagem de WhatsApp para <b>' + tkEsc(c.nome || 'o cliente') + '</b> no número <b>' + tkEsc(c.telefone) + '</b>.</p>'
+        + '<p style="margin:0;color:var(--text-muted);font-size:13px;line-height:1.5">Mensagem modelo <b>' + tkEsc(c.modelo) + '</b> (aviso de imprevisto no prazo de entrega). A conversa chega ao atendimento no Octadesk.</p></div>'
+        + '<div class="tk-modal-foot"><button type="button" class="tk-btn tk-btn-ghost" id="tkConvCancelar">Cancelar</button>'
+        + '<button type="button" class="tk-btn tk-btn-primary" id="tkConvConfirmar">' + (c.abertaEm ? 'Enviar de novo' : 'Abrir conversa') + '</button></div></div>';
+      document.body.appendChild(ov);
+      const anterior = document.activeElement;
+      const encerrar = (v) => { document.removeEventListener('keydown', aoTeclar, true); ov.remove(); if (anterior && anterior.focus) { try { anterior.focus(); } catch (x) { /* ignora */ } } resolve(v); };
+      const aoTeclar = (ev) => { if (ev.key === 'Escape') { ev.preventDefault(); ev.stopPropagation(); encerrar(false); } };
+      document.addEventListener('keydown', aoTeclar, true);
+      ov.querySelector('#tkConvCancelar').addEventListener('click', () => encerrar(false));
+      ov.querySelector('#tkConvConfirmar').addEventListener('click', () => encerrar(true));
+      ov.querySelector('#tkConvCancelar').focus();
+    });
+  }
+
+  async function abrirConversaAgora(r) {
+    const est = ENTREGA_ESTADO[r.id];
+    if (!est || !est.dados || est.abrindoConversa) return;
+    const c = est.dados.conversa;
+    if (!(await confirmarAberturaConversa(c))) return;
+    est.abrindoConversa = true; pintarEntrega(r);
+    try {
+      const json = await fetch('/tickets/api/conversa', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rowIndex: r.id, reenviar: !!c.abertaEm }) }).then((x) => x.json());
+      if (!json.ok) throw new Error(json.erro || 'Erro desconhecido');
+      c.abertaEm = json.abertaEm; c.abertaPor = json.abertaPor;
+      toast('Conversa aberta', true);
+    } catch (err) {
+      toast(err.message, false);
+    } finally {
+      est.abrindoConversa = false;
+      if (CASO_ATUAL === r.id) pintarEntrega(r);
+    }
+  }
+
   function pintarEntrega(r) {
     const box = document.getElementById('tkEntregaBox');
     const est = ENTREGA_ESTADO[r.id];
     if (!box || !est || !est.dados) return;
-    box.innerHTML = entregaHTML(r, est);
+    box.innerHTML = entregaHTML(r, est) + conversaHTML(est.dados, est);
+    const btnConversa = document.getElementById('tkBtnAbrirConversa');
+    if (btnConversa) btnConversa.addEventListener('click', () => abrirConversaAgora(r));
     const btn = document.getElementById('tkBtnConsultarRastreio');
     if (btn) btn.addEventListener('click', () => consultarRastreioAgora(r));
     const todas = document.getElementById('tkBtnEntregaTodas');

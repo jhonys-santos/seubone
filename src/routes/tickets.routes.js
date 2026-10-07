@@ -2,6 +2,7 @@ const express = require('express');
 const { requireAuth, requirePainel, requireRole } = require('../middleware/auth');
 const ticketsStore = require('../services/ticketsStore');
 const ticketsEntrega = require('../services/ticketsEntrega.service');
+const octadeskConversa = require('../services/octadeskConversa.service');
 const notificacoesService = require('../services/notificacoes.service');
 const usuariosService = require('../services/usuarios.service');
 const env = require('../config/env');
@@ -90,6 +91,18 @@ router.post('/api/entrega/consultar', async (req, res) => {
     res.json(await ticketsEntrega.consultar(req.body.rowIndex));
   } catch (err) {
     res.status(502).json({ ok: false, erro: 'Falha ao consultar a transportadora: ' + err.message });
+  }
+});
+
+// Abre a conversa de WhatsApp com o cliente pelo Octadesk (mensagem modelo). Qualquer pessoa com acesso ao painel pode
+// clicar; quem abriu fica no histórico do ticket. Se já foi aberta, só abre de novo com "reenviar" (a tela confirma).
+router.post('/api/conversa', async (req, res) => {
+  try {
+    if (env.ticketsBackend !== 'db') return res.json(semBanco);
+    const { rowIndex, reenviar } = req.body;
+    res.json(await octadeskConversa.abrirConversa(rowIndex, req.session.user.nome, req.session.user.slug, { reenviar: reenviar === true }));
+  } catch (err) {
+    res.status(502).json({ ok: false, erro: 'Falha ao abrir a conversa: ' + err.message });
   }
 });
 
