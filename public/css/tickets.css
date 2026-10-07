@@ -352,7 +352,7 @@
 .tk-ent-todas:hover { color: var(--gold); }
 
 /* ===== Conversa com o cliente (Octadesk) ===== */
-.tk-conv { margin-top: 12px; }
+.tk-conv { margin: 0 0 18px; }
 .tk-conv-cli { font-size: 13.5px; color: var(--text); margin-bottom: 10px; }
 .tk-conv-ok { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 700; color: var(--ok); margin-bottom: 10px; }
 .tk-conv-overlay { z-index: 1200; }

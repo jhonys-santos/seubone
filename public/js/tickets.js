@@ -1245,9 +1245,11 @@
 
   function pintarEntrega(r) {
     const box = document.getElementById('tkEntregaBox');
+    const boxConversa = document.getElementById('tkConversaBox');
     const est = ENTREGA_ESTADO[r.id];
-    if (!box || !est || !est.dados) return;
-    box.innerHTML = entregaHTML(r, est) + conversaHTML(est.dados, est);
+    if ((!box && !boxConversa) || !est || !est.dados) return;
+    if (box) box.innerHTML = entregaHTML(r, est);
+    if (boxConversa) boxConversa.innerHTML = conversaHTML(est.dados, est);
     const btnConversa = document.getElementById('tkBtnAbrirConversa');
     if (btnConversa) btnConversa.addEventListener('click', () => abrirConversaAgora(r));
     const btn = document.getElementById('tkBtnConsultarRastreio');
@@ -1257,7 +1259,7 @@
   }
 
   async function carregarEntrega(r) {
-    if (!document.getElementById('tkEntregaBox')) return;
+    if (!document.getElementById('tkEntregaBox') && !document.getElementById('tkConversaBox')) return;
     const est = (ENTREGA_ESTADO[r.id] = ENTREGA_ESTADO[r.id] || { dados: null, consultando: false, todas: false });
     if (est.dados) pintarEntrega(r); // já carregado: mostra na hora e atualiza em seguida
     try {
@@ -1304,6 +1306,7 @@
       </div>
       <div class="tk-drawer-body">
         ${podeAlterarStatus(r) ? `<div class="tk-status-seg" style="margin-bottom:18px">${STATUS_DEF.map((sd) => `<button class="tk-stbtn ${r.status === sd.status ? 'on' : ''}" data-status="${sd.status}" style="--c:${sd.cor}">${sd.status}</button>`).join('')}</div>` : ''}
+        ${r.identificador === 'Erro de Envio' ? '<div id="tkConversaBox"></div>' : ''}
         <div class="tk-sec-title">Dados do ticket</div>
         <div class="tk-field-grid" style="margin-bottom:16px">
           <div class="tk-field"><label>Identificador</label><div class="tk-readonly-block">${tkEsc(r.identificador) || '—'}</div></div>
@@ -1315,7 +1318,9 @@
             </div>
             <datalist id="tkFabricaTopoList">${FABRICA_OPCOES.map((o) => `<option value="${tkEsc(o)}">`).join('')}</datalist>
           </div>
-          <div class="tk-field">
+          <div class="tk-field"><label>ID da venda</label>${r.idVenda ? `<div><span class="tk-idchip tk-idchip-click" id="tkIdVendaCopy" data-copy="${tkEsc(r.idVenda)}" title="Clique para copiar">#${tkEsc(r.idVenda)}</span></div>` : `<div class="tk-readonly-block">—</div>`}</div>
+          ${r.codigoRastreio ? '' : `
+          <div class="tk-field"${r.codigoRastreio ? ' style="grid-column:1/-1"' : ''}>
             <label>Setor (etapa de produção)</label>
             <div style="display:flex;gap:8px">
               <input type="text" id="tkInpSetorTopo" list="tkSetorTopoList" value="${tkEsc(r.setor)}" placeholder="Digite ou selecione" style="flex:1">
@@ -1323,11 +1328,20 @@
             </div>
             <datalist id="tkSetorTopoList">${SETOR_OPCOES.map((o) => `<option value="${tkEsc(o)}">`).join('')}</datalist>
           </div>
-          <div class="tk-field"><label>ID da venda</label>${r.idVenda ? `<div><span class="tk-idchip tk-idchip-click" id="tkIdVendaCopy" data-copy="${tkEsc(r.idVenda)}" title="Clique para copiar">#${tkEsc(r.idVenda)}</span></div>` : `<div class="tk-readonly-block">—</div>`}</div>
+          `}
           ${r.codigoRastreio ? (() => { const cod = tkCodigoRastreioExibir(r.codigoRastreio); return `<div class="tk-field"><label>Código de rastreio</label><div><span class="tk-idchip tk-idchip-click" data-copy="${tkEsc(cod.copia)}" title="Clique para copiar">${tkEsc(cod.texto)}</span></div></div>`; })() : ''}
-          <div class="tk-field"><label>Origem</label><div class="tk-readonly-block">${r.origem === 'manual' || !r.origem ? 'Manual' : 'Automático (' + tkEsc(r.origem) + ')'}</div></div>
           <div class="tk-field"><label>Aberto em</label><div class="tk-readonly-block">${fmtDataHora(r.dataAbertura)}</div></div>
           <div class="tk-field"><label>Fechado em</label><div class="tk-readonly-block">${fmtDataHora(r.dataFechamento)}</div></div>
+          ${r.codigoRastreio ? `
+          <div class="tk-field"${r.codigoRastreio ? ' style="grid-column:1/-1"' : ''}>
+            <label>Setor (etapa de produção)</label>
+            <div style="display:flex;gap:8px">
+              <input type="text" id="tkInpSetorTopo" list="tkSetorTopoList" value="${tkEsc(r.setor)}" placeholder="Digite ou selecione" style="flex:1">
+              <button class="tk-btn tk-btn-ghost" type="button" id="tkBtnSalvarSetor">Salvar</button>
+            </div>
+            <datalist id="tkSetorTopoList">${SETOR_OPCOES.map((o) => `<option value="${tkEsc(o)}">`).join('')}</datalist>
+          </div>
+          ` : ''}
         </div>
         <div class="tk-field" style="margin-bottom:16px">
           <label>Link</label>
@@ -1375,6 +1389,7 @@
               <button class="tk-btn tk-btn-ghost" type="button" id="tkBtnSalvarNovoPrazo">Salvar</button>
             </div>
           </div>
+          <div class="tk-field"><label>Origem</label><div class="tk-readonly-block">${r.origem === 'manual' || !r.origem ? 'Manual' : 'Automático (' + tkEsc(r.origem) + ')'}</div></div>
         </div>
         <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text);margin-bottom:12px;cursor:pointer">
           <input type="checkbox" id="tkChkEvento" ${r.temEvento ? 'checked' : ''} style="width:15px;height:15px;accent-color:var(--gold)">
