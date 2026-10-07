@@ -90,6 +90,12 @@ ABAS.auditoria = aba('Sistema_Registro', 'auditorias', 'ordem', [
   ['S1', 's1::float8', N], ['S2', 's2::float8', N], ['S3', 's3::float8', N], ['Total', 'total::float8', N], ['Classificacao', 'classificacao'],
   ['FG1', S_N('fg1')], ['FG2', S_N('fg2')], ['FG3', S_N('fg3')], ['FG4', S_N('fg4')], ['FalhaGrave', S_N('falha_grave')], ['Observacoes', 'observacoes'],
 ]);
+ABAS.pedidosUrgentes = aba('Pedidos', 'pedidos_urgentes', 'ordem', [
+  ['ID', 'id'], ['OS', 'os'], ['Cliente', 'cliente'], ['LinkCRM', 'link_crm'], ['Transportadora', 'transportadora'], ['Modalidade', 'modalidade'],
+  ['TipoEnvioAereo', 'tipo_envio_aereo'], ['AeroportoRetirada', 'aeroporto_retirada'], ['OSImagemId', 'os_imagem_id'], ['ManifestoLink', 'manifesto_link'],
+  ['NotaFiscalLink', 'nota_fiscal_link'], ['Observacao', 'observacao'], ['Prazo', TSZ('prazo')], ['Status', 'status'], ['InseridoPor', 'inserido_por'],
+  ['InseridoEm', TSZ('inserido_em')], ['DespachadoPor', 'despachado_por'], ['DespachadoEm', TSZ('despachado_em')],
+]);
 ABAS.agendaFoco = aba('Foco', 'agenda_foco', 'id', [['Foco da semana', 'texto']]);
 ABAS.agendaEventos = aba('Agenda', 'agenda_eventos', 'id', [['Linha', 'id::int', N], ['Dia', 'dia'], ['Horario', 'hora'], ['Descricao', 'descricao'], ['Tipo', 'tipo']]);
 
@@ -105,6 +111,7 @@ const AREAS = [
   { chave: 'quitacoes', rotulo: 'Quitações Pendentes', url: () => env.quitacoesAppsScriptUrl, abas: [{ aba: ABAS.quitacoes, ativa: () => env.quitacoesBackend === 'db' }] },
   { chave: 'auditoria', rotulo: 'Auditoria de Qualidade', url: () => env.auditoriaAppsScriptUrl, abas: [{ aba: ABAS.auditoria, ativa: () => env.auditoriaBackend === 'db' }] },
   { chave: 'agenda', rotulo: 'Foco e Agenda da Semana', url: () => env.agendaSemanaAppsScriptUrl, abas: [{ aba: ABAS.agendaFoco, ativa: () => env.agendaBackend === 'db' }, { aba: ABAS.agendaEventos, ativa: () => env.agendaBackend === 'db' }] },
+  { chave: 'pedidosUrgentes', rotulo: 'Pedidos Urgentes', url: () => env.pedidosUrgentesAppsScriptUrl, abas: [{ aba: ABAS.pedidosUrgentes, ativa: () => env.pedidosUrgentesBackend === 'db' }] },
   { chave: 'corridas', rotulo: 'Corridas Avulsas', url: () => env.corridasAvulsasAppsScriptUrl, abas: [{ aba: ABAS.corridas, ativa: () => env.financeiroBackend === 'db' }] },
 ];
 

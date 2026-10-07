@@ -4,7 +4,7 @@
 // por padrão só insere o que ainda não está no banco e não mexe no que já está.
 //
 //   node scripts/importar-paineis.js                         # relatório de tudo (não grava)
-//   node scripts/importar-paineis.js quitacoes --aplicar     # grava só as Quitações (usuarios | quitacoes | auditoria | agenda | todos)
+//   node scripts/importar-paineis.js quitacoes --aplicar     # grava só as Quitações (usuarios | quitacoes | auditoria | agenda | urgentes | todos)
 //   node scripts/importar-paineis.js todos --aplicar --atualizar
 //        --atualizar: também corrige no banco o que mudou na planilha (usuários, quitações pagas, agenda).
 //                     Use SÓ antes de ligar a flag da área: depois dela, o banco é a fonte e a planilha fica velha.
@@ -196,6 +196,46 @@ function conferirAgenda(planilha, banco) {
   return dif;
 }
 
+// ── Pedidos Urgentes ──────────────────────────────────────────────────────
+async function importarUrgentes(lista, db, { atualizar = false, refazer = false } = {}) {
+  const ordenados = [...lista].filter((x) => str(x.ID).trim()).sort((a, b) => (instante(a.InseridoEm) || 0) - (instante(b.InseridoEm) || 0));
+  return db.transaction(async (tx) => {
+    if (refazer) await tx.query('delete from pedidos_urgentes');
+    let ins = 0, atu = 0, ign = 0;
+    for (const x of ordenados) {
+      const t = (k) => { const v = instante(x[k]); return v == null ? null : new Date(v).toISOString(); };
+      const p = [str(x.ID), str(x.OS), str(x.Cliente), str(x.LinkCRM), str(x.Transportadora), str(x.Modalidade), str(x.TipoEnvioAereo), str(x.AeroportoRetirada), str(x.OSImagemId),
+        str(x.ManifestoLink), str(x.NotaFiscalLink), str(x.Observacao), t('Prazo'), str(x.Status) || 'Pendente', str(x.InseridoPor), t('InseridoEm') || new Date().toISOString(), str(x.DespachadoPor), t('DespachadoEm')];
+      const existe = await tx.query('select 1 from pedidos_urgentes where id = $1', [p[0]]);
+      if (existe.rowCount) {
+        if (!atualizar) { ign++; continue; }
+        await tx.query(`update pedidos_urgentes set os=$2, cliente=$3, link_crm=$4, transportadora=$5, modalidade=$6, tipo_envio_aereo=$7, aeroporto_retirada=$8, os_imagem_id=$9,
+          manifesto_link=$10, nota_fiscal_link=$11, observacao=$12, prazo=$13::timestamptz, status=$14, inserido_por=$15, inserido_em=$16::timestamptz, despachado_por=$17, despachado_em=$18::timestamptz where id=$1`, p);
+        atu++;
+      } else {
+        await tx.query(`insert into pedidos_urgentes (id, os, cliente, link_crm, transportadora, modalidade, tipo_envio_aereo, aeroporto_retirada, os_imagem_id, manifesto_link, nota_fiscal_link,
+          observacao, prazo, status, inserido_por, inserido_em, despachado_por, despachado_em)
+          values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13::timestamptz,$14,$15,$16::timestamptz,$17,$18::timestamptz)`, p);
+        ins++;
+      }
+    }
+    return { inseridos: ins, atualizados: atu, ignorados: ign };
+  });
+}
+function conferirUrgentes(planilha, banco) {
+  const dif = [];
+  const porId = new Map(banco.map((x) => [str(x.ID), x]));
+  for (const p of planilha.filter((x) => str(x.ID).trim())) {
+    const b = porId.get(str(p.ID));
+    if (!b) { dif.push('pedido ' + p.ID + ': não está no banco'); continue; }
+    for (const c of ['OS', 'Cliente', 'LinkCRM', 'Transportadora', 'Modalidade', 'TipoEnvioAereo', 'AeroportoRetirada', 'OSImagemId', 'ManifestoLink', 'NotaFiscalLink', 'Observacao', 'Status', 'InseridoPor', 'DespachadoPor'])
+      if (str(p[c]) !== str(b[c])) dif.push('pedido ' + p.ID + ': ' + c + ' diferente');
+    for (const c of ['Prazo', 'InseridoEm', 'DespachadoEm']) if ((str(p[c]) ? instante(p[c]) : null) !== (str(b[c]) ? instante(b[c]) : null)) dif.push('pedido ' + p.ID + ': ' + c + ' diferente');
+  }
+  if (banco.length < planilha.filter((x) => str(x.ID).trim()).length) dif.push('banco tem menos pedidos (' + banco.length + ') que a planilha');
+  return dif;
+}
+
 // ── Execução ──────────────────────────────────────────────────────────────
 async function lerPlanilha(url, params) {
   const { chamarAppsScript } = require('../src/services/appsScriptClient');
@@ -212,6 +252,12 @@ async function lerPlanilha(url, params) {
 }
 
 const AREAS = {
+  urgentes: {
+    rotulo: 'Pedidos Urgentes',
+    ler: async (env) => { const r = await lerPlanilha(env.pedidosUrgentesAppsScriptUrl, { action: 'list' }); if (!Array.isArray(r)) throw new Error('Pedidos Urgentes: ' + ((r && r.erro) || 'resposta inesperada')); return r; },
+    importar: importarUrgentes, conferir: conferirUrgentes,
+    doBanco: () => require('../src/services/pedidosUrgentesDb.service').listar(),
+  },
   usuarios: {
     rotulo: 'Usuários',
     ler: async (env) => (await lerPlanilha(env.painelSacAppsScriptUrl, { action: 'hubListarUsuarios' })).usuarios || [],
@@ -271,7 +317,7 @@ async function principal() {
   if (falhou) process.exit(1);
 }
 
-module.exports = { importarUsuarios, importarQuitacoes, importarAuditoria, importarAgenda, conferirUsuarios, conferirQuitacoes, conferirAuditoria, conferirAgenda, diaBrasilia };
+module.exports = { importarUrgentes, conferirUrgentes, importarUsuarios, importarQuitacoes, importarAuditoria, importarAgenda, conferirUsuarios, conferirQuitacoes, conferirAuditoria, conferirAgenda, diaBrasilia };
 if (require.main === module) {
   require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
   principal().catch((e) => { console.error('ERRO:', e.message); process.exit(1); });
