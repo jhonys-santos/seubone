@@ -135,8 +135,12 @@ async function abrirConversa(rowIndex, usuario, usuarioSlug, { reenviar = false 
   } catch (e) {
     return { ok: false, erro: (e && e.message) || String(e) };
   }
-  const roomKey = resp.corpo && resp.corpo.result && resp.corpo.result.roomKey;
-  if (resp.status < 200 || resp.status >= 300 || !roomKey) {
+  // Sucesso = HTTP 2xx sem "error" no corpo. A chave da sala é guardada quando vier (a documentação diz result.roomKey,
+  // mas a resposta real do Octadesk foi conferida em teste: um 201 criou a conversa mesmo sem esse campo no formato esperado).
+  const corpo = resp.corpo || {};
+  const roomKey = (corpo.result && (corpo.result.roomKey || corpo.result.id)) || corpo.roomKey || corpo.id || (typeof corpo.result === 'string' ? corpo.result : null);
+  if (!roomKey) console.log('[octadesk] conversa criada; formato da resposta:', JSON.stringify(corpo).slice(0, 300));
+  if (resp.status < 200 || resp.status >= 300 || corpo.error) {
     const detalhe = txt(resp.corpo && (resp.corpo.errorMessage || (resp.corpo.error && resp.corpo.error.message) || resp.corpo.message));
     return { ok: false, erro: MENSAGEM_ERRO[resp.status] ? MENSAGEM_ERRO[resp.status] + (detalhe && resp.status === 400 ? ` (${detalhe.slice(0, 160)})` : '') : `O Octadesk não abriu a conversa (HTTP ${resp.status}${detalhe ? ': ' + detalhe.slice(0, 160) : ''}).` };
   }
