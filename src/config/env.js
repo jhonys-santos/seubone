@@ -48,6 +48,8 @@ module.exports = {
   octadeskApiKey: required('OCTADESK_API_KEY', ''),
   octadeskNumero: required('OCTADESK_NUMERO', ''),
   octadeskTemplate: required('OCTADESK_TEMPLATE', 'problema_no_envio'),
+  // 'off' = a conversa nasce SEM agente (fica em espera para a distribuição do Octadesk); padrão 'on' = o Octadesk atribui sozinho a um agente.
+  octadeskAtribuicaoAutomatica: required('OCTADESK_ATRIBUICAO_AUTOMATICA', 'on'),
   // Backup automático do banco de volta pras planilhas (seg-sex 20h, abas "bkp AAAA-MM-DD ..."). 'on' liga.
   backupPlanilhas: required('BACKUP_PLANILHAS', 'off'),
   // 'pg' = sessões de login no Postgres (sobrevivem a deploys); padrão = arquivos em disco.
