@@ -2485,15 +2485,6 @@
       const qtdNum = g('qtd') ? Number(g('qtd')) : '';
       if (qtdNum !== '' && (isNaN(qtdNum) || qtdNum < 0)) { markFieldErr(formNovo.querySelector('[name="qtd"]'), 'Quantidade inválida'); msg.textContent = 'Quantidade inválida.'; return; }
 
-      // Aviso de ID duplicado — não bloqueia, mas confirma (clique de novo).
-      const dups = RECORDS.filter((r) => String(r.idVenda) === idVenda).length;
-      if (dups > 0 && btnCriar.dataset.dupok !== '1') {
-        btnCriar.dataset.dupok = '1';
-        msg.innerHTML = `<span style="color:var(--bad-text,var(--bad))">Já existe ${dups} caso(s) com o ID <b>#${erEsc(idVenda)}</b>. Se for outro erro do mesmo pedido, clique de novo para confirmar.</span>`;
-        btnCriar.textContent = 'Registrar mesmo assim';
-        return;
-      }
-
       // Todo registro novo entra como "Novo" (pendente de auditoria) — NUNCA já auditado,
       // mesmo que setor/tipo de resolução venham preenchidos aqui (são só um rascunho;
       // quem audita confirma depois). Ver instrução da tarefa: auditado sempre nasce false.
@@ -2508,8 +2499,15 @@
 
       btnCriar.disabled = true; msg.textContent = 'Gravando…';
       try {
-        const res = await fetch('/erros/api/criar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fields }) });
-        const json = await res.json();
+        const enviar = (substituir) => fetch('/erros/api/criar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fields: substituir ? { ...fields, substituir: true } : fields }) }).then((r) => r.json());
+        let json = await enviar(false);
+        if (!json.ok && json.duplicado) {
+          // O servidor achou outro caso com o mesmo ID da venda: só segue se a pessoa confirmar que ele será apagado.
+          const seguir = await confirmarSubstituicao(idVenda, json.existentes || []);
+          if (!seguir) { msg.textContent = 'Cadastro cancelado. O caso que já existia foi mantido.'; btnCriar.disabled = false; return; }
+          msg.textContent = 'Apagando o caso anterior e gravando…';
+          json = await enviar(true);
+        }
         if (!json.ok) throw new Error(json.error || 'Erro desconhecido');
         close();
         await erRefreshData(true);
@@ -2521,11 +2519,43 @@
         if (json.fotosSalvas === false) {
           toast('Caso registrado, mas o anexo NÃO foi salvo (' + (json.fotosErro || 'motivo desconhecido') + '). Abra o caso e anexe de novo.', false);
         } else {
-          toast('Erro registrado como Novo, vai para a auditoria', true);
+          toast(json.substituidos ? 'Caso anterior apagado e substituído. O novo foi registrado como Novo, vai para a auditoria' : 'Erro registrado como Novo, vai para a auditoria', true);
         }
       } catch (err) {
         msg.textContent = 'Erro: ' + err.message + '. Confira a conexão e tente de novo.'; btnCriar.disabled = false;
       }
+    });
+  }
+
+  /* ================= ID DA VENDA JÁ CADASTRADO: confirmar que o caso anterior será apagado ================= */
+  function confirmarSubstituicao(idVenda, existentes) {
+    return new Promise((resolve) => {
+      const ov = document.createElement('div');
+      ov.className = 'er-overlay er-dup-overlay';
+      ov.innerHTML =
+        '<div class="er-modal er-dup-modal" role="alertdialog" aria-modal="true" aria-label="ID da venda já cadastrado">' +
+          '<div class="er-modal-head"><div style="flex:1;min-width:0"><div class="title">Já existe um caso com esse ID</div>' +
+          '<div class="sub">ID da venda <b>#' + erEsc(idVenda) + '</b></div></div></div>' +
+          '<div class="er-modal-body">' +
+            '<div class="er-dup-aviso"><b>Se você continuar, ' + (existentes.length > 1 ? 'os ' + existentes.length + ' casos já cadastrados serão APAGADOS' : 'o caso já cadastrado será APAGADO') +
+            ' e substituído por este novo registro.</b> Essa ação não pode ser desfeita pela tela.</div>' +
+            '<div class="er-dup-lista">' +
+              existentes.map((e) => '<div class="er-dup-item"><div class="n">' + erEsc(e.nomeCard || 'Sem nome do card') + '</div>' +
+                '<div class="m">' + [e.auditoria ? 'Já auditado' : 'Pendente de auditoria', e.status ? 'status: ' + e.status : '', e.quemCadastrou ? 'cadastrado por ' + e.quemCadastrou : '', e.data].filter(Boolean).map(erEsc).join(' · ') + '</div></div>').join('') +
+            '</div>' +
+            '<div style="font-size:13px;color:var(--text-muted);line-height:1.5">Se for outro erro do mesmo pedido, não substitua: cancele e use o caso que já existe.</div>' +
+          '</div>' +
+          '<div class="er-modal-foot"><button type="button" class="er-btn er-btn-ghost" id="erDupCancelar">Cancelar, manter o caso existente</button>' +
+          '<button type="button" class="er-btn er-btn-bad" id="erDupConfirmar">Apagar o anterior e registrar este</button></div>' +
+        '</div>';
+      document.body.appendChild(ov);
+      const anterior = document.activeElement;
+      const encerrar = (resposta) => { document.removeEventListener('keydown', aoTeclar, true); ov.remove(); if (anterior && anterior.focus) { try { anterior.focus(); } catch (e) { /* ignora */ } } resolve(resposta); };
+      const aoTeclar = (e) => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); encerrar(false); } };
+      document.addEventListener('keydown', aoTeclar, true);
+      ov.querySelector('#erDupCancelar').addEventListener('click', () => encerrar(false));
+      ov.querySelector('#erDupConfirmar').addEventListener('click', () => encerrar(true));
+      ov.querySelector('#erDupCancelar').focus(); // o foco começa no botão seguro
     });
   }
 

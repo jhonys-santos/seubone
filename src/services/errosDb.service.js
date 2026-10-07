@@ -94,8 +94,43 @@ async function entrarNaFilaRefab(q, rowIndex, tipoResolucao) {
   return r.rowCount > 0;
 }
 
+/** Casos já cadastrados com este ID da venda (sem diferenciar maiúscula/minúscula nem espaços nas pontas). */
+async function casosComIdVenda(q, idVenda) {
+  const r = await q.query(
+    `select row_index::int as "rowIndex", id_venda as "idVenda", nome_card as "nomeCard", quem_cadastrou as "quemCadastrou", status, auditoria,
+            to_char(data, 'DD/MM/YYYY') as data
+       from erros_casos where lower(btrim(id_venda)) = lower(btrim($1)) order by row_index`,
+    [idVenda],
+  );
+  return r.rows.map((x) => ({ ...x, data: x.data || '' }));
+}
+
+const respostaDuplicado = (idVenda, existentes) => ({
+  ok: false, duplicado: true, existentes,
+  error: `Já existe ${existentes.length === 1 ? 'um caso cadastrado' : existentes.length + ' casos cadastrados'} com o ID da venda #${idVenda}.`,
+});
+
+/** Guarda uma cópia (caso + histórico) e apaga o caso e o histórico dele. */
+async function arquivarEApagar(tx, caso, usuario, usuarioSlug) {
+  await tx.query(
+    `insert into erros_casos_apagados (apagado_por, apagado_por_slug, motivo, row_index, id_venda, caso, historico)
+     select $2, $3, 'Substituído por novo registro com o mesmo ID da venda', c.row_index, c.id_venda, to_jsonb(c),
+            coalesce((select jsonb_agg(to_jsonb(h) order by h.id) from erros_historico h where h.caso_row_index = c.row_index), '[]'::jsonb)
+       from erros_casos c where c.row_index = $1`,
+    [caso.rowIndex, usuario || '', usuarioSlug || ''],
+  );
+  await tx.query('delete from erros_historico where caso_row_index = $1', [caso.rowIndex]);
+  await tx.query('delete from erros_casos where row_index = $1', [caso.rowIndex]);
+}
+
 async function criar(f, usuario, usuarioSlug) {
   f = f || {};
+  const idVendaNovo = txt(f.idVenda);
+  // ID já cadastrado: só segue se quem registra confirmou que o caso anterior será apagado (f.substituir).
+  if (idVendaNovo && !f.substituir) {
+    const existentes = await casosComIdVenda(db, idVendaNovo);
+    if (existentes.length) return respostaDuplicado(idVendaNovo, existentes);
+  }
   let fotosErro = null;
   let fotosErroAcao = 'Fotos não salvas';
   let foto = '';
@@ -118,6 +153,17 @@ async function criar(f, usuario, usuarioSlug) {
   }
 
   return db.transaction(async (tx) => {
+    let substituidos = [];
+    if (idVendaNovo) {
+      // Serializa dois registros do mesmo ID ao mesmo tempo e confere de novo já dentro da transação.
+      await tx.query('select pg_advisory_xact_lock(hashtextextended($1, 0))', ['erros-id-venda|' + idVendaNovo.toLowerCase()]);
+      const existentes = await casosComIdVenda(tx, idVendaNovo);
+      if (existentes.length) {
+        if (!f.substituir) return respostaDuplicado(idVendaNovo, existentes);
+        for (const antigo of existentes) await arquivarEApagar(tx, antigo, usuario, usuarioSlug);
+        substituidos = existentes;
+      }
+    }
     const ins = await tx.query(
       `insert into erros_casos (data, auditoria, status, id_venda, nome_card, descricao, link_pedido, quem_cadastrou, culpa_de, setor,
                                 responsavel, empresa, tipo_problema, subproblema, qtd, custo, tipo_produto, que_fim, tipo_resolucao,
@@ -131,12 +177,16 @@ async function criar(f, usuario, usuarioSlug) {
     );
     const rowIndex = ins.rows[0].rowIndex;
     const quem = usuario || f.quemCadastrou;
+    for (const antigo of substituidos) {
+      await logHist(tx, rowIndex, f.idVenda, quem, 'Substituiu o caso anterior',
+        `Apagou o caso #${antigo.rowIndex} (${antigo.auditoria ? 'já auditado' : 'pendente de auditoria'}, status ${antigo.status || '—'}, cadastrado por ${antigo.quemCadastrou || '—'} em ${antigo.data || '—'}); cópia guardada`, usuarioSlug);
+    }
     if (fotosErro) await logHist(tx, rowIndex, f.idVenda, quem, fotosErroAcao, fotosErro, usuarioSlug);
     await logHist(tx, rowIndex, f.idVenda, quem, 'Caso registrado',
       f.auditoria ? 'já auditado (' + (f.status || 'resolvido') + ')' : 'pendente de auditoria', usuarioSlug);
     const entrouRefab = await entrarNaFilaRefab(tx, rowIndex, f.tipoResolucao);
     if (entrouRefab) await logHist(tx, rowIndex, f.idVenda, quem, 'Entrou na fila de aprovação de Refabricação', '', usuarioSlug);
-    return { ok: true, rowIndex, entrouAprovacaoRefab: entrouRefab, fotosSalvas: !fotosErro, fotosErro };
+    return { ok: true, rowIndex, entrouAprovacaoRefab: entrouRefab, fotosSalvas: !fotosErro, fotosErro, substituidos: substituidos.length };
   });
 }
 
