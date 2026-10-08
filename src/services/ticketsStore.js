@@ -32,4 +32,7 @@ Object.keys(planilha).forEach((nome) => {
   store[nome] = (...args) => (usaBanco() ? banco[nome](...args) : planilha[nome](...args));
 });
 
+// Lista para os indicadores de tempo de tratamento (com dataAtribuicao quando o banco esta ligado; na planilha, a lista de sempre).
+store.listarComAtribuicao = () => (usaBanco() ? banco.listarComAtribuicao() : planilha.listar());
+
 module.exports = store;

@@ -29,6 +29,7 @@ router.get('/resolucao', (req, res) => {
 // (array alinhado aos dias do período — o front agrega sozinho via
 // ieAgregar), então funciona pra semana, mês ou período personalizado sem
 // precisar saber qual é qual aqui.
+const { minutosDeTratamento } = require('../services/ticketsTempo');
 const CONSULTORES_RESOLUCAO_SLUGS = ['gabrielle', 'daniel'];
 // Nome exibido em IE_TIMES.resolucao.consultores (indicadores-equipe.js) —
 // é a chave usada em porConsultor, não o slug.
@@ -43,7 +44,8 @@ function chaveDia_(dataStr) {
 // Série diária de tempo médio (segundos) + quantidade, pra uma lista de
 // tickets já filtrada por identificador — reaproveitada tanto pra "Pedido
 // atrasado" (PPF+1) quanto pra "Erro de Envio" (TMR Erro de Envio), que têm
-// exatamente a mesma conta (abertura até fechamento), só filtro diferente.
+// exatamente a mesma conta (da atribuição ao agente até o fechamento; sem atribuição
+// registrada, da abertura — ver ticketsTempo.js), só filtro diferente.
 function serieDeTickets_(tickets, dias) {
   const tempo = dias.map((chaveAlvo) => {
     const doDia = tickets.filter((t) => chaveDia_(t.dataFechamento) === chaveAlvo);
@@ -51,7 +53,7 @@ function serieDeTickets_(tickets, dias) {
     // Segundos — porEquipe.tempo_ppf sempre foi em segundos aqui (ver meta
     // 24*60*60 em IE_TIMES no front), diferente do painel-sac (minutos).
     const segundos = doDia
-      .map((t) => (new Date(t.dataFechamento).getTime() - new Date(t.dataAbertura).getTime()) / 1000)
+      .map((t) => minutosDeTratamento(t) * 60)
       .filter((s) => Number.isFinite(s) && s >= 0);
     if (!segundos.length) return null;
     return segundos.reduce((a, b) => a + b, 0) / segundos.length;
@@ -65,7 +67,7 @@ function serieDeTickets_(tickets, dias) {
 async function buscarResolucaoEquipeDosTickets_(desde, ate) {
   if (!desde || !ate) return null;
 
-  const json = await ticketsStore.listar();
+  const json = await ticketsStore.listarComAtribuicao();
   if (!json || !json.ok || !Array.isArray(json.tickets)) return null;
 
   const resolvidosDaEquipe = json.tickets.filter(

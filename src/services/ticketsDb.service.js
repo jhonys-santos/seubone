@@ -49,8 +49,8 @@ const COLUNAS_LISTA = `
 /** Nulo de data vira '' (a planilha devolvia vazio). */
 function paraContrato(linha) {
   const o = { ...linha };
-  ['dataAbertura', 'dataFechamento', 'dataEvento', 'ppe', 'previsaoFinalizacao', 'pFolha', 'novoPrazo', 'previsaoEntregaTransportadora']
-    .forEach((k) => { if (o[k] == null) o[k] = ''; });
+  ['dataAbertura', 'dataFechamento', 'dataAtribuicao', 'dataEvento', 'ppe', 'previsaoFinalizacao', 'pFolha', 'novoPrazo', 'previsaoEntregaTransportadora']
+    .forEach((k) => { if (k in o && o[k] == null) o[k] = ''; }); // dataAtribuicao so existe em listarComAtribuicao
   return o;
 }
 
@@ -85,6 +85,26 @@ const naoAchou = { ok: false, error: 'Ticket não encontrado.' };
 // ── Leitura ──────────────────────────────────────────────────────────────
 async function listar() {
   const r = await db.query(`select ${COLUNAS_LISTA} from tickets order by row_index`);
+  return { ok: true, tickets: r.rows.map(paraContrato) };
+}
+
+/**
+ * Mesma lista de listar(), com mais um campo: dataAtribuicao = quando o ticket foi atribuído ao responsável atual (última
+ * atribuição a ele; se o histórico não tem, a última atribuição de qualquer pessoa; vazio se nunca houve). É o início da
+ * contagem do tempo de tratamento nos indicadores (ver ticketsTempo.js). Separada de listar() para não mudar o contrato da tela.
+ */
+async function listarComAtribuicao() {
+  const r = await db.query(
+    `select ${COLUNAS_LISTA}, to_char(atr.quando, ${FMT_ISO}) as "dataAtribuicao"
+       from tickets
+       left join lateral (
+         select coalesce(
+           max(h.quando) filter (where lower(btrim(h.detalhe)) = lower(btrim(tickets.responsavel))),
+           max(h.quando)) as quando
+           from ticket_historico h where h.ticket_row_index = tickets.row_index and h.acao = 'Responsável atribuído'
+       ) atr on true
+      order by row_index`,
+  );
   return { ok: true, tickets: r.rows.map(paraContrato) };
 }
 
@@ -292,7 +312,7 @@ async function marcarAtrasoNotificado(f) {
 }
 
 module.exports = {
-  listar, historico, criar, atribuir, mudarStatus, comentar, adicionarAnexos, removerAnexo,
+  listar, listarComAtribuicao, historico, criar, atribuir, mudarStatus, comentar, adicionarAnexos, removerAnexo,
   atualizarFabrica, atualizarSetor, atualizarNovoPrazo, atualizarAcompanhamento, definirLink, marcarAtrasoNotificado,
   definirUploader, paraTimestampBrasilia,
 };

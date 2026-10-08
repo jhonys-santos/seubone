@@ -5,6 +5,7 @@ const { chamarAppsScript } = require('../services/appsScriptClient');
 const ticketsStore = require('../services/ticketsStore');
 const auditoriaStore = require('../services/auditoriaStore');
 const escalaStore = require('../services/escalaStore');
+const { minutosDeTratamento } = require('../services/ticketsTempo');
 const { listarUsuarios } = require('../services/usuarios.service');
 const env = require('../config/env');
 
@@ -106,13 +107,14 @@ async function contarAuditoriasFeitas(slugAlvo, periodo, mes, ano, semIni, semFi
 // usa) pra bater exatamente com o toggle semanal/mensal existente.
 const CONSULTORES_TICKETS_SLUGS = ['gabrielle', 'daniel'];
 
-// TMR em minutos (abertura até fechamento) de uma lista já filtrada por
+// TMR em minutos (da atribuição ao agente até o fechamento; sem atribuição registrada, da
+// abertura — ver ticketsTempo.js) de uma lista já filtrada por
 // identificador — mesma conta pra Pedido atrasado e Erro de Envio, só muda
 // o filtro de entrada.
 function tmrMinutosDe_(lista) {
   if (!lista.length) return 0;
   const minutos = lista
-    .map((t) => (new Date(t.dataFechamento).getTime() - new Date(t.dataAbertura).getTime()) / 60000)
+    .map((t) => minutosDeTratamento(t))
     .filter((m) => Number.isFinite(m) && m >= 0);
   return minutos.length ? minutos.reduce((a, b) => a + b, 0) / minutos.length : 0;
 }
@@ -120,7 +122,7 @@ function tmrMinutosDe_(lista) {
 async function buscarTicketsResolucao(slugAlvo, periodo, mes, ano, semIni, semFim) {
   if (!CONSULTORES_TICKETS_SLUGS.includes(slugAlvo)) return null;
 
-  const json = await ticketsStore.listar();
+  const json = await ticketsStore.listarComAtribuicao();
   if (!json || !json.ok || !Array.isArray(json.tickets)) return null;
 
   const resolvidosNoPeriodo = json.tickets.filter(
@@ -130,7 +132,7 @@ async function buscarTicketsResolucao(slugAlvo, periodo, mes, ano, semIni, semFi
 
   const ppfNoPeriodo = resolvidosNoPeriodo.filter((t) => t.identificador === 'Pedido atrasado');
   // TMR Erro de Envio é um indicador independente do TMT Ped. Atrasados —
-  // mesma conta (abertura até fechamento), só filtrado por identificador
+  // mesma conta (atribuição até fechamento), só filtrado por identificador
   // diferente, por pedido explícito do usuário (antes só entrava na
   // contagem genérica de "Tickets").
   const erroEnvioNoPeriodo = resolvidosNoPeriodo.filter((t) => t.identificador === 'Erro de Envio');

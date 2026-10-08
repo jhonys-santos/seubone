@@ -5,6 +5,8 @@ const ticketsStore = require('../services/ticketsStore');
 const env = require('../config/env');
 const espelho = require('../services/espelhoKpi.service');
 
+const { minutosDeTratamento } = require('../services/ticketsTempo');
+
 const router = express.Router();
 
 router.use(requireAuth, requirePainel('ranking-sac'));
@@ -80,7 +82,7 @@ function chaveDiaDoTicket_(isoTicket) {
 
 router.get('/api/resolucao', async (req, res) => {
   try {
-    const json = await ticketsStore.listar();
+    const json = await ticketsStore.listarComAtribuicao();
     if (!json.ok || !Array.isArray(json.tickets)) {
       return res.status(502).json({ ok: false, error: 'Falha ao buscar tickets.' });
     }
@@ -101,7 +103,8 @@ router.get('/api/resolucao', async (req, res) => {
         return n || null;
       });
 
-      // TMR: tempo médio abertura→fechamento dos tickets resolvidos naquele
+      // TMR: tempo médio atribuição→fechamento (do agente que tratou o ticket; sem atribuição
+      // registrada, vale a abertura — ver ticketsTempo.js) dos tickets resolvidos naquele
       // dia, separado por tipo — "Pedido atrasado" (PPF+1, vindos da Lulu) e
       // "Erro de Envio". A diferença entre os dois horários dá certo mesmo
       // sem converter fuso, porque os dois vêm formatados do mesmo jeito — o
@@ -112,12 +115,13 @@ router.get('/api/resolucao', async (req, res) => {
         );
         if (!doDia.length) return null;
         const minutos = doDia
-          .map((t) => (new Date(t.dataFechamento).getTime() - new Date(t.dataAbertura).getTime()) / 60000)
+          .map((t) => minutosDeTratamento(t))
           .filter((m) => Number.isFinite(m) && m >= 0);
         if (!minutos.length) return null;
         const media = minutos.reduce((a, b) => a + b, 0) / minutos.length;
-        const h = Math.floor(media / 60);
-        const m = Math.round(media % 60);
+        const total = Math.round(media); // arredonda antes de separar (senão 35h59m40s virava 35:60)
+        const h = Math.floor(total / 60);
+        const m = total % 60;
         return String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0');
       });
 
