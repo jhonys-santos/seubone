@@ -718,10 +718,22 @@
 
   /* ================= DASHBOARD ================= */
 
+  // O TMR é o tempo do AGENTE que tratou o ticket: conta da atribuição a ele até o fechamento (mesma regra do Ranking SAC e do
+  // Painel SAC; ver ticketsTempo.js no servidor). Sem atribuição registrada, ou se ela fosse depois do fechamento, vale a abertura.
+  function inicioTratamento(r) {
+    const ab = parseData(r.dataAbertura);
+    const at = parseData(r.dataAtribuicao);
+    const fc = parseData(r.dataFechamento);
+    if (!at || isNaN(at)) return ab;
+    if (fc && at > fc) return ab;
+    if (ab && at < ab) return ab;
+    return at;
+  }
+
   function tmrDe(lista) {
     const fechados = lista.filter((r) => r.status === STATUS_RESOLVIDO && r.dataAbertura && r.dataFechamento);
     if (!fechados.length) return null;
-    const soma = fechados.reduce((s, r) => s + (horasEntre(parseData(r.dataAbertura), parseData(r.dataFechamento)) || 0), 0);
+    const soma = fechados.reduce((s, r) => s + (horasEntre(inicioTratamento(r), parseData(r.dataFechamento)) || 0), 0);
     return soma / fechados.length;
   }
 
@@ -824,7 +836,7 @@
             </div>
           </div>
         </div>
-        <div class="card-sub">Tempo médio de resolução entre a abertura e o fechamento, só de tickets fechados no período (${tkTmrModo === 'semana' ? 'sexta a quinta, sem sáb/dom' : 'mês inteiro'}).</div>
+        <div class="card-sub">Tempo médio de tratamento, da atribuição ao responsável até o fechamento, só de tickets fechados no período (${tkTmrModo === 'semana' ? 'sexta a quinta, sem sáb/dom' : 'mês inteiro'}).</div>
         ${grupos.length === 0 ? `<div class="tk-hist-empty">Sem tickets fechados nesse período ainda.</div>` : grupos.map((g) => `
           <div class="tk-rk-row">
             <div class="tk-rk-top">
@@ -1058,7 +1070,7 @@
       ${renderResolucaoChart()}
       <div class="tk-grid-2col">
         ${renderRankingResponsavel()}
-        ${renderRanking('TMR por identificador', 'Quais tipos de ticket demoram mais pra resolver.', rankingPorIdentificador())}
+        ${renderRanking('TMR por identificador', 'Quais tipos de ticket demoram mais pra resolver (da atribuição ao responsável até o fechamento).', rankingPorIdentificador())}
       </div>
     `;
 

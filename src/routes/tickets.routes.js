@@ -54,7 +54,8 @@ router.get('/', (req, res) => {
 
 router.get('/api/tickets', async (req, res) => {
   try {
-    const json = await ticketsStore.listar();
+    // listarComAtribuicao: a mesma lista, com dataAtribuicao (início da contagem do TMR no Dashboard).
+    const json = await ticketsStore.listarComAtribuicao();
     res.json(json);
   } catch (err) {
     res.status(502).json({ ok: false, erro: 'Falha ao buscar tickets: ' + err.message });
