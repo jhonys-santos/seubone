@@ -96,6 +96,19 @@ ABAS.pedidosUrgentes = aba('Pedidos', 'pedidos_urgentes', 'ordem', [
   ['NotaFiscalLink', 'nota_fiscal_link'], ['Observacao', 'observacao'], ['Prazo', TSZ('prazo')], ['Status', 'status'], ['InseridoPor', 'inserido_por'],
   ['InseridoEm', TSZ('inserido_em')], ['DespachadoPor', 'despachado_por'], ['DespachadoEm', TSZ('despachado_em')],
 ]);
+ABAS.wallacStatus = aba('Status_Producao_Wallac', 'wallac_status', 'linha_ltv', [
+  ['linha_ltv', 'linha_ltv::int', N], ['status_atual', 'status_atual'], ['data_recebido', TSZ('data_recebido')], ['data_inicio_producao', TSZ('data_inicio_producao')], ['data_finalizado', TSZ('data_finalizado')],
+]);
+ABAS.wallacEstoque = aba('Estoque', 'wallac_estoque', 'id', [['linha', 'id::int', N], ['produto', 'produto'], ['quantidade', 'quantidade::float8', N]]);
+ABAS.wallacSolicitacoes = aba('Solicitacoes_Estoque', 'wallac_solicitacoes', 'id', [
+  ['linha', 'id::int', N], ['produto', 'produto'], ['quantidade', 'quantidade::float8', N], ['id_venda_cliente', 'id_venda_cliente'], ['prazo_producao', "coalesce(prazo_producao, '')"],
+  ['prazo_entrega', "coalesce(prazo_entrega, '')"], ['observacoes', 'observacoes'], ['logo_url', 'logo_url'], ['status_atual', 'status_atual'], ['data_recebido', TSZ('data_recebido')],
+  ['data_inicio_producao', TSZ('data_inicio_producao')], ['data_finalizado', TSZ('data_finalizado')], ['solicitante', 'solicitante'],
+]);
+ABAS.wallacPremiacao = aba('Premiacao_Historico', 'wallac_premiacao', 'semana_inicio', [
+  ['semana_inicio', D('semana_inicio')], ['semana_fim', D('semana_fim')], ['pecas_no_prazo', 'pecas_no_prazo::int', N], ['faixa', 'faixa'], ['coins_da_semana', 'coins_da_semana::int', N],
+  ['mes_referencia', 'mes_referencia'], ['coins_acumulados_no_mes', 'coins_acumulados_no_mes::int', N],
+]);
 ABAS.agendaFoco = aba('Foco', 'agenda_foco', 'id', [['Foco da semana', 'texto']]);
 ABAS.agendaEventos = aba('Agenda', 'agenda_eventos', 'id', [['Linha', 'id::int', N], ['Dia', 'dia'], ['Horario', 'hora'], ['Descricao', 'descricao'], ['Tipo', 'tipo']]);
 
@@ -112,6 +125,7 @@ const AREAS = [
   { chave: 'auditoria', rotulo: 'Auditoria de Qualidade', url: () => env.auditoriaAppsScriptUrl, abas: [{ aba: ABAS.auditoria, ativa: () => env.auditoriaBackend === 'db' }] },
   { chave: 'agenda', rotulo: 'Foco e Agenda da Semana', url: () => env.agendaSemanaAppsScriptUrl, abas: [{ aba: ABAS.agendaFoco, ativa: () => env.agendaBackend === 'db' }, { aba: ABAS.agendaEventos, ativa: () => env.agendaBackend === 'db' }] },
   { chave: 'pedidosUrgentes', rotulo: 'Pedidos Urgentes', url: () => env.pedidosUrgentesAppsScriptUrl, abas: [{ aba: ABAS.pedidosUrgentes, ativa: () => env.pedidosUrgentesBackend === 'db' }] },
+  { chave: 'wallac', rotulo: 'Wallac (Produção SBP)', url: () => env.wallacAppsScriptUrl, abas: [{ aba: ABAS.wallacStatus, ativa: () => env.wallacBackend === 'db' }, { aba: ABAS.wallacEstoque, ativa: () => env.wallacBackend === 'db' }, { aba: ABAS.wallacSolicitacoes, ativa: () => env.wallacBackend === 'db' }, { aba: ABAS.wallacPremiacao, ativa: () => env.wallacBackend === 'db' }] },
   { chave: 'corridas', rotulo: 'Corridas Avulsas', url: () => env.corridasAvulsasAppsScriptUrl, abas: [{ aba: ABAS.corridas, ativa: () => env.financeiroBackend === 'db' }] },
 ];
 

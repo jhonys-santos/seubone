@@ -12,6 +12,7 @@ const { iniciarChecagemAtrasos } = require('./src/services/ticketsAtraso.service
 const { iniciarImportacaoLulu } = require('./src/services/ticketsImportLulu.service');
 const { iniciarImportacaoErroEnvio } = require('./src/services/ticketsImportErroEnvio.service');
 const { iniciarBackupPlanilhas } = require('./src/services/backupPlanilhas.service');
+const { iniciarFechamentoPremiacao } = require('./src/services/wallacDb.service');
 const catalogoPaineis = require('./src/config/paineis');
 const catalogoAtalhos = require('./src/config/atalhos');
 const catalogoCategorias = require('./src/config/categorias');
@@ -156,6 +157,7 @@ usuariosService
     iniciarImportacaoLulu();
     iniciarImportacaoErroEnvio();
     iniciarBackupPlanilhas();
+    iniciarFechamentoPremiacao();
   })
   .catch((err) => {
     // Sem a lista de usuários carregada, ninguém consegue logar — melhor

@@ -1,7 +1,6 @@
 const express = require('express');
 const { requireAuth, requirePainel, requireSlug, requireSlugOuRole } = require('../middleware/auth');
-const { chamarAppsScript } = require('../services/appsScriptClient');
-const env = require('../config/env');
+const wallac = require('../services/wallacStore');
 
 const router = express.Router();
 
@@ -19,7 +18,7 @@ router.get('/historico', requireAuth, requirePainel('wallac'), (req, res) => {
 
 router.get('/api/cards', requireAuth, requirePainel('wallac'), async (req, res) => {
   try {
-    const json = await chamarAppsScript(env.wallacAppsScriptUrl, { cache: true });
+    const json = await wallac.cards();
     res.json(json);
   } catch (err) {
     res.status(502).json({ ok: false, erro: 'Falha ao buscar cards: ' + err.message });
@@ -29,10 +28,7 @@ router.get('/api/cards', requireAuth, requirePainel('wallac'), async (req, res) 
 router.post('/api/status', requireAuth, requirePainel('wallac'), async (req, res) => {
   try {
     const { chave, novo_status } = req.body;
-    const json = await chamarAppsScript(env.wallacAppsScriptUrl, {
-      method: 'POST',
-      body: { acao: 'mudar_status', chave, novo_status },
-    });
+    const json = await wallac.mudarStatus(chave, novo_status);
     res.json(json && typeof json === 'object' ? json : { ok: true });
   } catch (err) {
     res.status(502).json({ ok: false, erro: 'Falha ao atualizar status: ' + err.message });
@@ -46,7 +42,7 @@ router.get('/estoque', requireAuth, requireSlug('wallac'), (req, res) => {
 
 router.get('/api/estoque-admin', requireAuth, requireSlug('wallac'), async (req, res) => {
   try {
-    const json = await chamarAppsScript(env.wallacAppsScriptUrl, { params: { acao: 'estoque_admin' }, cache: true });
+    const json = await wallac.estoqueAdmin();
     res.json(json);
   } catch (err) {
     res.status(502).json({ ok: false, erro: 'Falha ao buscar estoque: ' + err.message });
@@ -56,10 +52,7 @@ router.get('/api/estoque-admin', requireAuth, requireSlug('wallac'), async (req,
 router.post('/api/estoque/adicionar', requireAuth, requireSlug('wallac'), async (req, res) => {
   try {
     const { produto, quantidade } = req.body;
-    const json = await chamarAppsScript(env.wallacAppsScriptUrl, {
-      method: 'POST',
-      body: { acao: 'estoque_adicionar', produto, quantidade },
-    });
+    const json = await wallac.adicionarProdutoEstoque({ produto, quantidade });
     res.json(json);
   } catch (err) {
     res.status(502).json({ ok: false, erro: 'Falha ao adicionar produto: ' + err.message });
@@ -69,10 +62,7 @@ router.post('/api/estoque/adicionar', requireAuth, requireSlug('wallac'), async 
 router.post('/api/estoque/editar', requireAuth, requireSlug('wallac'), async (req, res) => {
   try {
     const { linha, produto, quantidade } = req.body;
-    const json = await chamarAppsScript(env.wallacAppsScriptUrl, {
-      method: 'POST',
-      body: { acao: 'estoque_editar', linha, produto, quantidade },
-    });
+    const json = await wallac.editarProdutoEstoque({ linha, produto, quantidade });
     res.json(json);
   } catch (err) {
     res.status(502).json({ ok: false, erro: 'Falha ao editar produto: ' + err.message });
@@ -82,10 +72,7 @@ router.post('/api/estoque/editar', requireAuth, requireSlug('wallac'), async (re
 router.post('/api/estoque/remover', requireAuth, requireSlug('wallac'), async (req, res) => {
   try {
     const { linha } = req.body;
-    const json = await chamarAppsScript(env.wallacAppsScriptUrl, {
-      method: 'POST',
-      body: { acao: 'estoque_remover', linha },
-    });
+    const json = await wallac.removerProdutoEstoque({ linha });
     res.json(json);
   } catch (err) {
     res.status(502).json({ ok: false, erro: 'Falha ao remover produto: ' + err.message });
@@ -99,7 +86,7 @@ router.get('/premiacao', requireAuth, requireSlugOuRole('wallac', 'gestor'), (re
 
 router.get('/api/premiacao-historico', requireAuth, requireSlugOuRole('wallac', 'gestor'), async (req, res) => {
   try {
-    const json = await chamarAppsScript(env.wallacAppsScriptUrl, { params: { acao: 'premiacao_historico' }, cache: true });
+    const json = await wallac.premiacaoHistorico();
     res.json(json);
   } catch (err) {
     res.status(502).json({ ok: false, erro: 'Falha ao buscar histórico de premiação: ' + err.message });
@@ -110,7 +97,7 @@ router.get('/api/premiacao-historico', requireAuth, requireSlugOuRole('wallac', 
 // fechamento oficial de sexta-feira (que só grava no histórico).
 router.get('/api/premiacao-semana-atual', requireAuth, requireSlugOuRole('wallac', 'gestor'), async (req, res) => {
   try {
-    const json = await chamarAppsScript(env.wallacAppsScriptUrl, { params: { acao: 'premiacao_semana_atual' }, cache: true });
+    const json = await wallac.premiacaoSemanaAtual();
     res.json(json);
   } catch (err) {
     res.status(502).json({ ok: false, erro: 'Falha ao buscar semana atual: ' + err.message });
@@ -127,7 +114,7 @@ router.get('/solicitar', (req, res) => {
 
 router.get('/api/estoque-publico', async (req, res) => {
   try {
-    const json = await chamarAppsScript(env.wallacAppsScriptUrl, { params: { acao: 'estoque' }, cache: true });
+    const json = await wallac.estoquePublico();
     res.json(json);
   } catch (err) {
     res.status(502).json({ ok: false, erro: 'Falha ao buscar estoque: ' + err.message });
@@ -140,13 +127,9 @@ router.post('/api/solicitar', async (req, res) => {
       solicitante, produto, eh_outro, quantidade, id_venda_cliente,
       prazo_producao, prazo_entrega, observacoes, logo_base64, logo_nome,
     } = req.body;
-    const json = await chamarAppsScript(env.wallacAppsScriptUrl, {
-      method: 'POST',
-      body: {
-        acao: 'solicitar_personalizacao',
-        solicitante, produto, eh_outro, quantidade, id_venda_cliente,
-        prazo_producao, prazo_entrega, observacoes, logo_base64, logo_nome,
-      },
+    const json = await wallac.solicitarPersonalizacao({
+      solicitante, produto, eh_outro, quantidade, id_venda_cliente,
+      prazo_producao, prazo_entrega, observacoes, logo_base64, logo_nome,
     });
     res.json(json);
   } catch (err) {

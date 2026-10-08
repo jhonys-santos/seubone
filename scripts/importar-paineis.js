@@ -4,7 +4,7 @@
 // por padrão só insere o que ainda não está no banco e não mexe no que já está.
 //
 //   node scripts/importar-paineis.js                         # relatório de tudo (não grava)
-//   node scripts/importar-paineis.js quitacoes --aplicar     # grava só as Quitações (usuarios | quitacoes | auditoria | agenda | urgentes | todos)
+//   node scripts/importar-paineis.js quitacoes --aplicar     # grava só as Quitações (usuarios | quitacoes | auditoria | agenda | urgentes | wallac | todos)
 //   node scripts/importar-paineis.js todos --aplicar --atualizar
 //        --atualizar: também corrige no banco o que mudou na planilha (usuários, quitações pagas, agenda).
 //                     Use SÓ antes de ligar a flag da área: depois dela, o banco é a fonte e a planilha fica velha.
@@ -236,6 +236,73 @@ function conferirUrgentes(planilha, banco) {
   return dif;
 }
 
+// ── Wallac (status, estoque, solicitações e premiação; os cards de compra continuam na aba LTV) ──
+const tsOuNull = (v) => { const t = instante(v); return t == null ? null : new Date(t).toISOString(); };
+async function importarWallac(d, db, { atualizar = false, refazer = false } = {}) {
+  return db.transaction(async (tx) => {
+    if (refazer) for (const t of ['wallac_status', 'wallac_estoque', 'wallac_solicitacoes', 'wallac_premiacao']) await tx.query('delete from ' + t);
+    let ins = 0, atu = 0, ign = 0;
+    const upsert = async (existe, atualizarSql, inserirSql, params) => {
+      if (existe.rowCount) { if (!atualizar) { ign++; return; } await tx.query(atualizarSql, params); atu++; } else { await tx.query(inserirSql, params); ins++; }
+    };
+    // status: se a linha da LTV aparece mais de uma vez, vale a ÚLTIMA (é a que o kanban mostrava)
+    const status = new Map(); for (const x of d.status || []) status.set(Number(x.linha_ltv), x);
+    for (const x of status.values()) {
+      const p = [Number(x.linha_ltv), str(x.status_atual) || 'A chegar', tsOuNull(x.data_recebido), tsOuNull(x.data_inicio_producao), tsOuNull(x.data_finalizado)];
+      await upsert(await tx.query('select 1 from wallac_status where linha_ltv = $1', [p[0]]),
+        'update wallac_status set status_atual=$2, data_recebido=$3::timestamptz, data_inicio_producao=$4::timestamptz, data_finalizado=$5::timestamptz where linha_ltv=$1',
+        'insert into wallac_status (linha_ltv, status_atual, data_recebido, data_inicio_producao, data_finalizado) values ($1,$2,$3::timestamptz,$4::timestamptz,$5::timestamptz)', p);
+    }
+    for (const x of d.estoque || []) {
+      const p = [Number(x.linha), str(x.produto), Number(x.quantidade) || 0];
+      await upsert(await tx.query('select 1 from wallac_estoque where id = $1', [p[0]]), 'update wallac_estoque set produto=$2, quantidade=$3 where id=$1', 'insert into wallac_estoque (id, produto, quantidade) values ($1,$2,$3)', p);
+    }
+    for (const x of d.solicitacoes || []) {
+      const p = [Number(x.linha), str(x.produto), Number(x.quantidade) || 0, str(x.id_venda_cliente), str(x.prazo_producao) || null, str(x.prazo_entrega) || null, str(x.observacoes), str(x.logo_url),
+        str(x.status_atual) || 'Recebido', tsOuNull(x.data_recebido), tsOuNull(x.data_inicio_producao), tsOuNull(x.data_finalizado), str(x.solicitante)];
+      await upsert(await tx.query('select 1 from wallac_solicitacoes where id = $1', [p[0]]),
+        'update wallac_solicitacoes set produto=$2, quantidade=$3, id_venda_cliente=$4, prazo_producao=$5, prazo_entrega=$6, observacoes=$7, logo_url=$8, status_atual=$9, data_recebido=$10::timestamptz, data_inicio_producao=$11::timestamptz, data_finalizado=$12::timestamptz, solicitante=$13 where id=$1',
+        'insert into wallac_solicitacoes (id, produto, quantidade, id_venda_cliente, prazo_producao, prazo_entrega, observacoes, logo_url, status_atual, data_recebido, data_inicio_producao, data_finalizado, solicitante) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::timestamptz,$11::timestamptz,$12::timestamptz,$13)', p);
+    }
+    for (const x of d.premiacao || []) {
+      const p = [str(x.semana_inicio), str(x.semana_fim), Number(x.pecas_no_prazo) || 0, str(x.faixa) || 'Nenhuma', Number(x.coins_da_semana) || 0, str(x.mes_referencia), Number(x.coins_acumulados_no_mes) || 0];
+      await upsert(await tx.query('select 1 from wallac_premiacao where semana_inicio = $1::date', [p[0]]),
+        'update wallac_premiacao set semana_fim=$2::date, pecas_no_prazo=$3, faixa=$4, coins_da_semana=$5, mes_referencia=$6, coins_acumulados_no_mes=$7 where semana_inicio=$1::date',
+        'insert into wallac_premiacao (semana_inicio, semana_fim, pecas_no_prazo, faixa, coins_da_semana, mes_referencia, coins_acumulados_no_mes) values ($1::date,$2::date,$3,$4,$5,$6,$7)', p);
+    }
+    // os próximos itens criados no hub continuam depois da maior linha já usada (mínimo 2)
+    for (const t of ['wallac_estoque', 'wallac_solicitacoes']) await tx.query("select setval(pg_get_serial_sequence('" + t + "', 'id'), greatest((select coalesce(max(id), 0) from " + t + "), 1), true)");
+    return { inseridos: ins, atualizados: atu, ignorados: ign };
+  });
+}
+async function conferirWallac(d, db) {
+  const dif = [];
+  const q = async (s) => (await db.query(s)).rows;
+  const status = new Map(); for (const x of d.status || []) status.set(Number(x.linha_ltv), x);
+  const sb = new Map((await q('select linha_ltv, status_atual, data_recebido, data_inicio_producao, data_finalizado from wallac_status')).map((x) => [Number(x.linha_ltv), x]));
+  for (const [l, x] of status) {
+    const b = sb.get(l); if (!b) { dif.push('status linha ' + l + ': não está no banco'); continue; }
+    if ((str(x.status_atual) || 'A chegar') !== b.status_atual) dif.push('status linha ' + l + ': status diferente');
+    for (const c of ['data_recebido', 'data_inicio_producao', 'data_finalizado']) if ((instante(x[c]) || null) !== (b[c] ? new Date(b[c]).getTime() : null)) dif.push('status linha ' + l + ': ' + c + ' diferente');
+  }
+  const eb = new Map((await q('select id, produto, quantidade from wallac_estoque')).map((x) => [Number(x.id), x]));
+  for (const x of d.estoque || []) { const b = eb.get(Number(x.linha)); if (!b) dif.push('estoque linha ' + x.linha + ': não está no banco'); else if (b.produto !== str(x.produto) || Number(b.quantidade) !== Number(x.quantidade)) dif.push('estoque linha ' + x.linha + ': diferente'); }
+  const sob = new Map((await q('select * from wallac_solicitacoes')).map((x) => [Number(x.id), x]));
+  for (const x of d.solicitacoes || []) {
+    const b = sob.get(Number(x.linha)); if (!b) { dif.push('solicitação linha ' + x.linha + ': não está no banco'); continue; }
+    for (const [c, k] of [['produto', 'produto'], ['id_venda_cliente', 'id_venda_cliente'], ['observacoes', 'observacoes'], ['logo_url', 'logo_url'], ['status_atual', 'status_atual'], ['solicitante', 'solicitante']]) if (str(x[c]) !== str(b[k])) dif.push('solicitação linha ' + x.linha + ': ' + c + ' diferente');
+    if (Number(x.quantidade) !== Number(b.quantidade)) dif.push('solicitação linha ' + x.linha + ': quantidade diferente');
+    if ((str(x.prazo_producao) || null) !== b.prazo_producao || (str(x.prazo_entrega) || null) !== b.prazo_entrega) dif.push('solicitação linha ' + x.linha + ': prazos diferentes');
+    for (const c of ['data_recebido', 'data_inicio_producao', 'data_finalizado']) if ((instante(x[c]) || null) !== (b[c] ? new Date(b[c]).getTime() : null)) dif.push('solicitação linha ' + x.linha + ': ' + c + ' diferente');
+  }
+  const pb = new Map((await q("select to_char(semana_inicio, 'YYYY-MM-DD') as ini, to_char(semana_fim, 'YYYY-MM-DD') as fim, pecas_no_prazo, faixa, coins_da_semana, mes_referencia, coins_acumulados_no_mes from wallac_premiacao")).map((x) => [x.ini, x]));
+  for (const x of d.premiacao || []) {
+    const b = pb.get(str(x.semana_inicio)); if (!b) { dif.push('premiação ' + x.semana_inicio + ': não está no banco'); continue; }
+    if (b.fim !== str(x.semana_fim) || Number(b.pecas_no_prazo) !== Number(x.pecas_no_prazo) || b.faixa !== str(x.faixa) || Number(b.coins_da_semana) !== Number(x.coins_da_semana) || b.mes_referencia !== str(x.mes_referencia) || Number(b.coins_acumulados_no_mes) !== Number(x.coins_acumulados_no_mes)) dif.push('premiação ' + x.semana_inicio + ': diferente');
+  }
+  return dif;
+}
+
 // ── Execução ──────────────────────────────────────────────────────────────
 async function lerPlanilha(url, params) {
   const { chamarAppsScript } = require('../src/services/appsScriptClient');
@@ -252,6 +319,12 @@ async function lerPlanilha(url, params) {
 }
 
 const AREAS = {
+  wallac: {
+    rotulo: 'Wallac (status, estoque, solicitações, premiação)',
+    ler: async (env) => { const r = await lerPlanilha(env.wallacAppsScriptUrl, { acao: 'exportar' }); if (!r.ok) throw new Error('Wallac: ' + (r.erro || 'o Apps Script ainda não tem a ação "exportar" (cole trechos-novos.gs e publique uma nova versão)')); return r; },
+    importar: importarWallac, conferir: conferirWallac,
+    doBanco: () => require('../src/db'),
+  },
   urgentes: {
     rotulo: 'Pedidos Urgentes',
     ler: async (env) => { const r = await lerPlanilha(env.pedidosUrgentesAppsScriptUrl, { action: 'list' }); if (!Array.isArray(r)) throw new Error('Pedidos Urgentes: ' + ((r && r.erro) || 'resposta inesperada')); return r; },
@@ -288,7 +361,7 @@ const AREAS = {
     doBanco: async () => (await require('../src/services/agendaDb.service').ler()).dados,
   },
 };
-const tamanho = (d) => (Array.isArray(d) ? d.length : (d.eventos || []).length);
+const tamanho = (d) => (Array.isArray(d) ? d.length : d.status ? `${(d.status || []).length} status, ${(d.estoque || []).length} produtos, ${(d.solicitacoes || []).length} solicitações, ${(d.premiacao || []).length} semanas` : (d.eventos || []).length);
 
 async function principal() {
   const env = require('../src/config/env');
@@ -308,7 +381,7 @@ async function principal() {
       if (!aplicar) { console.log('  (relatório: nada foi gravado; use --aplicar)'); continue; }
       const r = await a.importar(dados, db, { atualizar: args.includes('--atualizar'), refazer: args.includes('--refazer') });
       console.log(`  inseridos ${r.inseridos}, atualizados ${r.atualizados}, já existiam ${r.ignorados}`);
-      const dif = a.conferir(dados, await a.doBanco());
+      const dif = await a.conferir(dados, await a.doBanco());
       if (dif.length) { falhou = true; console.log(`  CONFERÊNCIA: ${dif.length} diferença(s):`); dif.slice(0, 15).forEach((d) => console.log('    - ' + d)); }
       else console.log(`  conferência campo a campo: tudo igual (${tamanho(dados)} itens)`);
     } catch (e) { falhou = true; console.error('  ERRO:', e.message); }
@@ -317,7 +390,7 @@ async function principal() {
   if (falhou) process.exit(1);
 }
 
-module.exports = { importarUrgentes, conferirUrgentes, importarUsuarios, importarQuitacoes, importarAuditoria, importarAgenda, conferirUsuarios, conferirQuitacoes, conferirAuditoria, conferirAgenda, diaBrasilia };
+module.exports = { importarWallac, conferirWallac, importarUrgentes, conferirUrgentes, importarUsuarios, importarQuitacoes, importarAuditoria, importarAgenda, conferirUsuarios, conferirQuitacoes, conferirAuditoria, conferirAgenda, diaBrasilia };
 if (require.main === module) {
   require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
   principal().catch((e) => { console.error('ERRO:', e.message); process.exit(1); });
