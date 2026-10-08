@@ -4,7 +4,7 @@
 // por padrão só insere o que ainda não está no banco e não mexe no que já está.
 //
 //   node scripts/importar-paineis.js                         # relatório de tudo (não grava)
-//   node scripts/importar-paineis.js quitacoes --aplicar     # grava só as Quitações (usuarios | quitacoes | auditoria | agenda | urgentes | wallac | todos)
+//   node scripts/importar-paineis.js quitacoes --aplicar     # grava só as Quitações (usuarios | quitacoes | auditoria | agenda | urgentes | wallac | escala | todos)
 //   node scripts/importar-paineis.js todos --aplicar --atualizar
 //        --atualizar: também corrige no banco o que mudou na planilha (usuários, quitações pagas, agenda).
 //                     Use SÓ antes de ligar a flag da área: depois dela, o banco é a fonte e a planilha fica velha.
@@ -303,6 +303,161 @@ async function conferirWallac(d, db) {
   return dif;
 }
 
+// ── Escala e Trocas (Painel SAC) ──────────────────────────────────────────
+const MESES_PT = { jan: 0, fev: 1, mar: 2, abr: 3, mai: 4, jun: 5, jul: 6, ago: 7, set: 8, out: 9, nov: 10, dez: 11 };
+const STATUS_ESCALA = ['T', 'F', 'FN', 'FM', 'TR', 'FE'];
+
+/** Mesma leitura do rótulo "mês/ano" (coluna A) que o Apps Script fazia: data de verdade, número de série ou texto "jan/2026". */
+function mesAnoDoRotulo(v) {
+  if (v == null || v === '') return null;
+  if (typeof v === 'object' && v.data) { const d = new Date(v.data); return Number.isNaN(d.getTime()) ? null : { mes: d.getUTCMonth(), ano: d.getUTCFullYear() }; }
+  if (typeof v === 'number' && v > 40000) { const d = new Date((v - 25569) * 86400000); return { mes: d.getUTCMonth(), ano: d.getUTCFullYear() }; }
+  const m = String(v).toLowerCase().trim().match(/([a-z]{3})[^0-9]*(\d{4})/);
+  if (!m) return null;
+  const mes = MESES_PT[m[1]];
+  return mes === undefined ? null : { mes, ano: parseInt(m[2], 10) };
+}
+const rotuloTexto = (v) => (v && typeof v === 'object' && v.data ? v.data : str(v));
+
+/** Dia/hora "dd/MM/aaaa HH:mm" (Brasília) ou ISO -> instante ISO; null se não der para ler. */
+function instanteDaTroca(v) {
+  const s = str(v).trim();
+  if (!s) return null;
+  const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2}))?/);
+  if (m) return new Date(Date.UTC(+m[3], +m[2] - 1, +m[1], +(m[4] || 0) + 3, +(m[5] || 0))).toISOString();
+  const t = new Date(s).getTime();
+  return Number.isNaN(t) ? null : new Date(t).toISOString();
+}
+
+/**
+ * Lê o que o Apps Script exportou (ação "exportar") e separa o que vai para o banco, junto com avisos do que não deu para aproveitar.
+ * Como o Apps Script: dentro de cada aba vale a PRIMEIRA linha de cada mês; dia sem valor conta como "F".
+ */
+function prepararEscalaTrocas(ex) {
+  const avisos = [];
+  const nomes = {};
+  for (const u of ex.usuarios || []) { const s = str(u.slug).trim().toLowerCase(); if (s && !(s in nomes)) nomes[s] = str(u.nome).trim() || str(u.slug).trim(); }
+  const pessoas = []; const escala = [];
+  (ex.escala || []).forEach((p, i) => {
+    pessoas.push({ slug: p.slug, nome: nomes[p.slug] || p.slug, ordem: i });
+    if (!p.linhas) { avisos.push(`${p.slug}: aba ${p.aba} não existe na planilha`); return; }
+    const dias = (p.cabecalho || []).slice(1).map((c) => parseInt(c, 10));
+    if (dias.length < 31 || dias.some((d, k) => d !== k + 1)) avisos.push(`${p.slug}: cabeçalho da escala não é 1..31 (${dias.join(',')})`);
+    const vistos = new Set();
+    for (const l of p.linhas) {
+      const ma = mesAnoDoRotulo(l.rotulo);
+      if (!ma) { if (str(rotuloTexto(l.rotulo)).trim() || (l.valores || []).some((v) => str(v).trim())) avisos.push(`${p.slug}: linha ${l.linha} com rótulo "${rotuloTexto(l.rotulo)}" não é um mês: ignorada`); continue; }
+      const chave = `${ma.ano}-${ma.mes}`;
+      if (vistos.has(chave)) { avisos.push(`${p.slug}: mês ${ma.mes + 1}/${ma.ano} aparece de novo na linha ${l.linha}: vale só a primeira (como na planilha)`); continue; }
+      vistos.add(chave);
+      const valores = [];
+      for (let k = 0; k < 31; k++) {
+        const v = k < (l.valores || []).length ? (l.valores[k] || 'F') : 'F';
+        const st = str(v).trim().toUpperCase();
+        if (!STATUS_ESCALA.includes(st)) avisos.push(`${p.slug} ${ma.mes + 1}/${ma.ano} dia ${k + 1}: status fora do padrão "${st}"`);
+        valores.push(st);
+      }
+      escala.push({ slug: p.slug, ano: ma.ano, mes: ma.mes, rotulo: rotuloTexto(l.rotulo), dias: valores, linha: l.linha });
+    }
+  });
+  const trocas = [];
+  for (const r of ex.trocas || []) {
+    if (!str(r[0]).trim()) continue;
+    trocas.push({
+      id: str(r[0]), solicitante: str(r[1]), dia_sol: parseInt(r[2], 10), mes_sol: parseInt(r[3], 10), ano_sol: parseInt(r[4], 10),
+      alvo: str(r[5]), dia_alvo: parseInt(r[6], 10), mes_alvo: parseInt(r[7], 10), ano_alvo: parseInt(r[8], 10), status: str(r[9]).trim() || 'pendente',
+      criada_em: instanteDaTroca(r[10]), criada_em_original: str(r[10]),
+    });
+  }
+  return { pessoas, escala, trocas, avisos };
+}
+
+async function importarEscala(ex, db, { atualizar = false, refazer = false } = {}) {
+  const { pessoas, escala, trocas } = prepararEscalaTrocas(ex);
+  return db.transaction(async (tx) => {
+    if (refazer) { await tx.query('delete from sac_escala'); await tx.query('delete from sac_trocas'); await tx.query('delete from sac_escala_pessoas'); }
+    let ins = 0, atu = 0, ign = 0;
+    for (const p of pessoas) {
+      const e = await tx.query('select nome from sac_escala_pessoas where slug = $1', [p.slug]);
+      if (!e.rowCount) { await tx.query('insert into sac_escala_pessoas (slug, nome, ordem) values ($1,$2,$3)', [p.slug, p.nome, p.ordem]); ins++; }
+      else if (atualizar) { await tx.query('update sac_escala_pessoas set nome = $2, ordem = $3 where slug = $1', [p.slug, p.nome, p.ordem]); atu++; }
+      else ign++;
+    }
+    for (const l of escala) {
+      const e = await tx.query('select 1 from sac_escala where slug = $1 and ano = $2 and mes = $3', [l.slug, l.ano, l.mes]);
+      if (!e.rowCount) { await tx.query('insert into sac_escala (slug, ano, mes, rotulo, dias) values ($1,$2,$3,$4,$5::text[])', [l.slug, l.ano, l.mes, l.rotulo, l.dias]); ins++; }
+      else if (atualizar) { await tx.query('update sac_escala set rotulo = $4, dias = $5::text[], atualizado_em = now() where slug = $1 and ano = $2 and mes = $3', [l.slug, l.ano, l.mes, l.rotulo, l.dias]); atu++; }
+      else ign++;
+    }
+    for (const t of trocas) {
+      const p = [t.id, t.solicitante, t.dia_sol, t.mes_sol, t.ano_sol, t.alvo, t.dia_alvo, t.mes_alvo, t.ano_alvo, t.status, t.criada_em, t.criada_em_original];
+      const e = await tx.query('select 1 from sac_trocas where id = $1', [t.id]);
+      if (!e.rowCount) { await tx.query('insert into sac_trocas (id, solicitante, dia_sol, mes_sol, ano_sol, alvo, dia_alvo, mes_alvo, ano_alvo, status, criada_em, criada_em_original) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)', p); ins++; }
+      else if (atualizar) { await tx.query('update sac_trocas set solicitante=$2, dia_sol=$3, mes_sol=$4, ano_sol=$5, alvo=$6, dia_alvo=$7, mes_alvo=$8, ano_alvo=$9, status=$10 where id=$1', p.slice(0, 10)); atu++; }
+      else ign++;
+    }
+    return { inseridos: ins, atualizados: atu, ignorados: ign };
+  });
+}
+
+/** Foto do banco no mesmo formato que a planilha preparada (para comparar campo a campo e pelo resultado das telas). */
+async function lerEscalaDoBanco() {
+  const db = require('../src/db');
+  const E = require('../src/services/escalaDb.service');
+  const pessoas = (await db.query('select slug, nome, ordem from sac_escala_pessoas order by ordem, slug')).rows;
+  const linhas = (await db.query('select slug, ano, mes, dias from sac_escala order by slug, ano, mes')).rows;
+  const trocas = (await db.query('select id, solicitante, dia_sol, mes_sol, ano_sol, alvo, dia_alvo, mes_alvo, ano_alvo, status from sac_trocas order by ordem')).rows;
+  const telas = {};
+  for (const l of linhas) telas[`${l.slug}|${l.ano}|${l.mes}`] = await E.buscarEscala(l.slug, l.mes, l.ano);
+  return { pessoas, linhas, trocas, telas };
+}
+
+/** A escala como a planilha a devolvia (algoritmo de buscarEscalaComSS aplicado aos dados exportados). */
+function escalaComoAPlanilha(ex, slug, mes, ano) {
+  const p = (ex.escala || []).find((x) => x.slug === slug);
+  if (!p || !p.linhas) return [];
+  const linha = p.linhas.find((l) => { const ma = mesAnoDoRotulo(l.rotulo); return ma && ma.mes === mes && ma.ano === ano; });
+  if (!linha) return [];
+  const saida = [];
+  for (let i = 1; i < p.cabecalho.length; i++) {
+    const dia = parseInt(p.cabecalho[i], 10);
+    if (!dia || dia < 1 || dia > 31) continue;
+    saida.push({ dia, status: str(linha.valores[i - 1] || 'F').trim().toUpperCase() });
+  }
+  return saida;
+}
+
+function conferirEscala(ex, banco) {
+  const dif = [];
+  const { pessoas, escala, trocas } = prepararEscalaTrocas(ex);
+  const pb = new Map(banco.pessoas.map((p) => [p.slug, p]));
+  for (const p of pessoas) {
+    const b = pb.get(p.slug);
+    if (!b) dif.push(`pessoa ${p.slug}: não está no banco`);
+    else if (b.nome !== p.nome || Number(b.ordem) !== p.ordem) dif.push(`pessoa ${p.slug}: nome/ordem diferente`);
+  }
+  const lb = new Map(banco.linhas.map((l) => [`${l.slug}|${l.ano}|${l.mes}`, l]));
+  for (const l of escala) {
+    const b = lb.get(`${l.slug}|${l.ano}|${l.mes}`);
+    if (!b) { dif.push(`escala ${l.slug} ${l.mes + 1}/${l.ano}: não está no banco`); continue; }
+    const igual = l.dias.length === b.dias.length && l.dias.every((d, i) => d === b.dias[i]);
+    if (!igual) dif.push(`escala ${l.slug} ${l.mes + 1}/${l.ano}: dias diferentes`);
+    // Resultado que a tela recebe: igual ao que a planilha devolveria hoje.
+    const esperado = JSON.stringify(escalaComoAPlanilha(ex, l.slug, l.mes, l.ano));
+    if (JSON.stringify(banco.telas[`${l.slug}|${l.ano}|${l.mes}`]) !== esperado) dif.push(`escala ${l.slug} ${l.mes + 1}/${l.ano}: resposta da tela diferente da planilha`);
+  }
+  if (banco.linhas.length < escala.length) dif.push(`banco tem menos meses de escala (${banco.linhas.length}) que a planilha (${escala.length})`);
+  const tb = new Map(banco.trocas.map((t) => [t.id, t]));
+  for (const t of trocas) {
+    const b = tb.get(t.id);
+    if (!b) { dif.push(`troca ${t.id}: não está no banco`); continue; }
+    for (const c of ['solicitante', 'alvo', 'status']) if (str(t[c]) !== str(b[c])) dif.push(`troca ${t.id}: ${c} diferente`);
+    for (const c of ['dia_sol', 'mes_sol', 'ano_sol', 'dia_alvo', 'mes_alvo', 'ano_alvo']) if (Number(t[c]) !== Number(b[c])) dif.push(`troca ${t.id}: ${c} diferente`);
+  }
+  if (banco.trocas.length < trocas.length) dif.push(`banco tem menos trocas (${banco.trocas.length}) que a planilha (${trocas.length})`);
+  return dif;
+}
+
 // ── Execução ──────────────────────────────────────────────────────────────
 async function lerPlanilha(url, params) {
   const { chamarAppsScript } = require('../src/services/appsScriptClient');
@@ -319,6 +474,16 @@ async function lerPlanilha(url, params) {
 }
 
 const AREAS = {
+  escala: {
+    rotulo: 'Painel SAC: Escala e Trocas',
+    ler: async (env) => {
+      const r = await lerPlanilha(env.painelSacAppsScriptUrl, { action: 'exportar' });
+      if (!Array.isArray(r.escala)) throw new Error('Painel SAC: ' + (r.erro || 'o Apps Script ainda não tem a ação "exportar" (cole o Code.gs novo e publique uma nova versão)'));
+      return r;
+    },
+    importar: importarEscala, conferir: conferirEscala,
+    doBanco: lerEscalaDoBanco,
+  },
   wallac: {
     rotulo: 'Wallac (status, estoque, solicitações, premiação)',
     ler: async (env) => { const r = await lerPlanilha(env.wallacAppsScriptUrl, { acao: 'exportar' }); if (!r.ok) throw new Error('Wallac: ' + (r.erro || 'o Apps Script ainda não tem a ação "exportar" (cole trechos-novos.gs e publique uma nova versão)')); return r; },
@@ -361,7 +526,7 @@ const AREAS = {
     doBanco: async () => (await require('../src/services/agendaDb.service').ler()).dados,
   },
 };
-const tamanho = (d) => (Array.isArray(d) ? d.length : d.status ? `${(d.status || []).length} status, ${(d.estoque || []).length} produtos, ${(d.solicitacoes || []).length} solicitações, ${(d.premiacao || []).length} semanas` : (d.eventos || []).length);
+const tamanho = (d) => (Array.isArray(d) ? d.length : d.escala ? (() => { const x = prepararEscalaTrocas(d); return `${x.pessoas.length} pessoas, ${x.escala.length} meses de escala, ${x.trocas.length} trocas`; })() : d.status ? `${(d.status || []).length} status, ${(d.estoque || []).length} produtos, ${(d.solicitacoes || []).length} solicitações, ${(d.premiacao || []).length} semanas` : (d.eventos || []).length);
 
 async function principal() {
   const env = require('../src/config/env');
@@ -390,7 +555,7 @@ async function principal() {
   if (falhou) process.exit(1);
 }
 
-module.exports = { importarWallac, conferirWallac, importarUrgentes, conferirUrgentes, importarUsuarios, importarQuitacoes, importarAuditoria, importarAgenda, conferirUsuarios, conferirQuitacoes, conferirAuditoria, conferirAgenda, diaBrasilia };
+module.exports = { importarEscala, conferirEscala, prepararEscalaTrocas, lerEscalaDoBanco, escalaComoAPlanilha, importarWallac, conferirWallac, importarUrgentes, conferirUrgentes, importarUsuarios, importarQuitacoes, importarAuditoria, importarAgenda, conferirUsuarios, conferirQuitacoes, conferirAuditoria, conferirAgenda, diaBrasilia };
 if (require.main === module) {
   require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
   principal().catch((e) => { console.error('ERRO:', e.message); process.exit(1); });

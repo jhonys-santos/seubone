@@ -46,6 +46,8 @@ module.exports = {
   pedidosUrgentesBackend: required('PEDIDOS_URGENTES_BACKEND', 'sheets'),
   // Painel de Produção SBP (Wallac): 'db' = status, estoque, solicitações e premiação no Postgres (cards de compra continuam da aba LTV); padrão = planilha.
   wallacBackend: required('WALLAC_BACKEND', 'sheets'),
+  // Painel SAC, Escala de serviço e Trocas de sábado: 'db' = Postgres; padrão = planilha (Apps Script).
+  escalaBackend: required('ESCALA_BACKEND', 'sheets'),
   // Octadesk (atendimento): botão "Abrir conversa com o cliente" no ticket de Erro de Envio. A conversa nasce com uma
   // mensagem MODELO de WhatsApp já aprovada (OCTADESK_TEMPLATE). OCTADESK_NUMERO só é preciso se a conta tiver mais de um número.
   octadeskApiUrl: required('OCTADESK_API_URL', ''),

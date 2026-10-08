@@ -68,6 +68,11 @@ function doGet(e) {
       // Só o segredo compartilhado autoriza — nunca é chamado pelo navegador.
       if (p.segredo !== SEGREDO_HUB) { resp = { erro: 'Nao autorizado' }; }
       else { resp = { usuarios: hubListarUsuarios() }; }
+    } else if (action === 'exportar') {
+      // Cópia para o banco (só leitura): escala de todos, trocas, nomes dos usuários (SEM as senhas), agenda e avisos.
+      // Só o segredo compartilhado autoriza — nunca é chamado pelo navegador.
+      if (p.segredo !== SEGREDO_HUB) { resp = { erro: 'Nao autorizado' }; }
+      else { resp = exportarPainelSac_(); }
     } else if (action === 'escalaEquipe') {
       // Escala da equipe inteira (Home, visão de gestor) — lê todo mundo
       // numa única execução (abre a planilha uma vez só) em vez da Home
@@ -103,6 +108,11 @@ function doGet(e) {
 function doPost(e) {
   try {
     const body = JSON.parse(e.postData.contents);
+    if (body.action === 'salvarBackup') {
+      // Cópia diária do banco em abas "bkp AAAA-MM-DD ..." (ver salvarBackup_ no fim do arquivo). Só server-to-server.
+      if (body.segredo !== SEGREDO_HUB) return out({ ok: false, erro: 'Nao autorizado' });
+      return out(salvarBackup_(body, SpreadsheetApp.openById(SHEET_ID)));
+    }
     if (body.action === 'sugestao') {
       const ss  = SpreadsheetApp.openById(SHEET_ID);
       const aba = ss.getSheetByName('Sugestoes');
@@ -1167,4 +1177,133 @@ function buscarHistoricoAuditoria(slug, periodo, mes, ano, semIniStr, semFimStr)
     if (id || obs) itens.push({ id: id, obs: obs, score: score });
   }
   return { nota: nota, itens: itens };
+}
+
+// ---------- Exportação para o banco (só leitura) ----------
+// Devolve, sem nenhuma senha: escala de cada pessoa (linhas cruas da aba), trocas, usuários (slug e nome, mais as
+// colunas depois da senha), agenda e avisos. O hub usa isto para copiar Escala e Trocas para o banco e, depois,
+// para espelhar o que é digitado à mão na planilha (agenda, avisos, nomes).
+function exportarPainelSac_() {
+  const ss = SpreadsheetApp.openById(SHEET_ID);
+  // Datas viram texto ISO; o resto vai como está (número continua número, vazio continua vazio).
+  const cru = function (v) {
+    if (v instanceof Date) return isNaN(v.getTime()) ? '' : v.toISOString();
+    return v === null || v === undefined ? '' : v;
+  };
+
+  const escala = [];
+  Object.keys(ABAS_MAP).forEach(function (slug) {
+    const cfg = ABAS_MAP[slug];
+    if (!cfg.escala) return;
+    const aba = ss.getSheetByName(cfg.escala);
+    if (!aba) { escala.push({ slug: slug, aba: cfg.escala, existe: false }); return; }
+    const rows = aba.getDataRange().getValues();
+    escala.push({
+      slug: slug,
+      aba: cfg.escala,
+      cabecalho: (rows[0] || []).map(cru),
+      linhas: rows.slice(1).map(function (r, i) {
+        // O rótulo "mês/ano" pode ser data de verdade: manda {data: ISO} para o hub ler como o Apps Script lia.
+        const rot = r[0] instanceof Date ? { data: r[0].toISOString() } : cru(r[0]);
+        return { linha: i + 2, rotulo: rot, valores: r.slice(1).map(cru) };
+      }),
+    });
+  });
+
+  const abaTrocas = ss.getSheetByName('Trocas');
+  const trocas = abaTrocas ? abaTrocas.getDataRange().getValues().slice(1).map(function (r) { return r.map(cru); }) : [];
+
+  const abaUsuarios = ss.getSheetByName('Usuarios');
+  const usuarios = abaUsuarios
+    ? abaUsuarios.getDataRange().getValues().map(function (r, i) {
+        // Coluna B (senha) NUNCA sai daqui.
+        return { linha: i + 1, slug: String(r[0] === null || r[0] === undefined ? '' : r[0]).trim(), nome: String(r[2] === null || r[2] === undefined ? '' : r[2]).trim(), resto: r.slice(3).map(cru) };
+      })
+    : [];
+
+  const abaAgenda = ss.getSheetByName('Agenda');
+  const agenda = abaAgenda ? abaAgenda.getDataRange().getValues().slice(1).map(function (r) { return r.map(cru); }) : [];
+  const abaAvisos = ss.getSheetByName('Avisos');
+  const avisos = abaAvisos ? abaAvisos.getDataRange().getValues().slice(1).map(function (r) { return r.map(cru); }) : [];
+
+  return { ok: true, escala: escala, trocas: trocas, usuarios: usuarios, agenda: agenda, avisos: avisos };
+}
+
+// ---------- Backup automático (copia do banco em abas "bkp AAAA-MM-DD ...") ----------
+function salvarBackup_(body, ss) {
+  var PREFIXO = 'bkp ';
+  var data = String(body.data || '');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(data)) return { ok: false, error: 'Data inválida: ' + data, erro: 'Data inválida: ' + data };
+  var manter = Math.max(1, Math.floor(Number(body.manter) || 7));
+  var abas = body.abas || [];
+  if (!abas.length) return { ok: false, error: 'Nenhuma aba para gravar.', erro: 'Nenhuma aba para gravar.' };
+
+  var lock = LockService.getScriptLock();
+  lock.waitLock(60000);
+  try {
+    var gravadas = [];
+    for (var i = 0; i < abas.length; i++) {
+      var a = abas[i];
+      var cab = a.cabecalho || [];
+      var linhas = a.linhas || [];
+      var nCols = cab.length;
+      if (!nCols) continue;
+      var nome = (PREFIXO + data + ' ' + a.nome).substring(0, 99);
+
+      var sh = ss.getSheetByName(nome);
+      if (sh) sh.clear(); else sh = ss.insertSheet(nome, ss.getNumSheets());
+
+      var nLin = linhas.length + 1;
+      if (sh.getMaxRows() < nLin) sh.insertRowsAfter(sh.getMaxRows(), nLin - sh.getMaxRows());
+      if (sh.getMaxColumns() < nCols) sh.insertColumnsAfter(sh.getMaxColumns(), nCols - sh.getMaxColumns());
+
+      // Tudo vira texto puro (zero à esquerda de CPF/conta e textos que começam com "=" não são
+      // interpretados), menos as colunas numéricas.
+      var ehNumero = {};
+      (a.colunasNumero || []).forEach(function (c) { ehNumero[c] = true; });
+      for (var c = 0; c < nCols; c++) {
+        if (!ehNumero[c]) sh.getRange(1, c + 1, nLin, 1).setNumberFormat('@');
+      }
+
+      sh.getRange(1, 1, 1, nCols).setValues([cab.map(String)]).setFontWeight('bold');
+      sh.setFrozenRows(1);
+
+      var TAM_LOTE = 2000;
+      for (var ini = 0; ini < linhas.length; ini += TAM_LOTE) {
+        var lote = linhas.slice(ini, ini + TAM_LOTE).map(function (l) {
+          var linha = [];
+          for (var k = 0; k < nCols; k++) {
+            var v = l[k];
+            if (v === null || v === undefined) v = '';
+            if (typeof v === 'string' && v.length > 49000) v = v.substring(0, 49000); // limite de 50 mil caracteres por célula
+            linha.push(v);
+          }
+          return linha;
+        });
+        sh.getRange(2 + ini, 1, lote.length, nCols).setValues(lote);
+      }
+      sh.setTabColor('#9aa0a6');
+      gravadas.push({ nome: nome, linhas: linhas.length });
+    }
+    SpreadsheetApp.flush();
+
+    // Apaga as abas "bkp " de dias mais antigos que os últimos `manter` dias.
+    var porData = {};
+    ss.getSheets().forEach(function (s) {
+      var m = /^bkp (\d{4}-\d{2}-\d{2}) /.exec(s.getName());
+      if (m) (porData[m[1]] = porData[m[1]] || []).push(s);
+    });
+    var datas = Object.keys(porData).sort().reverse(); // mais recentes primeiro
+    var removidas = [];
+    datas.slice(manter).forEach(function (d) {
+      porData[d].forEach(function (s) { removidas.push(s.getName()); ss.deleteSheet(s); });
+    });
+
+    return { ok: true, gravadas: gravadas, removidas: removidas };
+  } catch (err) {
+    var msg = String((err && err.message) || err);
+    return { ok: false, error: msg, erro: msg };
+  } finally {
+    lock.releaseLock();
+  }
 }

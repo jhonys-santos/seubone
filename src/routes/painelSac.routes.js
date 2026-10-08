@@ -4,6 +4,7 @@ const { resolveSlug } = require('../middleware/resolveSlug');
 const { chamarAppsScript } = require('../services/appsScriptClient');
 const ticketsStore = require('../services/ticketsStore');
 const auditoriaStore = require('../services/auditoriaStore');
+const escalaStore = require('../services/escalaStore');
 const { listarUsuarios } = require('../services/usuarios.service');
 const env = require('../config/env');
 
@@ -262,6 +263,8 @@ router.get('/api/dados', resolveSlug, async (req, res) => {
       ticketsResolucaoPromise,
     ]);
 
+    await escalaStore.sobreporNoDados(json, req.slugAlvo, mes, ano);
+
     if (json.indicadores) {
       if (auditoria) {
         json.indicadores.audit = auditoria.audit;
@@ -297,10 +300,7 @@ router.get('/api/dados', resolveSlug, async (req, res) => {
 router.get('/api/escala', resolveSlug, async (req, res) => {
   try {
     const { mes, ano } = req.query;
-    const json = await chamarAppsScript(env.painelSacAppsScriptUrl, {
-      params: { action: 'escala', usuario: req.slugAlvo, mes, ano },
-      cache: true,
-    });
+    const json = await escalaStore.escala(req.slugAlvo, mes, ano);
     res.json(json);
   } catch (err) {
     res.status(502).json({ ok: false, erro: 'Falha ao buscar escala: ' + err.message });
@@ -312,10 +312,7 @@ router.get('/api/escala', resolveSlug, async (req, res) => {
 router.get('/api/escala-equipe', requireRole('gestor'), async (req, res) => {
   try {
     const { mes, ano } = req.query;
-    const json = await chamarAppsScript(env.painelSacAppsScriptUrl, {
-      params: { action: 'escalaEquipe', mes, ano },
-      cache: true,
-    });
+    const json = await escalaStore.escalaEquipe(mes, ano);
     res.json(json);
   } catch (err) {
     res.status(502).json({ ok: false, erro: 'Falha ao buscar escala da equipe: ' + err.message });
@@ -328,10 +325,7 @@ router.get('/api/escala-equipe', requireRole('gestor'), async (req, res) => {
 router.post('/api/escala', requireRole('gestor'), async (req, res) => {
   try {
     const { slug, dia, mes, ano, status } = req.body;
-    const json = await chamarAppsScript(env.painelSacAppsScriptUrl, {
-      method: 'POST',
-      body: { action: 'atualizarEscala', slug, dia, mes, ano, status },
-    });
+    const json = await escalaStore.atualizarEscala({ slug, dia, mes, ano, status });
     res.json(json);
   } catch (err) {
     res.status(502).json({ ok: false, erro: 'Falha ao atualizar escala: ' + err.message });
@@ -342,10 +336,7 @@ router.post('/api/escala', requireRole('gestor'), async (req, res) => {
 router.post('/api/escala-lote', requireRole('gestor'), async (req, res) => {
   try {
     const { slugs, dias, status } = req.body;
-    const json = await chamarAppsScript(env.painelSacAppsScriptUrl, {
-      method: 'POST',
-      body: { action: 'atualizarEscalaLote', slugs, dias, status },
-    });
+    const json = await escalaStore.atualizarEscalaLote({ slugs, dias, status });
     res.json(json);
   } catch (err) {
     res.status(502).json({ ok: false, erro: 'Falha ao cadastrar em lote: ' + err.message });
@@ -371,10 +362,7 @@ router.get('/api/consultores', async (req, res) => {
 router.get('/api/sabados-consultor', async (req, res) => {
   try {
     const { alvo, mes, ano } = req.query;
-    const json = await chamarAppsScript(env.painelSacAppsScriptUrl, {
-      params: { action: 'sabadosConsultor', usuario: req.session.user.slug, alvo, mes, ano },
-      cache: true,
-    });
+    const json = await escalaStore.sabadosConsultor(req.session.user.slug, alvo, mes, ano);
     res.json(json);
   } catch (err) {
     res.status(502).json({ ok: false, erro: 'Falha ao buscar sábados do colega: ' + err.message });
@@ -385,15 +373,8 @@ router.post('/api/solicitar-troca', async (req, res) => {
   try {
     const u = req.session.user;
     const { dia_solicitante, mes_solicitante, ano_solicitante, consultor_alvo, dia_alvo, mes_alvo, ano_alvo } = req.body;
-    const json = await chamarAppsScript(env.painelSacAppsScriptUrl, {
-      method: 'POST',
-      body: {
-        action: 'solicitarTroca',
-        usuario: u.slug, // sempre o usuário da sessão, nunca o que o cliente mandar
-        dia_solicitante, mes_solicitante, ano_solicitante,
-        consultor_alvo, dia_alvo, mes_alvo, ano_alvo,
-      },
-    });
+    // Sempre o usuário da sessão, nunca o que o cliente mandar.
+    const json = await escalaStore.solicitarTroca(u.slug, { dia_solicitante, mes_solicitante, ano_solicitante, consultor_alvo, dia_alvo, mes_alvo, ano_alvo });
     res.json(json);
   } catch (err) {
     res.status(502).json({ ok: false, erro: 'Falha ao solicitar troca: ' + err.message });
@@ -404,10 +385,7 @@ router.post('/api/responder-troca', async (req, res) => {
   try {
     const u = req.session.user;
     const { id_troca, aceitar } = req.body;
-    const json = await chamarAppsScript(env.painelSacAppsScriptUrl, {
-      method: 'POST',
-      body: { action: 'responderTroca', usuario: u.slug, id_troca, aceitar },
-    });
+    const json = await escalaStore.responderTroca(u.slug, id_troca, aceitar);
     res.json(json);
   } catch (err) {
     res.status(502).json({ ok: false, erro: 'Falha ao responder troca: ' + err.message });

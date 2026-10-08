@@ -109,6 +109,15 @@ ABAS.wallacPremiacao = aba('Premiacao_Historico', 'wallac_premiacao', 'semana_in
   ['semana_inicio', D('semana_inicio')], ['semana_fim', D('semana_fim')], ['pecas_no_prazo', 'pecas_no_prazo::int', N], ['faixa', 'faixa'], ['coins_da_semana', 'coins_da_semana::int', N],
   ['mes_referencia', 'mes_referencia'], ['coins_acumulados_no_mes', 'coins_acumulados_no_mes::int', N],
 ]);
+ABAS.escalaPessoas = aba('Escala_Pessoas', 'sac_escala_pessoas', 'ordem, slug', [['slug', 'slug'], ['nome', 'nome'], ['ordem', 'ordem::int', N]]);
+ABAS.escala = aba('Escala', 'sac_escala', 'slug, ano, mes', [
+  ['slug', 'slug'], ['ano', 'ano::int', N], ['mes (0=jan)', 'mes::int', N], ['rotulo', 'rotulo'],
+  ...Array.from({ length: 31 }, (_, i) => [String(i + 1), `coalesce(dias[${i + 1}], '')`]),
+]);
+ABAS.escalaTrocas = aba('Trocas', 'sac_trocas', 'ordem', [
+  ['id', 'id'], ['solicitante', 'solicitante'], ['dia_sol', 'dia_sol::int', N], ['mes_sol', 'mes_sol::int', N], ['ano_sol', 'ano_sol::int', N], ['alvo', 'alvo'],
+  ['dia_alvo', 'dia_alvo::int', N], ['mes_alvo', 'mes_alvo::int', N], ['ano_alvo', 'ano_alvo::int', N], ['status', 'status'], ['criada_em', TSZ('criada_em')], ['respondida_em', TSZ('respondida_em')],
+]);
 ABAS.agendaFoco = aba('Foco', 'agenda_foco', 'id', [['Foco da semana', 'texto']]);
 ABAS.agendaEventos = aba('Agenda', 'agenda_eventos', 'id', [['Linha', 'id::int', N], ['Dia', 'dia'], ['Horario', 'hora'], ['Descricao', 'descricao'], ['Tipo', 'tipo']]);
 
@@ -124,6 +133,7 @@ const AREAS = [
   { chave: 'quitacoes', rotulo: 'Quitações Pendentes', url: () => env.quitacoesAppsScriptUrl, abas: [{ aba: ABAS.quitacoes, ativa: () => env.quitacoesBackend === 'db' }] },
   { chave: 'auditoria', rotulo: 'Auditoria de Qualidade', url: () => env.auditoriaAppsScriptUrl, abas: [{ aba: ABAS.auditoria, ativa: () => env.auditoriaBackend === 'db' }] },
   { chave: 'agenda', rotulo: 'Foco e Agenda da Semana', url: () => env.agendaSemanaAppsScriptUrl, abas: [{ aba: ABAS.agendaFoco, ativa: () => env.agendaBackend === 'db' }, { aba: ABAS.agendaEventos, ativa: () => env.agendaBackend === 'db' }] },
+  { chave: 'painelSac', rotulo: 'Painel SAC (Escala e Trocas)', url: () => env.painelSacAppsScriptUrl, abas: [{ aba: ABAS.escalaPessoas, ativa: () => env.escalaBackend === 'db' }, { aba: ABAS.escala, ativa: () => env.escalaBackend === 'db' }, { aba: ABAS.escalaTrocas, ativa: () => env.escalaBackend === 'db' }] },
   { chave: 'pedidosUrgentes', rotulo: 'Pedidos Urgentes', url: () => env.pedidosUrgentesAppsScriptUrl, abas: [{ aba: ABAS.pedidosUrgentes, ativa: () => env.pedidosUrgentesBackend === 'db' }] },
   { chave: 'wallac', rotulo: 'Wallac (Produção SBP)', url: () => env.wallacAppsScriptUrl, abas: [{ aba: ABAS.wallacStatus, ativa: () => env.wallacBackend === 'db' }, { aba: ABAS.wallacEstoque, ativa: () => env.wallacBackend === 'db' }, { aba: ABAS.wallacSolicitacoes, ativa: () => env.wallacBackend === 'db' }, { aba: ABAS.wallacPremiacao, ativa: () => env.wallacBackend === 'db' }] },
   { chave: 'corridas', rotulo: 'Corridas Avulsas', url: () => env.corridasAvulsasAppsScriptUrl, abas: [{ aba: ABAS.corridas, ativa: () => env.financeiroBackend === 'db' }] },
