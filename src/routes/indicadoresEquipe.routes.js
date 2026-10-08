@@ -3,6 +3,7 @@ const { requireAuth, requireRole } = require('../middleware/auth');
 const { chamarAppsScript } = require('../services/appsScriptClient');
 const ticketsStore = require('../services/ticketsStore');
 const env = require('../config/env');
+const espelho = require('../services/espelhoKpi.service');
 
 const router = express.Router();
 
@@ -116,8 +117,10 @@ router.get('/api/dados', async (req, res) => {
         })
       : Promise.resolve(null);
 
+    // Espelho primeiro (resposta em milissegundos, sem abrir a planilha); se estiver desligado, velho ou sem o período, planilha como sempre.
+    const doEspelho = await espelho.obterDados(time, desde, ate).catch((err) => { console.error('[indicadores-equipe] espelho indisponível, usando a planilha:', err.message); return null; });
     const [json, resolucaoTickets] = await Promise.all([
-      chamarAppsScript(env.indicadoresEquipeAppsScriptUrl, {
+      doEspelho || chamarAppsScript(env.indicadoresEquipeAppsScriptUrl, {
         params: { action: 'dados', time, desde, ate },
         cache: true,
       }),

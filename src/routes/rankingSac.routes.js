@@ -3,6 +3,7 @@ const { requireAuth, requirePainel } = require('../middleware/auth');
 const { chamarAppsScript } = require('../services/appsScriptClient');
 const ticketsStore = require('../services/ticketsStore');
 const env = require('../config/env');
+const espelho = require('../services/espelhoKpi.service');
 
 const router = express.Router();
 
@@ -22,7 +23,9 @@ router.get('/api/csv/:chave', async (req, res) => {
     return res.status(400).send('chave inválida');
   }
   try {
-    const csv = await chamarAppsScript(env.rankingSacCsvUrls[chave], { cache: true });
+    // Cópia recente do espelho primeiro; se não houver, o CSV publicado como sempre.
+    const doEspelho = await espelho.obterCsv(chave).catch(() => null);
+    const csv = doEspelho != null ? doEspelho : await chamarAppsScript(env.rankingSacCsvUrls[chave], { cache: true });
     res.type('text/csv').send(typeof csv === 'string' ? csv : '');
   } catch (err) {
     res.status(502).send('erro ao buscar planilha: ' + err.message);

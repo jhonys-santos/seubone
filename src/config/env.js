@@ -54,6 +54,9 @@ module.exports = {
   octadeskTemplate: required('OCTADESK_TEMPLATE', 'abertura_erros_painel'),
   // 'off' = a conversa nasce SEM agente (fica em espera para a distribuição do Octadesk); padrão 'on' = o Octadesk atribui sozinho a um agente.
   octadeskAtribuicaoAutomatica: required('OCTADESK_ATRIBUICAO_AUTOMATICA', 'on'),
+  // Espelho dos KPIs (TMA, CSAT, atendimentos e CSVs do Ranking SAC) no banco: 'on' = os painéis leem da cópia (rápido) e, se ela
+  // estiver velha ou ausente, voltam sozinhos a consultar a planilha. A planilha continua sendo a fonte; nada é recalculado nem escrito nela.
+  espelhoKpi: required('ESPELHO_KPI', 'off'),
   // Backup automático do banco de volta pras planilhas (seg-sex 20h, abas "bkp AAAA-MM-DD ..."). 'on' liga.
   backupPlanilhas: required('BACKUP_PLANILHAS', 'off'),
   // 'pg' = sessões de login no Postgres (sobrevivem a deploys); padrão = arquivos em disco.
