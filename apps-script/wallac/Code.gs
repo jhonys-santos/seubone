@@ -6,9 +6,18 @@
  * 1) Compra (aba LTV, filtrada por coluna M = "Wallac")        -> chave "ltv-<linha>"
  * 2) Solicitação de personalização a partir do estoque          -> chave "est-<linha>"
  *    (aba Solicitacoes_Estoque, alimentada pelo formulário)
+ *
+ * Só o hub fala com este script (nunca o navegador direto): toda ação exige o segredo do hub.
+ * Ações novas: exportar (cópia para o banco), salvar_logo (só sobe o logo no Drive) e salvarBackup (cópia diária do banco).
+ *
+ * ATENÇÃO: o arquivo do repositório é só uma cópia de referência; o SEGREDO_HUB real fica só aqui no Apps Script
+ * e no .env do hub (APPS_SCRIPT_SHARED_SECRET). Nunca preencha o segredo no repositório.
  */
 
 const SHEET_ID = '1iZ-n84hy4RRNHtkrEHG0mWVGRLi_juvbdhaiR7U9T20';
+
+// Precisa ser IDÊNTICO ao APPS_SCRIPT_SHARED_SECRET no .env do hub.
+var SEGREDO_HUB = 'PREENCHA_APENAS_NO_APPS_SCRIPT_REAL';
 const ABA_LTV = 'LTV';
 const ABA_STATUS = 'Status_Producao_Wallac';
 const ABA_ESTOQUE = 'Estoque';
@@ -87,6 +96,7 @@ function somarDiasUteis(data, dias) {
 
 function doGet(e) {
   try {
+    if (e.parameter.segredo !== SEGREDO_HUB) return responderJSON({ ok: false, erro: 'Nao autorizado' });
     const acao = e.parameter.acao;
     if (acao === 'estoque') {
       return responderJSON({ ok: true, produtos: buscarProdutosDisponiveis() });
@@ -100,6 +110,9 @@ function doGet(e) {
     if (acao === 'premiacao_semana_atual') {
       return responderJSON({ ok: true, semana: premiacaoSemanaAtual() });
     }
+    if (acao === 'exportar') {
+      return responderJSON(exportarWallac_());
+    }
     return responderJSON({ ok: true, cards: buscarCards() });
   } catch (err) {
     return responderJSON({ ok: false, erro: err.message });
@@ -109,6 +122,7 @@ function doGet(e) {
 function doPost(e) {
   try {
     const dados = JSON.parse(e.postData.contents);
+    if (dados.segredo !== SEGREDO_HUB) return responderJSON({ ok: false, erro: 'Nao autorizado' });
 
     if (dados.acao === 'solicitar_personalizacao') {
       return responderJSON(solicitarPersonalizacao(dados));
@@ -125,6 +139,14 @@ function doPost(e) {
     }
     if (dados.acao === 'estoque_remover') {
       return responderJSON(removerProdutoEstoque(dados));
+    }
+    // Só sobe o logo no Drive e devolve o link (o hub grava a solicitação no banco).
+    if (dados.acao === 'salvar_logo') {
+      return responderJSON(salvarLogoSomente_(dados));
+    }
+    // Cópia diária do banco para abas "bkp AAAA-MM-DD ..." (backup automático do hub).
+    if (dados.acao === 'salvarBackup') {
+      return responderJSON(salvarBackup_(dados, SpreadsheetApp.openById(SHEET_ID)));
     }
     return responderJSON({ ok: false, erro: 'Ação inválida: ' + dados.acao });
   } catch (err) {
@@ -680,4 +702,169 @@ function premiacaoHistorico() {
     mes_referencia: String(r[5]),
     coins_acumulados_no_mes: Number(r[6]) || 0
   }));
+}
+
+// ---------- Exportação para o banco ----------
+function exportarWallac_() {
+  const ss = SpreadsheetApp.openById(SHEET_ID);
+  const tz = Session.getScriptTimeZone();
+  const iso = (v) => (v instanceof Date && !isNaN(v.getTime())) ? v.toISOString() : '';
+  const dia = (v) => {
+    if (v === '' || v == null) return '';
+    if (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v.trim())) return v.trim(); // texto já no formato certo: não passa por Date (evita cair no dia anterior)
+    const d = v instanceof Date ? v : new Date(v);
+    return isNaN(d.getTime()) ? String(v) : Utilities.formatDate(d, tz, 'yyyy-MM-dd');
+  };
+  const mes = (v) => (v instanceof Date && !isNaN(v.getTime())) ? Utilities.formatDate(v, tz, 'yyyy-MM') : String(v == null ? '' : v);
+
+  const status = [];
+  const dSt = ss.getSheetByName(ABA_STATUS).getDataRange().getValues();
+  for (let i = 1; i < dSt.length; i++) {
+    if (!dSt[i][COL_STATUS.LINHA_LTV - 1]) continue;
+    status.push({
+      linha_ltv: Number(dSt[i][COL_STATUS.LINHA_LTV - 1]),
+      status_atual: String(dSt[i][COL_STATUS.STATUS_ATUAL - 1] || ''),
+      data_recebido: iso(dSt[i][COL_STATUS.DATA_RECEBIDO - 1]),
+      data_inicio_producao: iso(dSt[i][COL_STATUS.DATA_INICIO_PRODUCAO - 1]),
+      data_finalizado: iso(dSt[i][COL_STATUS.DATA_FINALIZADO - 1])
+    });
+  }
+
+  const estoque = [];
+  const dEs = ss.getSheetByName(ABA_ESTOQUE).getDataRange().getValues();
+  for (let i = 1; i < dEs.length; i++) {
+    if (!dEs[i][COL_ESTOQUE.PRODUTO - 1]) continue;
+    estoque.push({ linha: i + 1, produto: String(dEs[i][COL_ESTOQUE.PRODUTO - 1]), quantidade: Number(dEs[i][COL_ESTOQUE.QUANTIDADE - 1]) || 0 });
+  }
+
+  const solicitacoes = [];
+  const abaSol = ss.getSheetByName(ABA_SOLICITACOES);
+  if (abaSol) {
+    const dSo = abaSol.getDataRange().getValues();
+    for (let i = 1; i < dSo.length; i++) {
+      const l = dSo[i];
+      if (!l[COL_SOLICITACAO.PRODUTO - 1]) continue;
+      solicitacoes.push({
+        linha: i + 1,
+        produto: String(l[COL_SOLICITACAO.PRODUTO - 1]),
+        quantidade: Number(l[COL_SOLICITACAO.QUANTIDADE - 1]) || 0,
+        id_venda_cliente: String(l[COL_SOLICITACAO.ID_VENDA_CLIENTE - 1] || ''),
+        prazo_producao: dia(l[COL_SOLICITACAO.PRAZO_PRODUCAO - 1]),
+        prazo_entrega: dia(l[COL_SOLICITACAO.PRAZO_ENTREGA - 1]),
+        observacoes: String(l[COL_SOLICITACAO.OBSERVACOES - 1] || ''),
+        logo_url: String(l[COL_SOLICITACAO.LOGO_URL - 1] || ''),
+        status_atual: String(l[COL_SOLICITACAO.STATUS_ATUAL - 1] || ''),
+        data_recebido: iso(l[COL_SOLICITACAO.DATA_RECEBIDO - 1]),
+        data_inicio_producao: iso(l[COL_SOLICITACAO.DATA_INICIO_PRODUCAO - 1]),
+        data_finalizado: iso(l[COL_SOLICITACAO.DATA_FINALIZADO - 1]),
+        solicitante: String(l[COL_SOLICITACAO.SOLICITANTE - 1] || '')
+      });
+    }
+  }
+
+  const premiacao = getAbaPremiacaoHistorico(ss).getDataRange().getValues().slice(1)
+    .filter((r) => r[0] !== '')
+    .map((r) => ({
+      semana_inicio: dia(r[0]), semana_fim: dia(r[1]), pecas_no_prazo: Number(r[2]) || 0, faixa: String(r[3] || ''),
+      coins_da_semana: Number(r[4]) || 0, mes_referencia: mes(r[5]), coins_acumulados_no_mes: Number(r[6]) || 0
+    }));
+
+  return { ok: true, status: status, estoque: estoque, solicitacoes: solicitacoes, premiacao: premiacao };
+}
+
+// ---------- Só sobe o logo para o Drive (o hub grava a solicitação no banco) ----------
+function salvarLogoSomente_(dados) {
+  try {
+    if (!dados.logo_base64) return { ok: false, erro: 'O arquivo DXF do logo é obrigatório.' };
+    return { ok: true, url: salvarLogo(dados.logo_base64, dados.logo_nome || 'logo.dxf') };
+  } catch (err) {
+    return { ok: false, erro: err.message };
+  }
+}
+
+// ---------- Rode UMA vez, depois que o hub assumir a premiação ----------
+function removerGatilhoPremiacao() {
+  ScriptApp.getProjectTriggers()
+    .filter((t) => t.getHandlerFunction() === 'fecharSemanaPremiacao')
+    .forEach((t) => ScriptApp.deleteTrigger(t));
+}
+
+/* ============================ BACKUP PARA PLANILHAS (aba bkp) ============================ */
+
+function salvarBackup_(body, ss) {
+  var PREFIXO = 'bkp ';
+  var data = String(body.data || '');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(data)) return { ok: false, error: 'Data inválida: ' + data, erro: 'Data inválida: ' + data };
+  var manter = Math.max(1, Math.floor(Number(body.manter) || 7));
+  var abas = body.abas || [];
+  if (!abas.length) return { ok: false, error: 'Nenhuma aba para gravar.', erro: 'Nenhuma aba para gravar.' };
+
+  var lock = LockService.getScriptLock();
+  lock.waitLock(60000);
+  try {
+    var gravadas = [];
+    for (var i = 0; i < abas.length; i++) {
+      var a = abas[i];
+      var cab = a.cabecalho || [];
+      var linhas = a.linhas || [];
+      var nCols = cab.length;
+      if (!nCols) continue;
+      var nome = (PREFIXO + data + ' ' + a.nome).substring(0, 99);
+
+      var sh = ss.getSheetByName(nome);
+      if (sh) sh.clear(); else sh = ss.insertSheet(nome, ss.getNumSheets());
+
+      var nLin = linhas.length + 1;
+      if (sh.getMaxRows() < nLin) sh.insertRowsAfter(sh.getMaxRows(), nLin - sh.getMaxRows());
+      if (sh.getMaxColumns() < nCols) sh.insertColumnsAfter(sh.getMaxColumns(), nCols - sh.getMaxColumns());
+
+      // Tudo vira texto puro (zero à esquerda de CPF/conta e textos que começam com "=" não são
+      // interpretados), menos as colunas numéricas.
+      var ehNumero = {};
+      (a.colunasNumero || []).forEach(function (c) { ehNumero[c] = true; });
+      for (var c = 0; c < nCols; c++) {
+        if (!ehNumero[c]) sh.getRange(1, c + 1, nLin, 1).setNumberFormat('@');
+      }
+
+      sh.getRange(1, 1, 1, nCols).setValues([cab.map(String)]).setFontWeight('bold');
+      sh.setFrozenRows(1);
+
+      var TAM_LOTE = 2000;
+      for (var ini = 0; ini < linhas.length; ini += TAM_LOTE) {
+        var lote = linhas.slice(ini, ini + TAM_LOTE).map(function (l) {
+          var linha = [];
+          for (var k = 0; k < nCols; k++) {
+            var v = l[k];
+            if (v === null || v === undefined) v = '';
+            if (typeof v === 'string' && v.length > 49000) v = v.substring(0, 49000); // limite de 50 mil caracteres por célula
+            linha.push(v);
+          }
+          return linha;
+        });
+        sh.getRange(2 + ini, 1, lote.length, nCols).setValues(lote);
+      }
+      sh.setTabColor('#9aa0a6');
+      gravadas.push({ nome: nome, linhas: linhas.length });
+    }
+    SpreadsheetApp.flush();
+
+    // Apaga as abas "bkp " de dias mais antigos que os últimos `manter` dias.
+    var porData = {};
+    ss.getSheets().forEach(function (s) {
+      var m = /^bkp (\d{4}-\d{2}-\d{2}) /.exec(s.getName());
+      if (m) (porData[m[1]] = porData[m[1]] || []).push(s);
+    });
+    var datas = Object.keys(porData).sort().reverse(); // mais recentes primeiro
+    var removidas = [];
+    datas.slice(manter).forEach(function (d) {
+      porData[d].forEach(function (s) { removidas.push(s.getName()); ss.deleteSheet(s); });
+    });
+
+    return { ok: true, gravadas: gravadas, removidas: removidas };
+  } catch (err) {
+    var msg = String((err && err.message) || err);
+    return { ok: false, error: msg, erro: msg };
+  } finally {
+    lock.releaseLock();
+  }
 }

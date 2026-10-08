@@ -33,6 +33,7 @@ function exportarWallac_() {
   const iso = (v) => (v instanceof Date && !isNaN(v.getTime())) ? v.toISOString() : '';
   const dia = (v) => {
     if (v === '' || v == null) return '';
+    if (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v.trim())) return v.trim(); // texto já no formato certo: não passa por Date (evita cair no dia anterior)
     const d = v instanceof Date ? v : new Date(v);
     return isNaN(d.getTime()) ? String(v) : Utilities.formatDate(d, tz, 'yyyy-MM-dd');
   };
