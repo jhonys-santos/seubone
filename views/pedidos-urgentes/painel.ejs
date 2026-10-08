@@ -13,7 +13,10 @@
 
 <div class="pu-scope">
 <div class="pu-container">
-  <div style="font-size:12px;color:var(--text-hint);margin-bottom:14px;">Atualiza a cada 15s</div>
+  <div class="pu-topbar">
+    <span class="pu-topbar-info">Atualiza a cada 15s</span>
+    <a class="pu-topbar-btn" href="/pedidos-urgentes/historico"><i class="ti ti-history" aria-hidden="true"></i> Histórico</a>
+  </div>
   <button id="btnAtivarSom" onclick="ativarSom()" style="margin-bottom:16px; background:var(--surface-2); color:var(--text); border:1px solid var(--border); display:flex; align-items:center; gap:8px;"><i class="ti ti-bell-ringing" aria-hidden="true"></i> Clique aqui pra ativar o som de alerta</button>
 
   <div class="stats">
@@ -36,7 +39,15 @@
 <div id="modalDespacho" class="modal-overlay" onclick="if(event.target===this) fecharModalDespacho()">
   <div class="modal-box" style="max-width:400px;">
     <label>Quem está despachando o pedido <span id="despachoOs" class="mono"></span>?</label>
-    <input type="text" id="inputNomeDespacho" placeholder="Seu nome" autocomplete="off">
+    <select id="selectNomeDespacho" onchange="aoMudarNomeDespacho()">
+      <option value="">Selecione seu nome</option>
+      <option value="João Vitor">João Vitor</option>
+      <option value="Jeydson Allan">Jeydson Allan</option>
+      <option value="André">André</option>
+      <option value="Francisco Alexandre">Francisco Alexandre</option>
+      <option value="__outros__">Outros</option>
+    </select>
+    <input type="text" id="inputNomeDespacho" placeholder="Digite seu nome" autocomplete="off" maxlength="80" style="display:none;margin-top:10px;">
     <div style="display:flex; gap:10px; margin-top:20px;">
       <button class="btn-secondary" style="flex:1;" onclick="fecharModalDespacho()">Cancelar</button>
       <button class="btn-primary" style="flex:1;margin-top:0;" onclick="confirmarDespacho()"><i class="ti ti-truck-delivery" aria-hidden="true"></i> Confirmar</button>

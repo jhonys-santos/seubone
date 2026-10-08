@@ -60,10 +60,26 @@ function fecharImagem() {
 function despachar(id, os) {
   pendingDespacho = { id, os };
   document.getElementById('despachoOs').textContent = os;
+  // Lembra quem despachou da última vez neste computador: se for da lista, já vem selecionado; senão cai em "Outros".
+  const select = document.getElementById('selectNomeDespacho');
   const input = document.getElementById('inputNomeDespacho');
-  input.value = localStorage.getItem('pu-nome-despacho') || '';
+  let salvo = '';
+  try { salvo = localStorage.getItem('pu-nome-despacho') || ''; } catch (e) { /* sem armazenamento: começa vazio */ }
+  const daLista = Array.from(select.options).some((o) => o.value && o.value !== '__outros__' && o.value === salvo);
+  select.value = daLista ? salvo : (salvo ? '__outros__' : '');
+  input.value = select.value === '__outros__' ? salvo : '';
+  aoMudarNomeDespacho();
   document.getElementById('modalDespacho').classList.add('aberto');
-  setTimeout(() => input.focus(), 50);
+  setTimeout(() => (select.value === '__outros__' ? input : select).focus(), 50);
+}
+
+// "Outros" abre o campo para digitar o nome.
+function aoMudarNomeDespacho() {
+  const select = document.getElementById('selectNomeDespacho');
+  const input = document.getElementById('inputNomeDespacho');
+  const outros = select.value === '__outros__';
+  input.style.display = outros ? '' : 'none';
+  if (outros) input.focus();
 }
 
 function fecharModalDespacho() {
@@ -72,9 +88,10 @@ function fecharModalDespacho() {
 }
 
 async function confirmarDespacho() {
-  const nome = document.getElementById('inputNomeDespacho').value.trim();
+  const escolhido = document.getElementById('selectNomeDespacho').value;
+  const nome = escolhido === '__outros__' ? document.getElementById('inputNomeDespacho').value.trim() : escolhido;
   if (!nome) {
-    await hubAlert('Digite o nome de quem está despachando.', 'erro');
+    await hubAlert(escolhido === '__outros__' ? 'Digite o nome de quem está despachando.' : 'Selecione quem está despachando o pedido.', 'erro');
     return;
   }
   if (!pendingDespacho) return;
@@ -87,7 +104,7 @@ async function confirmarDespacho() {
     });
     const data = await resp.json();
     if (data.ok) {
-      localStorage.setItem('pu-nome-despacho', nome);
+      try { localStorage.setItem('pu-nome-despacho', nome); } catch (e) { /* sem armazenamento: só não lembra */ }
       idsConhecidos.delete(id);
       fecharModalDespacho();
       carregar();
