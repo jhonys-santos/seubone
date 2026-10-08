@@ -49,6 +49,9 @@ async function cardsLtv() {
 }
 const linhaDaChave = (chave) => { const m = /^ltv-(\d+)$/.exec(str(chave)); return m ? Number(m[1]) : null; };
 
+/** A planilha entregava o ID da venda como NÚMERO quando só tem dígitos (célula numérica) e como texto nos demais casos. */
+const idVendaDoCard = (v) => (!str(v).trim() ? '(sem ref.)' : /^\d{1,15}$/.test(str(v).trim()) ? Number(str(v).trim()) : v);
+
 // ── Leitura do kanban ───────────────────────────────────────────────────────
 async function cards() {
   try {
@@ -58,7 +61,7 @@ async function cards() {
     const compra = ltv.map((c) => ({ ...c, status: porLinha.get(linhaDaChave(c.chave)) || STATUS.A_CHEGAR }));
     const sol = await db.query(`select * from wallac_solicitacoes where btrim(produto) <> '' order by id`);
     const estoque = sol.rows.map((x) => ({
-      chave: 'est-' + x.id, origem: 'estoque', id_venda: x.id_venda_cliente || '(sem ref.)', nome_card: '', produto: x.produto, quantidade: num(x.quantidade),
+      chave: 'est-' + x.id, origem: 'estoque', id_venda: idVendaDoCard(x.id_venda_cliente), nome_card: '', produto: x.produto, quantidade: num(x.quantidade),
       prazo_producao: x.prazo_producao || null, prazo_entrega: x.prazo_entrega || null, observacoes: x.observacoes || '', logo_url: x.logo_url || '',
       solicitante: x.solicitante || '', status: x.status_atual || STATUS.RECEBIDO,
     }));
