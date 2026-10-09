@@ -1,11 +1,10 @@
-// Ranking SAC — só as corridas (Time Atendimento + Time Resolução) e o
-// alerta de Manifesto. KPIs/Agenda/Foco/relógio migraram pra Home
-// (hub-home.js) — mas a agenda ainda é buscada aqui, porque o alerta de
-// Manifesto depende dela pra saber a hora certa de disparar.
+// Ranking SAC — só as corridas (Time Atendimento + Time Resolução).
+// KPIs/Agenda/Foco/relógio migraram pra Home (hub-home.js). O alerta de Manifesto
+// agora é global (public/js/manifesto-alerta.js, carregado pelo menu lateral).
 
 const API_BASE = '/ranking-sac/api';
 const REFRESH_INTERVAL = 300000;
-const SHEET_KEYS = { atd: 'atd', agenda: 'agenda' };
+const SHEET_KEYS = { atd: 'atd' };
 
 // ── UTILS
 function timeStrToMin(s){
@@ -71,7 +70,6 @@ let DATA={
       'Daniel':   {tmrppf:[null,null,null,null,null],tickets:[null,null,null,null,null],score:null},
     }
   },
-  agenda:[]
 };
 
 // ── PARSE SHEETS
@@ -105,18 +103,6 @@ function parseATD(rows){
   });
 }
 
-function parseAgenda(rows){
-  DATA.agenda=[];
-  const di=rows.findIndex(r=>cleanStr(r[0]).toLowerCase()==='dia');
-  if(di!==-1){
-    for(let i=di+1;i<rows.length;i++){
-      const r=rows[i];
-      if(!r||!cleanStr(r[0])||!cleanStr(r[2])) continue;
-      DATA.agenda.push({dia:cleanStr(r[0]),hora:cleanStr(r[1]),desc:cleanStr(r[2]),tipo:cleanStr(r[3])||'Outro'});
-    }
-  }
-}
-
 // ── FETCH
 async function fetchSheet(key){
   const chave = SHEET_KEYS[key];
@@ -148,15 +134,14 @@ async function loadAllData(){
   const ind=document.getElementById('refresh-ind');
   ind.textContent='● atualizando...';ind.classList.add('loading');
   try{
-    const [rowsATD,resolucao,rowsAG]=await Promise.all([
-      fetchSheet('atd'),fetchResolucao(rslOffset),fetchSheet('agenda'),
+    const [rowsATD,resolucao]=await Promise.all([
+      fetchSheet('atd'),fetchResolucao(rslOffset),
     ]);
     parseATD(rowsATD);
     DATA.rsl.consultores=resolucao.consultores;
     DATA.rsl.dias=resolucao.dias;
     DATA.rsl.data=resolucao.data;
     updateRslWeekNav(resolucao.periodo);
-    parseAgenda(rowsAG);
     renderAll();
     if(window._restartRaces) window._restartRaces();
     window.dispatchEvent(new Event('dataLoaded'));
@@ -426,83 +411,6 @@ function renderAll(){
   };
 
   setTimeout(() => { races.forEach(r => runRace(r)); }, 600);
-})();
-
-// ALERTA MANIFESTO
-(function(){
-  var ALERT_BEFORE_MIN = 5;
-  var ALERT_DURATION   = 30;
-  var alertShown = {};
-
-  var mensagens = [
-    "Hoje e seu dia de Manifesto, bora agir com tudo! ✅ 🚀",
-    "Chegou a sua vez de brilhar! Manifesto hoje, foco e energia! 🔥",
-    "O time conta com voce hoje. Manifesto, vamos juntos! 💥",
-    "E hora do Manifesto! Mostra o que voce vale! ⚡ 🏆",
-    "Hoje voce representa o time. Vai com forca total! 💪 ✅",
-  ];
-
-  function checkManifesto() {
-    var now = new Date();
-    var diaSemana = now.toLocaleDateString('pt-BR', {weekday:'long'}).toLowerCase();
-    var diaMapFull = {'segunda-feira':'Segunda','terça-feira':'Terça','quarta-feira':'Quarta','quinta-feira':'Quinta','sexta-feira':'Sexta'};
-    var diaHoje = diaMapFull[diaSemana] || '';
-    if(!diaHoje) return;
-
-    DATA.agenda.forEach(function(ev) {
-      if(ev.tipo !== 'Escala') return;
-      if(ev.dia !== diaHoje) return;
-      var parts = ev.hora.split(':');
-      var h = parseInt(parts[0])||0, m = parseInt(parts[1])||0;
-      var evTime = new Date(now); evTime.setHours(h,m,0,0);
-      var alertTime = new Date(evTime.getTime() - ALERT_BEFORE_MIN*60000);
-      var diffMs = alertTime - now;
-      var key = ev.dia+'-'+ev.hora+'-'+ev.desc;
-      if(diffMs >= 0 && diffMs <= 60000 && !alertShown[key]) {
-        alertShown[key] = true;
-        var nome = ev.desc.replace(/manifesto/i,'').replace(/[-–]/,'').trim();
-        showAlert(nome, ev.hora);
-      }
-    });
-  }
-
-  function showAlert(nome, horario) {
-    var msg = mensagens[Math.floor(Math.random()*mensagens.length)];
-    document.getElementById('m-nome').textContent = nome;
-    document.getElementById('m-msg').textContent = msg;
-    document.getElementById('m-horario').textContent = 'Manifesto as ' + horario;
-    document.getElementById('m-bar').style.width = '100%';
-    var overlay = document.getElementById('manifesto-overlay');
-    overlay.classList.add('show');
-    var audio = document.getElementById('manifesto-audio');
-    if(audio){ audio.currentTime=0; audio.volume=0.8; audio.play().catch(function(){}); }
-    var remaining = ALERT_DURATION;
-    document.getElementById('m-countdown').textContent = 'fechando em '+remaining+'s';
-    var timer = setInterval(function(){
-      remaining--;
-      document.getElementById('m-countdown').textContent = 'fechando em '+remaining+'s';
-      document.getElementById('m-bar').style.width = ((remaining/ALERT_DURATION)*100)+'%';
-      if(remaining<=0){ clearInterval(timer); overlay.classList.remove('show');
-        var audio=document.getElementById('manifesto-audio'); if(audio){audio.pause();audio.currentTime=0;} }
-    },1000);
-    overlay.onclick = function(){
-      clearInterval(timer); overlay.classList.remove('show');
-      var audio=document.getElementById('manifesto-audio'); if(audio){audio.pause();audio.currentTime=0;}
-    };
-  }
-
-  setInterval(checkManifesto, 30000);
-  window.addEventListener('dataLoaded', checkManifesto);
-
-  window.showAlert = showAlert;
-
-  document.addEventListener('keydown', function(e){
-    if(e.key==='t'||e.key==='T'){
-      var nomes = ['Iasmin','Francis','Nathalia','Gabrielle','Daniel'];
-      var nome = nomes[Math.floor(Math.random()*nomes.length)];
-      showAlert(nome, '17:45');
-    }
-  });
 })();
 
 // ── FILTRO DE SEMANA (Time Resolução)

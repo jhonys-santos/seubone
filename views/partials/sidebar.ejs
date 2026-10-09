@@ -204,3 +204,8 @@
   </div>
 </div>
 <% } %>
+
+<% if (typeof usuario !== 'undefined' && usuario) { %>
+<!-- Alerta do Manifesto do dia (aparece em qualquer tela, com som) -->
+<script src="/js/manifesto-alerta.js?v=<%= typeof appVersion !== 'undefined' ? appVersion : '' %>" data-nome="<%= usuario.nome %>" data-slug="<%= usuario.slug || '' %>" defer></script>
+<% } %>

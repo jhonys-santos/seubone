@@ -1,0 +1,27 @@
+/* Alerta do Manifesto do dia — aparece em qualquer tela do hub (ver /js/manifesto-alerta.js). */
+#mfa-overlay { display: none; position: fixed; inset: 0; background: rgba(0, 0, 0, 0.88); z-index: 99999; align-items: center; justify-content: center; animation: mfaOverlayIn 0.4s ease; }
+#mfa-overlay.show { display: flex; }
+@keyframes mfaOverlayIn { from { opacity: 0; } to { opacity: 1; } }
+.mfa-card { background: var(--surface, #1a1a1a); border: 3px solid var(--gold, #F5B800); border-radius: 20px; padding: 48px 56px; text-align: center; max-width: 700px; width: 90%; animation: mfaCardPop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1); box-shadow: 0 0 80px rgba(245, 184, 0, 0.3); cursor: pointer; }
+@keyframes mfaCardPop { from { transform: scale(0.7); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+.mfa-icon { font-size: 72px; margin-bottom: 16px; display: block; animation: mfaPulse 1.2s ease-in-out infinite; }
+@keyframes mfaPulse { 0% { transform: scale(1); } 50% { transform: scale(1.18); } 100% { transform: scale(1); } }
+.mfa-atencao { font-size: 12px; font-weight: 700; letter-spacing: 3px; color: var(--gold, #F5B800); text-transform: uppercase; margin-bottom: 14px; }
+.mfa-nome { font-size: 58px; font-weight: 900; letter-spacing: -1px; color: var(--text, #EDEDEB); line-height: 1; margin-bottom: 18px; overflow-wrap: anywhere; }
+.mfa-msg { font-size: 22px; font-weight: 600; color: var(--text-muted, #9A9994); line-height: 1.5; margin-bottom: 24px; text-wrap: balance; }
+.mfa-horario { display: inline-block; background: var(--gold-dim, rgba(245, 184, 0, 0.14)); border: 1px solid var(--gold-dark, #B8860B); color: var(--gold, #F5B800); font-size: 15px; font-weight: 700; padding: 8px 22px; border-radius: 30px; letter-spacing: 1px; }
+.mfa-som { display: none; margin-top: 18px; font-size: 13px; font-weight: 600; color: var(--gold, #F5B800); }
+.mfa-som.show { display: block; }
+.mfa-countdown { font-size: 11px; color: var(--text-hint, #656460); margin-top: 20px; letter-spacing: 1px; text-transform: uppercase; }
+.mfa-bar-bg { width: 100%; height: 4px; background: var(--surface-2, #232323); border-radius: 2px; margin-top: 10px; overflow: hidden; }
+.mfa-bar-fill { height: 100%; background: var(--gold, #F5B800); border-radius: 2px; transition: width 1s linear; }
+.mfa-close { font-size: 10px; color: var(--text-hint, #656460); margin-top: 16px; letter-spacing: 1px; }
+@media (max-width: 640px) {
+  .mfa-card { padding: 32px 20px; }
+  .mfa-nome { font-size: 38px; }
+  .mfa-msg { font-size: 17px; }
+  .mfa-icon { font-size: 56px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #mfa-overlay, .mfa-card, .mfa-icon { animation: none; }
+}
