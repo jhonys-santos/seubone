@@ -480,7 +480,13 @@
       if (tkState.fSetor && r.setor !== tkState.fSetor) return false;
       if (tkState.busca) {
         const termo = tkState.busca;
-        const bate = [r.pedido, r.idTicket, r.idVenda].some((v) => String(v || '').toLowerCase().includes(termo));
+        let bate = [r.pedido, r.idTicket, r.idVenda, r.codigoRastreio].some((v) => String(v || '').toLowerCase().includes(termo));
+        if (!bate && r.codigoRastreio) {
+          // Código de rastreio: acha também sem hífen/espaço ("957-39571711", "95739571711" e "39571711" valem o mesmo).
+          const soAlfaNum = (v) => String(v || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+          const t = soAlfaNum(termo);
+          bate = !!t && soAlfaNum(r.codigoRastreio).includes(t);
+        }
         if (!bate) return false;
       }
       return true;
