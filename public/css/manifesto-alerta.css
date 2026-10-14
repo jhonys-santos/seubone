@@ -2,7 +2,7 @@
 #mfa-overlay { display: none; position: fixed; inset: 0; background: rgba(0, 0, 0, 0.88); z-index: 99999; align-items: center; justify-content: center; animation: mfaOverlayIn 0.4s ease; }
 #mfa-overlay.show { display: flex; }
 @keyframes mfaOverlayIn { from { opacity: 0; } to { opacity: 1; } }
-.mfa-card { background: var(--surface, #1a1a1a); border: 3px solid var(--gold, #F5B800); border-radius: 20px; padding: 48px 56px; text-align: center; max-width: 700px; width: 90%; animation: mfaCardPop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1); box-shadow: 0 0 80px rgba(245, 184, 0, 0.3); cursor: pointer; }
+.mfa-card { background: var(--surface, #1a1a1a); border: 3px solid var(--gold, #F5B800); border-radius: 20px; padding: 48px 56px; text-align: center; max-width: 700px; width: 90%; animation: mfaCardPop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1); box-shadow: 0 0 80px rgba(245, 184, 0, 0.3); }
 @keyframes mfaCardPop { from { transform: scale(0.7); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 .mfa-icon { font-size: 72px; margin-bottom: 16px; display: block; animation: mfaPulse 1.2s ease-in-out infinite; }
 @keyframes mfaPulse { 0% { transform: scale(1); } 50% { transform: scale(1.18); } 100% { transform: scale(1); } }
@@ -12,10 +12,9 @@
 .mfa-horario { display: inline-block; background: var(--gold-dim, rgba(245, 184, 0, 0.14)); border: 1px solid var(--gold-dark, #B8860B); color: var(--gold, #F5B800); font-size: 15px; font-weight: 700; padding: 8px 22px; border-radius: 30px; letter-spacing: 1px; }
 .mfa-som { display: none; margin-top: 18px; font-size: 13px; font-weight: 600; color: var(--gold, #F5B800); }
 .mfa-som.show { display: block; }
-.mfa-countdown { font-size: 11px; color: var(--text-hint, #656460); margin-top: 20px; letter-spacing: 1px; text-transform: uppercase; }
-.mfa-bar-bg { width: 100%; height: 4px; background: var(--surface-2, #232323); border-radius: 2px; margin-top: 10px; overflow: hidden; }
-.mfa-bar-fill { height: 100%; background: var(--gold, #F5B800); border-radius: 2px; transition: width 1s linear; }
-.mfa-close { font-size: 10px; color: var(--text-hint, #656460); margin-top: 16px; letter-spacing: 1px; }
+.mfa-ok { display: block; margin: 26px auto 0; min-width: 180px; padding: 14px 36px; font: inherit; font-size: 17px; font-weight: 800; letter-spacing: 1px; color: var(--on-gold, #1A1A18); background: var(--gold, #F5B800); border: 0; border-radius: 999px; cursor: pointer; box-shadow: 0 6px 24px rgba(245, 184, 0, 0.35); }
+.mfa-ok:hover { filter: brightness(1.08); }
+.mfa-ok:focus-visible { outline: 3px solid var(--text, #EDEDEB); outline-offset: 3px; }
 @media (max-width: 640px) {
   .mfa-card { padding: 32px 20px; }
   .mfa-nome { font-size: 38px; }
