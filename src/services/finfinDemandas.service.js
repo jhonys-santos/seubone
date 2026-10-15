@@ -1,15 +1,21 @@
 // Integração com o módulo Demandas do finfin (Grupo SB): kanban "Envio de demandas - Gerais" da SeuBoné.
 // Documentação: api-demandas-seubone-gerais.md (finfin). Autenticação: "Authorization: Bearer <token>" (nunca na URL).
 //
-// Esta peça só ENVIA/CONSULTA/MOVE cards. Ela NÃO está ligada ao Registro do hub: o Registro continua gravando como sempre e
-// avisando o n8n. A ligação (enviar o mesmo registro para o finfin) entra depois que os testes isolados estiverem 100%.
+// O formulário novo do hub tem só os campos que o finfin pede (solicitante, e-mail, telefone, demanda, especificação,
+// descrição, link do Lulu e anexos). O Registro antigo (n8n + planilha) continua como está, em paralelo, até o novo estar 100%.
 const crypto = require('crypto');
 const env = require('../config/env');
 
 const MAX_ANEXOS = 10;
 const MAX_ARQUIVO_BYTES = 15 * 1024 * 1024;   // por arquivo
-const MAX_TOTAL_BYTES = 4 * 1024 * 1024;      // somados, por pedido (o limite do hub é 20 MB: acima de 4 MB vão só os links do Drive)
+const MAX_TOTAL_BYTES = 4 * 1024 * 1024;      // somados, por pedido
 const TIMEOUT_MS = 20000;
+const VALIDADE_LISTA_MS = 10 * 60 * 1000;
+
+// Lista que o formulário do Registro antigo oferecia: usada só como reserva se o finfin não responder a lista de demandas.
+const DEMANDAS_RESERVA = ['NF Urgente', 'Nota de Remessa', 'Baixa de comprovante', 'Análise de termo de compromisso', 'Nota de Conta e Ordem', 'Link de pagamento',
+  'Orçamento - Extrema/MG', 'Ajuste de nota fiscal', 'Ajuste de orçamento', 'Envio de boleto', 'Liberação p/envio', 'Nota de Devolução', 'Amostras', 'Nota de Brinde',
+  'Manifesto', 'Cancelamento de Boleto', 'Pedidos retidos', 'Outros'];
 
 const str = (v) => String(v == null ? '' : v);
 const normalizar = (s) => str(s).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
@@ -69,14 +75,28 @@ function extrairNomesDemandas(json) {
   return achado || [];
 }
 
-// ── Tradução do Registro do hub para o card do finfin ────────────────────────
-/** Id estável (UUID) do card a partir do id do registro: reenviar o mesmo registro nunca duplica o card. */
-function uuidDoRegistro(idRegistro) {
-  const h = crypto.createHash('sha1').update('seubone-hub:registro-demandas:' + str(idRegistro)).digest();
-  h[6] = (h[6] & 0x0f) | 0x50; h[8] = (h[8] & 0x3f) | 0x80;   // versão 5, variante RFC 4122
-  const x = h.subarray(0, 16).toString('hex');
-  return `${x.slice(0, 8)}-${x.slice(8, 12)}-${x.slice(12, 16)}-${x.slice(16, 20)}-${x.slice(20, 32)}`;
+let cacheLista = null;
+/**
+ * Demandas que o formulário oferece: a lista real do finfin (guardada por 10 min). Se o finfin não responder, ou a lista não puder ser
+ * lida, usa a lista antiga do hub como reserva ("origem: 'hub'"): aí o finfin é quem confere o nome no envio.
+ */
+async function demandasAceitas({ agora = Date.now() } = {}) {
+  if (cacheLista && agora - cacheLista.em < VALIDADE_LISTA_MS) return cacheLista.valor;
+  let valor = { nomes: DEMANDAS_RESERVA, origem: 'hub' };
+  if (configurado()) {
+    try {
+      const r = await listarDemandas();
+      if (r.nomes.length) valor = { nomes: r.nomes, origem: 'finfin' };
+    } catch (e) { /* mantém a reserva */ }
+  }
+  if (valor.origem === 'finfin') cacheLista = { em: agora, valor };   // a reserva não fica guardada: tenta o finfin de novo na próxima
+  return valor;
 }
+/** Só para testes. */
+function limparCache() { cacheLista = null; }
+
+// ── Tradução do formulário do hub para o card do finfin ──────────────────────
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 /** Acha, na lista do finfin, o nome da demanda que corresponde ao do hub (igual, ou igual sem acento/caixa). null se não houver. */
 function resolverDemanda(nomeHub, listaFinfin, aliases = {}) {
@@ -85,70 +105,53 @@ function resolverDemanda(nomeHub, listaFinfin, aliases = {}) {
   return listaFinfin.find((n) => normalizar(n) === alvo) || null;
 }
 
-const dataBr = (iso) => { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(str(iso)); return m ? `${m[3]}/${m[2]}/${m[1]}` : str(iso); };
 const cortar = (s, n) => (str(s).length > n ? str(s).slice(0, n - 1).trimEnd() + '…' : str(s));
 
 /**
- * Monta o corpo do POST a partir de um registro do hub.
- * registro: { id (RD…), solicitante, email, numeroCorporativo, demandaSolicitada, tipoDemanda, empresa, data, dataVencimento,
- *             idCompra, linkCard, observacao, anexos: [{ nome, tipo, base64 }], anexosDrive?: [url…] }
- * opcoes:   { demandasFinfin: [nomes aceitos], aliases: { nomeNoHub: nomeNoFinfin }, prefixoTitulo: '[TESTE] ' }
- * Devolve { payload, avisos, erros } — "erros" não vazio = não dá para enviar (ex.: demanda inexistente no finfin).
+ * Monta o corpo do POST a partir do que o formulário do hub coleta.
+ * f:      { id?, solicitante, email, telefone?, demandaSolicitada, especificacao?, descricao, linkLulu, anexos?: [{ nome, tipo, base64 }] }
+ * opcoes: { demandasFinfin: [nomes aceitos], aliases: { nomeNoHub: nomeNoFinfin }, prefixoTitulo: '[TESTE] ' }
+ * Devolve { payload, erros } — "erros" não vazio = não dá para enviar. O título só é enviado quando há prefixo (teste); sem ele o finfin monta
+ * "[Nome] - [Demanda]" sozinho.
  */
-function montarCard(registro, opcoes = {}) {
-  const avisos = [], erros = [];
-  const r = registro || {};
-  const demanda = resolverDemanda(r.demandaSolicitada, opcoes.demandasFinfin, opcoes.aliases || {});
-  if (!demanda) erros.push(`A demanda "${r.demandaSolicitada}" não existe na lista do finfin (veja finfin-testar --listas e informe o equivalente em aliases).`);
-  const nome = cortar(str(r.solicitante).trim(), 120);
+function montarCard(f, opcoes = {}) {
+  const erros = [];
+  const x = f || {};
+  const nome = cortar(str(x.solicitante).trim(), 120);
+  const email = str(x.email).trim();
+  const descricao = str(x.descricao).trim();
+  let link = str(x.linkLulu).trim();
+
   if (!nome) erros.push('Solicitante vazio.');
-  if (!str(r.email).trim()) erros.push('E-mail do solicitante vazio.');
-  if (!str(r.observacao).trim()) erros.push('Descrição vazia.');
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) erros.push('Informe um e-mail válido.');
+  if (!descricao) erros.push('Descreva a demanda.');
+  const demanda = resolverDemanda(str(x.demandaSolicitada).trim(), opcoes.demandasFinfin, opcoes.aliases || {});
+  if (!str(x.demandaSolicitada).trim()) erros.push('Escolha a demanda.');
+  else if (!demanda) erros.push(`A demanda "${x.demandaSolicitada}" não existe na lista do finfin.`);
+  if (/^http:\/\//i.test(link)) link = 'https://' + link.slice(7);
+  if (!/^https:\/\/\S+$/i.test(link)) erros.push('O link do card do Lulu precisa ser um link completo (https://…).');
 
-  let link = str(r.linkCard).trim();
-  if (/^http:\/\//i.test(link)) { link = 'https://' + link.slice(7); avisos.push('O link do card era http:// e foi enviado como https://.'); }
-  if (!/^https:\/\//i.test(link)) erros.push('O link do card precisa começar com https:// (o finfin exige link do Lulu na SeuBoné).');
-
-  const linhas = [
-    `ID da venda: ${str(r.idCompra).trim()}`,
-    `Data de vencimento: ${dataBr(r.dataVencimento)}`,
-    `Data da solicitação: ${dataBr(r.data)}`,
-    `Tipo de demanda: ${str(r.tipoDemanda).trim()}`,
-    `Empresa solicitante: ${str(r.empresa).trim()}`,
-    `Origem: Hub SeuBoné${r.id ? ' (' + r.id + ')' : ''}`,
-  ];
-
-  const campos = {
-    solicitante_nome: nome,
-    solicitante_email: str(r.email).trim(),
-    demanda_solicitada: demanda || str(r.demandaSolicitada),
-    titulo: cortar(`${opcoes.prefixoTitulo || ''}${nome} - ${demanda || str(r.demandaSolicitada)} - Venda ${str(r.idCompra).trim()}`, 200),
-    descricao: '',
-    link_lulu: link,
-  };
-  if (str(r.numeroCorporativo).trim()) campos.telefone = str(r.numeroCorporativo).trim();
-  if (normalizar(campos.demanda_solicitada) === 'outros') campos.especificacao = 'Ver descrição';
-
-  // Anexos: vão como arquivo se couberem nos limites do finfin; senão vão só os links do Drive (o hub guarda os arquivos no Drive).
-  const arquivos = Array.isArray(r.anexos) ? r.anexos.filter((a) => a && (a.base64 || a.conteudo_base64)) : [];
-  const tamanhos = arquivos.map((a) => Math.floor(str(a.base64 || a.conteudo_base64).length * 0.75));
-  const total = tamanhos.reduce((s, n) => s + n, 0);
-  const cabe = arquivos.length <= MAX_ANEXOS && tamanhos.every((n) => n <= MAX_ARQUIVO_BYTES) && total <= MAX_TOTAL_BYTES;
-  const links = Array.isArray(r.anexosDrive) ? r.anexosDrive.map((x) => (typeof x === 'string' ? x : x && (x.url || x.link) ? (x.nome ? str(x.nome) + ': ' : '') + str(x.url || x.link) : '')).filter(Boolean) : [];
-  const anexos = cabe ? arquivos.map((a) => ({ nome: str(a.nome || 'arquivo'), tipo: str(a.tipo || 'application/octet-stream'), conteudo_base64: str(a.base64 || a.conteudo_base64) })) : [];
-  if (arquivos.length && !cabe) {
-    avisos.push(`Anexos acima do limite do finfin (${arquivos.length} arquivo(s), ~${(total / 1048576).toFixed(1)} MB; máx. ${MAX_ANEXOS} arquivos, ${MAX_TOTAL_BYTES / 1048576} MB somados): enviados só como links.`);
-    if (!links.length) avisos.push('Sem links do Drive para listar: os anexos não irão no card.');
+  const campos = { solicitante_nome: nome, solicitante_email: email, demanda_solicitada: demanda || str(x.demandaSolicitada).trim(), descricao, link_lulu: link };
+  if (str(x.telefone).trim()) campos.telefone = str(x.telefone).trim();
+  if (normalizar(campos.demanda_solicitada) === 'outros') {
+    const esp = cortar(str(x.especificacao).trim(), 60);
+    if (!esp) erros.push('Diga o que é a demanda no campo "Especificação" (obrigatório em "Outros").');
+    else campos.especificacao = esp;
   }
-  if (links.length && (!cabe || !arquivos.length)) linhas.push('', 'Anexos (Drive):', ...links.map((u) => '- ' + u));
-  campos.descricao = linhas.join('\n') + '\n\n' + str(r.observacao).trim();
+  if (opcoes.prefixoTitulo) campos.titulo = cortar(`${opcoes.prefixoTitulo}${nome} - ${campos.demanda_solicitada}`, 200);
 
-  const payload = { id: uuidDoRegistro(r.id || `${r.idCompra}|${r.solicitante}|${r.data}`), empresa: 'seubone', formulario: 'gerais', campos };
-  if (anexos.length) payload.anexos = anexos;
-  return { payload, avisos, erros };
+  const arquivos = Array.isArray(x.anexos) ? x.anexos.filter((a) => a && (a.base64 || a.conteudo_base64)) : [];
+  const tamanhos = arquivos.map((a) => Math.floor(str(a.base64 || a.conteudo_base64).length * 0.75));
+  if (arquivos.length > MAX_ANEXOS) erros.push(`Máximo de ${MAX_ANEXOS} anexos.`);
+  if (tamanhos.some((n) => n > MAX_ARQUIVO_BYTES)) erros.push(`Cada anexo pode ter até ${MAX_ARQUIVO_BYTES / 1048576} MB.`);
+  if (tamanhos.reduce((s, n) => s + n, 0) > MAX_TOTAL_BYTES) erros.push(`Os anexos somados passam de ${MAX_TOTAL_BYTES / 1048576} MB (limite do finfin). Envie arquivos menores.`);
+
+  const payload = { id: UUID.test(str(x.id)) ? str(x.id).toLowerCase() : crypto.randomUUID(), empresa: 'seubone', formulario: 'gerais', campos };
+  if (arquivos.length) payload.anexos = arquivos.map((a) => ({ nome: str(a.nome || 'arquivo'), tipo: str(a.tipo || 'application/octet-stream'), conteudo_base64: str(a.base64 || a.conteudo_base64) }));
+  return { payload, erros };
 }
 
 module.exports = {
-  configurado, criarCard, consultarCard, moverCard, listarDemandas, extrairNomesDemandas,
-  montarCard, resolverDemanda, uuidDoRegistro, normalizar, definirHttp, MAX_ANEXOS, MAX_ARQUIVO_BYTES, MAX_TOTAL_BYTES,
+  configurado, criarCard, consultarCard, moverCard, listarDemandas, extrairNomesDemandas, demandasAceitas, limparCache,
+  montarCard, resolverDemanda, normalizar, definirHttp, DEMANDAS_RESERVA, MAX_ANEXOS, MAX_ARQUIVO_BYTES, MAX_TOTAL_BYTES,
 };

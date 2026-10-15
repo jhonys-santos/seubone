@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<%- include('../partials/head') %>
+<title>Solicitar ao financeiro - SeuBoné</title>
+<link rel="stylesheet" href="/css/pedidos-urgentes.css">
+</head>
+<body>
+<div class="app-shell">
+<%- include('../partials/sidebar') %>
+<div class="app-main">
+
+<div class="pu-scope">
+<div class="pu-container">
+  <div class="card">
+    <% if (emTeste) { %>
+    <div class="msg ok" style="display:block;margin:0 0 14px">Formulário em teste: só gestores veem esta página e os cards saem com <b>[TESTE]</b> no título.</div>
+    <% } %>
+    <% if (!integracaoConfigurada) { %>
+    <div class="msg err" style="display:block;margin:0 0 14px">A integração com o finfin ainda não está configurada no servidor (falta o token). O envio não vai funcionar.</div>
+    <% } %>
+
+    <div style="font-size:13px;color:var(--text-muted);margin-bottom:14px">Solicitante: <b style="color:var(--text)"><%= nomeSolicitante %></b></div>
+
+    <div class="row2">
+      <div>
+        <label>E-mail do solicitante *</label>
+        <input type="email" id="f-email" placeholder="Inserir e-mail">
+      </div>
+      <div>
+        <label>Número corporativo</label>
+        <input type="tel" id="f-telefone" placeholder="Opcional">
+      </div>
+    </div>
+
+    <label>Demanda solicitada *</label>
+    <select id="f-demanda"><option value="">Carregando...</option></select>
+
+    <div id="bloco-especificacao" style="display:none">
+      <label>Especificação * <span style="font-weight:400;color:var(--text-muted)">(o que é a demanda, até 60 caracteres)</span></label>
+      <input type="text" id="f-especificacao" maxlength="60" placeholder="Ex.: Ajuste de endereço na NF">
+    </div>
+
+    <label>Descrição da demanda *</label>
+    <textarea id="f-descricao" rows="4" placeholder="Descreva de forma detalhada a sua solicitação"></textarea>
+
+    <label>Link do card no Lulu *</label>
+    <input type="text" id="f-link" placeholder="https://lulu.seubone.com/...">
+
+    <label>Anexos</label>
+    <input type="file" id="f-anexos" multiple>
+    <div style="font-size:12px;color:var(--text-muted);margin-top:6px;">Até 10 arquivos, 4 MB somados (limite do finfin).</div>
+    <div class="anexos-lista" id="f-anexos-lista"></div>
+
+    <button class="btn-primary" id="btn-enviar"><i class="ti ti-send" aria-hidden="true"></i> Enviar ao financeiro</button>
+    <div class="msg" id="form-msg"></div>
+  </div>
+
+  <div class="card" style="margin-top:16px">
+    <div style="font-weight:700;margin-bottom:8px">Minhas últimas solicitações</div>
+    <div id="minhas" style="font-size:13px;color:var(--text-muted)">Carregando...</div>
+  </div>
+</div>
+</div>
+
+</div>
+</div>
+
+<script src="/js/registro-demandas-novo.js"></script>
+</body>
+</html>

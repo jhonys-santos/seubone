@@ -87,6 +87,8 @@ module.exports = {
   // Demandas do finfin (Grupo SB), kanban "Envio de demandas - Gerais" da SeuBone. Token so no .env/Render, nunca no codigo.
   finfinDemandasUrl: required('FINFIN_DEMANDAS_URL', 'https://www.finfinsb.com.br/api/externo/demandas'),
   finfinDemandasToken: required('FINFIN_DEMANDAS_TOKEN', ''),
+  // 'teste' (padrao): o formulario novo so abre para gestor e os cards saem com [TESTE] no titulo. 'producao': aberto a todos, sem prefixo.
+  finfinDemandasModo: required('FINFIN_DEMANDAS_MODO', 'teste'),
 
   rankingSacCsvUrls: {
     atd: required('RANKING_SAC_CSV_ATD', ''),

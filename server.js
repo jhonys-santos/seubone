@@ -35,6 +35,7 @@ const wallacRoutes = require('./src/routes/wallac.routes');
 const pedidosUrgentesRoutes = require('./src/routes/pedidosUrgentes.routes');
 const rankingSacRoutes = require('./src/routes/rankingSac.routes');
 const registroDemandasRoutes = require('./src/routes/registroDemandas.routes');
+const registroDemandasFinfinRoutes = require('./src/routes/registroDemandasFinfin.routes');
 const indicadoresEquipeRoutes = require('./src/routes/indicadoresEquipe.routes');
 const quitacoesRoutes = require('./src/routes/quitacoes.routes');
 const corridasAvulsasRoutes = require('./src/routes/corridasAvulsas.routes');
@@ -127,6 +128,8 @@ app.use('/painel-sac', painelSacRoutes);
 app.use('/wallac', wallacRoutes);
 app.use('/pedidos-urgentes', pedidosUrgentesRoutes);
 app.use('/ranking-sac', rankingSacRoutes);
+// Formulario novo (card direto no finfin): montado ANTES do Registro antigo para valer em /registro-demandas/novo; o antigo nao muda.
+app.use('/registro-demandas/novo', registroDemandasFinfinRoutes);
 app.use('/registro-demandas', registroDemandasRoutes);
 app.use('/indicadores-equipe', indicadoresEquipeRoutes);
 app.use('/quitacoes', quitacoesRoutes);
