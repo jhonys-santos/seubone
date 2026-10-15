@@ -84,6 +84,9 @@ module.exports = {
   n8nRegistroDemandasWebhookUrl: required('N8N_REGISTRO_DEMANDAS_WEBHOOK_URL', ''),
   n8nCorridasPagamentosWebhookUrl: required('N8N_CORRIDAS_PAGAMENTOS_WEBHOOK_URL', ''),
   n8nWebhookSecret: required('N8N_WEBHOOK_SECRET', ''),
+  // Demandas do finfin (Grupo SB), kanban "Envio de demandas - Gerais" da SeuBone. Token so no .env/Render, nunca no codigo.
+  finfinDemandasUrl: required('FINFIN_DEMANDAS_URL', 'https://www.finfinsb.com.br/api/externo/demandas'),
+  finfinDemandasToken: required('FINFIN_DEMANDAS_TOKEN', ''),
 
   rankingSacCsvUrls: {
     atd: required('RANKING_SAC_CSV_ATD', ''),
