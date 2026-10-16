@@ -74,7 +74,8 @@ router.post('/api/enviar', async (req, res) => {
 router.get('/api/minhas', async (req, res) => {
   try {
     const r = await db.query(
-      `select codigo, demanda, coluna, modo, to_char(criado_em at time zone 'America/Sao_Paulo', 'DD/MM/YYYY HH24:MI') as criado_em
+      `select codigo, demanda, coluna, modo, to_char(criado_em at time zone 'America/Sao_Paulo', 'DD/MM/YYYY HH24:MI') as criado_em,
+              to_char(concluido_em at time zone 'America/Sao_Paulo', 'DD/MM/YYYY HH24:MI') as concluido_em, anexos_retorno, comentario_retorno
          from finfin_demandas where solicitante_slug = $1 order by ordem desc limit 20`, [req.session.user.slug || '']);
     res.json({ ok: true, itens: r.rows });
   } catch (err) {

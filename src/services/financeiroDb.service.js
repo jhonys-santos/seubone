@@ -230,5 +230,5 @@ async function cadastrarCorrida(b) {
 module.exports = {
   listarRegistros, listarReembolsos, listarPagamentos, criarRegistro, criarReembolso, criarPagamento,
   marcarRegistro, marcarReembolso, marcarPagamento, listarCorridas, cadastrarCorrida,
-  definirUploaders, paraData,
+  definirUploaders, paraData, anexosProcessados,
 };

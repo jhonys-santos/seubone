@@ -96,6 +96,14 @@ $('btn-enviar').addEventListener('click', async () => {
 
 const NOMES_COLUNA = { backlog: 'Backlog', delegado: 'Delegado', aguardando: 'Aguardando retorno', fazendo: 'Fazendo', concluido: 'Concluído', cancelado: 'Cancelado' };
 
+// Anexos que o financeiro colocou ao concluir (links do Drive).
+function anexosDoFinanceiro(i) {
+  let a = i.anexos_retorno;
+  if (typeof a === 'string') { try { a = JSON.parse(a); } catch (e) { a = []; } }
+  if (!Array.isArray(a) || !a.length) return i.concluido_em ? `<br><small>Concluído em ${esc(i.concluido_em)}</small>` : '';
+  return `<br><small>Concluído em ${esc(i.concluido_em || '')} · anexos do financeiro: ` + a.filter((x) => x.url).map((x) => `<a href="${esc(x.url)}" target="_blank" rel="noopener" style="color:var(--gold)">${esc(x.nome)}</a>`).join(', ') + '</small>';
+}
+
 async function carregarMinhas() {
   const box = $('minhas');
   try {
@@ -103,7 +111,7 @@ async function carregarMinhas() {
     if (!r.ok) throw new Error(r.erro);
     box.innerHTML = r.itens.length ? r.itens.map((i) => `
       <div style="display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-top:1px solid var(--border)">
-        <span><b style="color:var(--text)">${esc(i.codigo || '—')}</b> · ${esc(i.demanda)}${i.modo === 'teste' ? ' <i>(teste)</i>' : ''}<br><small>${esc(i.criado_em)}</small></span>
+        <span><b style="color:var(--text)">${esc(i.codigo || '—')}</b> · ${esc(i.demanda)}${i.modo === 'teste' ? ' <i>(teste)</i>' : ''}<br><small>${esc(i.criado_em)}</small>${anexosDoFinanceiro(i)}</span>
         <span><span data-status="${esc(i.codigo)}">${esc(NOMES_COLUNA[i.coluna] || i.coluna)}</span> <button type="button" class="btn-link" data-atualizar="${esc(i.codigo)}" style="background:none;border:0;color:var(--gold);cursor:pointer">atualizar</button></span>
       </div>`).join('') : 'Nenhuma ainda.';
     box.querySelectorAll('[data-atualizar]').forEach((b) => b.addEventListener('click', async () => {

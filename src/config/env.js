@@ -89,6 +89,9 @@ module.exports = {
   finfinDemandasToken: required('FINFIN_DEMANDAS_TOKEN', ''),
   // 'teste' (padrao): o formulario novo so abre para gestor e os cards saem com [TESTE] no titulo. 'producao': aberto a todos, sem prefixo.
   finfinDemandasModo: required('FINFIN_DEMANDAS_MODO', 'teste'),
+  // Webhook de retorno do finfin (card concluido + anexos do financeiro): segredo compartilhado e hosts de onde o hub pode baixar anexos por link.
+  finfinWebhookSecret: required('FINFIN_WEBHOOK_SECRET', ''),
+  finfinAnexosHosts: required('FINFIN_ANEXOS_HOSTS', 'finfinsb.com.br,supabase.co'),
 
   rankingSacCsvUrls: {
     atd: required('RANKING_SAC_CSV_ATD', ''),
