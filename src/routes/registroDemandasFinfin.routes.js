@@ -23,7 +23,7 @@ router.use((req, res, next) => {
 });
 
 router.get('/', (req, res) => {
-  res.render('registro-demandas/novo', { emTeste: emTeste(), nomeSolicitante: req.session.user.nome, integracaoConfigurada: finfin.configurado() });
+  res.render('registro-demandas/novo', { emTeste: emTeste(), nomeSolicitante: req.session.user.nome, integracaoConfigurada: finfin.configurado(), ehGestor: req.session.user.role === 'gestor' });
 });
 
 // Demandas oferecidas no formulário (lista real do finfin; reserva = lista antiga do hub).
@@ -75,7 +75,8 @@ router.get('/api/minhas', async (req, res) => {
   try {
     const r = await db.query(
       `select codigo, demanda, coluna, modo, to_char(criado_em at time zone 'America/Sao_Paulo', 'DD/MM/YYYY HH24:MI') as criado_em,
-              to_char(concluido_em at time zone 'America/Sao_Paulo', 'DD/MM/YYYY HH24:MI') as concluido_em, anexos_retorno, comentario_retorno
+              to_char(concluido_em at time zone 'America/Sao_Paulo', 'DD/MM/YYYY HH24:MI') as concluido_em, anexos_retorno, comentario_retorno, concluido_por,
+              (notificado_em is not null) as retorno_recebido
          from finfin_demandas where solicitante_slug = $1 order by ordem desc limit 20`, [req.session.user.slug || '']);
     res.json({ ok: true, itens: r.rows });
   } catch (err) {
@@ -96,6 +97,49 @@ router.get('/api/status', async (req, res) => {
     res.json({ ok: true, coluna: r.card && r.card.coluna });
   } catch (err) {
     res.status(502).json({ ok: false, erro: 'Falha ao consultar o finfin: ' + err.message });
+  }
+});
+
+const soGestor = (req, res, next) => (req.session.user && req.session.user.role === 'gestor' ? next() : res.status(403).json({ ok: false, erro: 'Só gestor.' }));
+
+// Últimas chamadas que o finfin fez ao webhook do hub + cards concluídos no finfin cujo retorno ainda não chegou.
+router.get('/api/retornos', soGestor, async (req, res) => {
+  try {
+    const log = await db.query(
+      `select to_char(recebido_em at time zone 'America/Sao_Paulo', 'DD/MM HH24:MI:SS') as quando, http, codigo, coluna, resultado, anexos_recebidos, anexos_novos, notificado, erro, duracao_ms
+         from finfin_webhook_log order by id desc limit 30`);
+    const pend = await db.query(
+      `select codigo, demanda, solicitante_nome, to_char(criado_em at time zone 'America/Sao_Paulo', 'DD/MM HH24:MI') as criado_em
+         from finfin_demandas where coluna = 'concluido' and notificado_em is null order by ordem desc limit 30`);
+    res.json({ ok: true, chamadas: log.rows, concluidosSemRetorno: pend.rows, webhookConfigurado: !!env.finfinWebhookSecret });
+  } catch (err) {
+    res.status(502).json({ ok: false, erro: 'Falha ao buscar os retornos: ' + err.message });
+  }
+});
+
+// Confere com o finfin (GET por código) os cards ainda abertos e atualiza a coluna. Um card que já está Concluído lá e sem retorno aqui
+// aparece em "concluidosSemRetorno" (o webhook não chegou: avisar o financeiro/finfin).
+router.post('/api/conferir', soGestor, async (req, res) => {
+  try {
+    if (!finfin.configurado()) return res.status(503).json({ ok: false, erro: 'Falta o token do finfin no servidor.' });
+    const abertos = await db.query(
+      `select codigo from finfin_demandas where codigo <> '' and coluna not in ('concluido', 'cancelado') and criado_em > now() - interval '60 days' order by ordem desc limit 40`);
+    let verificados = 0, mudaram = 0; const falhas = [];
+    for (const { codigo } of abertos.rows) {
+      const r = await finfin.consultarCard(codigo);
+      if (!r.ok) { falhas.push(codigo); if (r.status === 429) break; continue; }
+      verificados++;
+      const chave = r.card && r.card.coluna && r.card.coluna.chave;
+      if (!chave) continue;
+      const up = await db.query(
+        `update finfin_demandas set coluna = $2, atualizado_em = now(), concluido_em = case when $2 = 'concluido' then coalesce(concluido_em, now()) else concluido_em end
+          where codigo = $1 and coluna <> $2`, [codigo, chave]);
+      if (up.rowCount) mudaram++;
+    }
+    const pend = await db.query("select codigo from finfin_demandas where coluna = 'concluido' and notificado_em is null order by ordem desc limit 30");
+    res.json({ ok: true, verificados, mudaram, falhas, concluidosSemRetorno: pend.rows.map((x) => x.codigo) });
+  } catch (err) {
+    res.status(502).json({ ok: false, erro: 'Falha ao conferir com o finfin: ' + err.message });
   }
 });
 

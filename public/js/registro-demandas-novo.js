@@ -101,7 +101,7 @@ function anexosDoFinanceiro(i) {
   let a = i.anexos_retorno;
   if (typeof a === 'string') { try { a = JSON.parse(a); } catch (e) { a = []; } }
   if (!Array.isArray(a) || !a.length) return i.concluido_em ? `<br><small>Concluído em ${esc(i.concluido_em)}</small>` : '';
-  return `<br><small>Concluído em ${esc(i.concluido_em || '')} · anexos do financeiro: ` + a.filter((x) => x.url).map((x) => `<a href="${esc(x.url)}" target="_blank" rel="noopener" style="color:var(--gold)">${esc(x.nome)}</a>`).join(', ') + '</small>';
+  return `<br><small>Concluído${i.concluido_por ? ' por ' + esc(i.concluido_por) : ''} em ${esc(i.concluido_em || '')} · anexos do financeiro: ` + a.filter((x) => x.url).map((x) => `<a href="${esc(x.url)}" target="_blank" rel="noopener" style="color:var(--gold)">${esc(x.nome)}</a>`).join(', ') + '</small>';
 }
 
 async function carregarMinhas() {
@@ -111,7 +111,7 @@ async function carregarMinhas() {
     if (!r.ok) throw new Error(r.erro);
     box.innerHTML = r.itens.length ? r.itens.map((i) => `
       <div style="display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-top:1px solid var(--border)">
-        <span><b style="color:var(--text)">${esc(i.codigo || '—')}</b> · ${esc(i.demanda)}${i.modo === 'teste' ? ' <i>(teste)</i>' : ''}<br><small>${esc(i.criado_em)}</small>${anexosDoFinanceiro(i)}</span>
+        <span><b style="color:var(--text)">${esc(i.codigo || '—')}</b> · ${esc(i.demanda)}${i.modo === 'teste' ? ' <i>(teste)</i>' : ''}<br><small>${esc(i.criado_em)}</small>${anexosDoFinanceiro(i)}${i.coluna === 'concluido' && !i.retorno_recebido ? '<br><small style="color:var(--warn-text,#d9a400)">Concluído no finfin; o retorno ainda não chegou ao hub.</small>' : ''}</span>
         <span><span data-status="${esc(i.codigo)}">${esc(NOMES_COLUNA[i.coluna] || i.coluna)}</span> <button type="button" class="btn-link" data-atualizar="${esc(i.codigo)}" style="background:none;border:0;color:var(--gold);cursor:pointer">atualizar</button></span>
       </div>`).join('') : 'Nenhuma ainda.';
     box.querySelectorAll('[data-atualizar]').forEach((b) => b.addEventListener('click', async () => {
@@ -126,5 +126,32 @@ async function carregarMinhas() {
   } catch (e) { box.textContent = 'Não consegui carregar suas solicitações.'; }
 }
 
+// ── Retornos do finfin (gestor) ───────────────────────────────────────────────
+async function carregarRetornos() {
+  const box = $('retornos');
+  if (!box) return;
+  try {
+    const r = await (await fetch(API + '/retornos', { cache: 'no-store' })).json();
+    if (!r.ok) throw new Error(r.erro);
+    const sem = r.concluidosSemRetorno;
+    $('retornos-resumo').innerHTML = (r.webhookConfigurado ? '' : '<b style="color:var(--bad-text,#e5484d)">Segredo do webhook não configurado no servidor (FINFIN_WEBHOOK_SECRET).</b> ')
+      + (r.chamadas.length ? `Última chamada do finfin: <b>${esc(r.chamadas[0].quando)}</b> (${esc(r.chamadas[0].resultado)}).` : 'O finfin ainda não chamou o hub.')
+      + (sem.length ? ` <b style="color:var(--warn-text,#d9a400)">Concluídos no finfin sem retorno aqui: ${sem.map((x) => esc(x.codigo)).join(', ')}.</b>` : '');
+    box.innerHTML = r.chamadas.length ? `<table style="width:100%;border-collapse:collapse"><thead><tr style="text-align:left;color:var(--text-muted)"><th>Quando</th><th>Card</th><th>Coluna</th><th>Resultado</th><th>Anexos</th><th>HTTP</th></tr></thead><tbody>`
+      + r.chamadas.map((c) => `<tr style="border-top:1px solid var(--border)"><td>${esc(c.quando)}</td><td>${esc(c.codigo || '—')}</td><td>${esc(c.coluna || '—')}</td><td>${esc(c.resultado)}${c.notificado ? ' · avisou o solicitante' : ''}${c.erro ? ' · ' + esc(c.erro) : ''}</td><td>${c.anexos_novos}/${c.anexos_recebidos}</td><td>${c.http}</td></tr>`).join('') + '</tbody></table>' : '';
+  } catch (e) { $('retornos-resumo').textContent = 'Não consegui carregar os retornos.'; }
+}
+if ($('btn-conferir')) $('btn-conferir').addEventListener('click', async () => {
+  const b = $('btn-conferir'); b.disabled = true; b.textContent = 'Conferindo...';
+  try {
+    const r = await (await fetch(API + '/conferir', { method: 'POST' })).json();
+    if (!r.ok) throw new Error(r.erro);
+    mostrarMsg(`Conferidos ${r.verificados} card(s) abertos; ${r.mudaram} mudaram de coluna.${r.concluidosSemRetorno.length ? ' Concluídos sem retorno: ' + r.concluidosSemRetorno.join(', ') + '.' : ''}`, r.concluidosSemRetorno.length ? 'err' : 'ok');
+    carregarRetornos(); carregarMinhas();
+  } catch (e) { mostrarMsg('Erro ao conferir: ' + e.message, 'err'); }
+  b.disabled = false; b.textContent = 'Conferir com o finfin agora';
+});
+
 carregarDemandas();
 carregarMinhas();
+carregarRetornos();
