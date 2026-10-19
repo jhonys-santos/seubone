@@ -227,8 +227,8 @@ function renderTabelaATD(data){
 
 function renderTabelaRSL(data){
   document.getElementById('rsl-tabela').innerHTML=tabelaHTML(DATA.rsl.consultores,DATA.rsl.dias,[
-    {label:'TMR PPF+1',key:'tmrppf',tipo:'tempo',metaFn:v=>timeStrToMin(v)<=24*60},
-    {label:'TMR Erro Envio',key:'tmree',tipo:'tempo',metaFn:v=>timeStrToMin(v)<=24*60},
+    {label:'TMR PPF+1',key:'tmrppf',tipo:'tempo',metaFn:v=>timeStrToMin(v)<=16*60},
+    {label:'TMR Erro Envio',key:'tmree',tipo:'tempo',metaFn:v=>timeStrToMin(v)<=16*60},
     {label:'Resolvidos',key:'tickets',tipo:'soma'},
     {label:'Score',key:'score',tipo:'score'},
   ],data);
