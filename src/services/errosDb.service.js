@@ -123,8 +123,25 @@ async function arquivarEApagar(tx, caso, usuario, usuarioSlug) {
   await tx.query('delete from erros_casos where row_index = $1', [caso.rowIndex]);
 }
 
+/**
+ * Data do registro informada à mão (só gestor, para lançar casos antigos). Devolve 'AAAA-MM-DD', null (não informada) ou false (inválida).
+ * Vale de 01/01/2020 até hoje (Brasília); data futura ou que não existe no calendário é recusada.
+ */
+function lerDataRegistro(v) {
+  const s = txt(v);
+  if (!s) return null;
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+  if (!m) return false;
+  const d = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3]));
+  if (d.getUTCFullYear() !== +m[1] || d.getUTCMonth() !== +m[2] - 1 || d.getUTCDate() !== +m[3]) return false;
+  const hoje = new Date(Date.now() - 3 * 3600000).toISOString().slice(0, 10);
+  return s >= '2020-01-01' && s <= hoje ? s : false;
+}
+
 async function criar(f, usuario, usuarioSlug) {
   f = f || {};
+  const dataRegistro = lerDataRegistro(f.dataRegistro);
+  if (dataRegistro === false) return { ok: false, error: 'Data do registro inválida: use uma data entre 01/01/2020 e hoje.' };
   const idVendaNovo = txt(f.idVenda);
   // ID já cadastrado: só segue se quem registra confirmou que o caso anterior será apagado (f.substituir).
   if (idVendaNovo && !f.substituir) {
@@ -168,12 +185,12 @@ async function criar(f, usuario, usuarioSlug) {
       `insert into erros_casos (data, auditoria, status, id_venda, nome_card, descricao, link_pedido, quem_cadastrou, culpa_de, setor,
                                 responsavel, empresa, tipo_problema, subproblema, qtd, custo, tipo_produto, que_fim, tipo_resolucao,
                                 foto, registrado_por_slug)
-       values ((now() at time zone 'America/Sao_Paulo')::date, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
+       values (coalesce($21::date, (now() at time zone 'America/Sao_Paulo')::date), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
        returning row_index::int as "rowIndex"`,
       [!!f.auditoria, txt(f.status) || (f.auditoria ? 'resolvido' : 'novo'), txt(f.idVenda), txt(f.nomeCard), f.descricao == null ? '' : String(f.descricao),
         txt(f.linkPedido), txt(f.quemCadastrou), txt(f.culpaDe), txt(f.setor), txt(f.responsavel), txt(f.empresa), txt(f.tipoProblema),
         txt(f.subproblema), parseNumero(f.qtd), parseNumero(f.custo), txt(f.tipoProduto), txt(f.queFim), txt(f.tipoResolucao), foto,
-        usuarioSlug || ''],
+        usuarioSlug || '', dataRegistro],
     );
     const rowIndex = ins.rows[0].rowIndex;
     const quem = usuario || f.quemCadastrou;
@@ -183,7 +200,7 @@ async function criar(f, usuario, usuarioSlug) {
     }
     if (fotosErro) await logHist(tx, rowIndex, f.idVenda, quem, fotosErroAcao, fotosErro, usuarioSlug);
     await logHist(tx, rowIndex, f.idVenda, quem, 'Caso registrado',
-      f.auditoria ? 'já auditado (' + (f.status || 'resolvido') + ')' : 'pendente de auditoria', usuarioSlug);
+      (f.auditoria ? 'já auditado (' + (f.status || 'resolvido') + ')' : 'pendente de auditoria') + (dataRegistro ? ` · cadastro retroativo: data do registro ${dataRegistro.split('-').reverse().join('/')}` : ''), usuarioSlug);
     const entrouRefab = await entrarNaFilaRefab(tx, rowIndex, f.tipoResolucao);
     if (entrouRefab) await logHist(tx, rowIndex, f.idVenda, quem, 'Entrou na fila de aprovação de Refabricação', '', usuarioSlug);
     return { ok: true, rowIndex, entrouAprovacaoRefab: entrouRefab, fotosSalvas: !fotosErro, fotosErro, substituidos: substituidos.length };

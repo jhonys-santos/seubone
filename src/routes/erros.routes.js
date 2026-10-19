@@ -53,7 +53,13 @@ router.get('/api/historico', async (req, res) => {
 router.post('/api/criar', async (req, res) => {
   try {
     // "usuario"/"usuarioSlug" vêm sempre da sessão, nunca do que o navegador manda — mesma regra de autoria do hub.
-    const json = await errosStore.criar(req.body.fields || {}, req.session.user.nome, req.session.user.slug);
+    const campos = req.body.fields || {};
+    // Data do registro à mão (casos antigos): só gestor, e só com o banco ligado (a planilha não guarda data diferente de "hoje").
+    if (campos.dataRegistro) {
+      if (req.session.user.role !== 'gestor') return res.status(403).json({ ok: false, error: 'Só gestor pode informar a data do registro.' });
+      if (env.errosBackend !== 'db') return res.status(400).json({ ok: false, error: 'A data do registro só funciona com o banco ligado (ERROS_BACKEND=db).' });
+    }
+    const json = await errosStore.criar(campos, req.session.user.nome, req.session.user.slug);
     if (json.ok && json.entrouAprovacaoRefab) {
       notificarGestoresRefab(req.body.fields && req.body.fields.idVenda, req.body.fields && req.body.fields.nomeCard, json.rowIndex);
     }

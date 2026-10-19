@@ -2219,6 +2219,8 @@
   }
 
   /* ================= NOVO CASO ================= */
+  const erHojeISO = () => new Date(Date.now() - 3 * 3600000).toISOString().slice(0, 10);
+
   function openNovoCaso() {
     if (!podeRegistrar()) return;
     const modalRoot = document.getElementById('erModalRoot');
@@ -2256,6 +2258,11 @@
                 <div class="er-field"><label>Quem está cadastrando *</label><input type="text" name="quemCadastrou" list="erCadastradorList" placeholder="Seu nome"></div>
                 <div class="er-field"><label>Link do pedido *</label><input type="url" name="linkPedido" placeholder="https://..."></div>
               </div>
+              ${papel === 'gestor' ? `<div class="er-field" style="margin-bottom:14px">
+                <label>Data do registro <span class="er-badge" style="font-weight:600">só gestor · opcional</span></label>
+                <input type="date" name="dataRegistro" id="erNDataRegistro" min="2020-01-01" max="${erHojeISO()}" value="${erEsc(erState.dataRetroativa || '')}" style="max-width:220px">
+                <div id="erDataRegistroHint" style="font-size:11.5px;color:var(--text-muted);margin-top:6px">Em branco = hoje. Preencha para lançar um caso antigo com a data em que ele foi registrado na época (aparece assim nos filtros, gráficos e no Histórico do caso).</div>
+              </div>` : ''}
               <div class="er-field" style="margin-bottom:14px">
                 <label>Fotos, áudios ou vídeos do erro *</label>
                 <div class="er-foto-drop" id="erFotoDrop"><b>Clique para adicionar arquivos</b> ou arraste aqui</div>
@@ -2459,6 +2466,18 @@
       }
     });
 
+    const campoDataReg = formNovo.querySelector('[name="dataRegistro"]');
+    const hintDataReg = document.getElementById('erDataRegistroHint');
+    const destacarDataReg = () => {
+      if (!campoDataReg) return;
+      const retro = campoDataReg.value && campoDataReg.value !== erHojeISO();
+      campoDataReg.style.borderColor = retro ? 'var(--gold)' : '';
+      if (hintDataReg) hintDataReg.innerHTML = retro
+        ? '<b style="color:var(--gold)">Cadastro retroativo:</b> o caso será gravado com a data ' + campoDataReg.value.split('-').reverse().join('/') + '. Esta data fica preenchida para o próximo caso; apague para voltar a registrar com a data de hoje.'
+        : 'Em branco = hoje. Preencha para lançar um caso antigo com a data em que ele foi registrado na época (aparece assim nos filtros, gráficos e no Histórico do caso).';
+    };
+    if (campoDataReg) { campoDataReg.addEventListener('input', destacarDataReg); destacarDataReg(); }
+
     btnCriar.addEventListener('click', async () => {
       const fd = new FormData(formNovo);
       const g = (k) => String(fd.get(k) || '').trim();
@@ -2481,6 +2500,10 @@
       if (!fotosSalvas.length) { markFieldErr(fotoInput, 'Anexe e salve ao menos 1 foto, áudio ou vídeo mostrando o erro'); if (!primeiroErro) primeiroErro = fotoDrop; }
       if (primeiroErro) { primeiroErro.focus(); primeiroErro.scrollIntoView({ behavior: 'smooth', block: 'center' }); msg.textContent = 'Preencha os campos obrigatórios (*).'; return; }
 
+      // Data do registro (só gestor): não pode ser futura.
+      const dataRegistro = g('dataRegistro');
+      if (dataRegistro && (dataRegistro > erHojeISO() || dataRegistro < '2020-01-01')) { markFieldErr(campoDataReg, 'Use uma data entre 01/01/2020 e hoje'); msg.textContent = 'Data do registro inválida.'; return; }
+
       // Quantidade não pode ser negativa.
       const qtdNum = g('qtd') ? Number(g('qtd')) : '';
       if (qtdNum !== '' && (isNaN(qtdNum) || qtdNum < 0)) { markFieldErr(formNovo.querySelector('[name="qtd"]'), 'Quantidade inválida'); msg.textContent = 'Quantidade inválida.'; return; }
@@ -2494,6 +2517,7 @@
         tipoProblema: g('tipoProblema'), subproblema: g('subproblema'),
         qtd: qtdNum, tipoResolucao: g('tipoResolucao'),
         auditoria: false, status: 'novo',
+        ...(dataRegistro ? { dataRegistro } : {}),
         fotosUrls: fotosSalvas.map((f) => f.driveUrl), // já salvas no Drive antes de registrar (ver botão "Salvar anexo")
       };
 
@@ -2509,6 +2533,7 @@
           json = await enviar(true);
         }
         if (!json.ok) throw new Error(json.error || 'Erro desconhecido');
+        erState.dataRetroativa = dataRegistro && dataRegistro !== erHojeISO() ? dataRegistro : '';
         close();
         await erRefreshData(true);
         erState.screen = 'casos'; erState.casosView = 'pendentes';
@@ -2519,7 +2544,7 @@
         if (json.fotosSalvas === false) {
           toast('Caso registrado, mas o anexo NÃO foi salvo (' + (json.fotosErro || 'motivo desconhecido') + '). Abra o caso e anexe de novo.', false);
         } else {
-          toast(json.substituidos ? 'Caso anterior apagado e substituído. O novo foi registrado como Novo, vai para a auditoria' : 'Erro registrado como Novo, vai para a auditoria', true);
+          toast((json.substituidos ? 'Caso anterior apagado e substituído. O novo foi registrado como Novo, vai para a auditoria' : 'Erro registrado como Novo, vai para a auditoria') + (erState.dataRetroativa ? ' (com a data ' + erState.dataRetroativa.split('-').reverse().join('/') + ')' : ''), true);
         }
       } catch (err) {
         msg.textContent = 'Erro: ' + err.message + '. Confira a conexão e tente de novo.'; btnCriar.disabled = false;
