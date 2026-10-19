@@ -271,9 +271,9 @@ function renderTudo(dados) {
       const tmrEESp    = ind.tmr_erro_envio > 0 && ind.tmr_erro_envio <= 960 ? 'ok' : ind.tmr_erro_envio > 960 ? 'bad' : 'neutral';
       const testesStr  = ind.testes_aprovados !== null && ind.testes_aprovados !== undefined ? ind.testes_aprovados : '—';
       document.getElementById('kpi-grid').innerHTML =
-        kpiCard('ti-clock',     'TMT Ped. Atrasados', tmrPPFStr,              tmrPPFSp,  bdg(tmrPPFSp),  'Meta: &lt; 24h') +
+        kpiCard('ti-clock',     'TMT Ped. Atrasados', tmrPPFStr,              tmrPPFSp,  bdg(tmrPPFSp),  'Meta: &lt; 16h') +
         kpiCard('ti-ticket',    'Tickets Ped. Atrasados', ind.tickets_pedido_atrasado || 0, 'neutral', '', 'resolvidos ' + lbl) +
-        kpiCard('ti-clock',     'TMR Erro de Envio',  tmrEEStr,               tmrEESp,   bdg(tmrEESp),   'Meta: &lt; 24h') +
+        kpiCard('ti-clock',     'TMR Erro de Envio',  tmrEEStr,               tmrEESp,   bdg(tmrEESp),   'Meta: &lt; 16h') +
         kpiCard('ti-ticket',    'Tickets Erro de Envio', ind.tickets_erro_envio || 0, 'neutral', '',     'resolvidos ' + lbl) +
         kpiCard('ti-clock',     'TMA Aprov. Logo',    tmaLogoStr,             tmaLogoSp, bdg(tmaLogoSp), 'Meta: &lt; 30 min') +
         kpiCard('ti-star',      'CSAT',               csatStr,                csatSp,    bdg(csatSp, csatSp === 'bad' ? 'abaixo da meta' : undefined),    'Meta: ≥ 95%') +
@@ -291,9 +291,9 @@ function renderTudo(dados) {
       const meta      = ind.meta_auditoria || (periodo === 'semana' ? 30 : 120);
       const auditSp   = (ind.auditorias||0) >= meta ? 'ok' : 'bad';
       document.getElementById('kpi-grid').innerHTML =
-        kpiCard('ti-clock',     'TMT Ped. Atrasados', tmrPPFStr,        tmrPPFSp,  bdg(tmrPPFSp), 'Meta: &lt; 24h') +
+        kpiCard('ti-clock',     'TMT Ped. Atrasados', tmrPPFStr,        tmrPPFSp,  bdg(tmrPPFSp), 'Meta: &lt; 16h') +
         kpiCard('ti-ticket',    'Tickets Ped. Atrasados', ind.tickets_pedido_atrasado || 0, 'neutral', '', 'resolvidos ' + lbl) +
-        kpiCard('ti-clock',     'TMR Erro de Envio',  tmrEEStr,         tmrEESp,   bdg(tmrEESp),  'Meta: &lt; 24h') +
+        kpiCard('ti-clock',     'TMR Erro de Envio',  tmrEEStr,         tmrEESp,   bdg(tmrEESp),  'Meta: &lt; 16h') +
         kpiCard('ti-ticket',    'Tickets Erro de Envio', ind.tickets_erro_envio || 0, 'neutral', '', 'resolvidos ' + lbl) +
         kpiCard('ti-star',      'CSAT',        csatStr,                csatSp,    bdg(csatSp, csatSp === 'bad' ? 'abaixo da meta' : undefined),   'Meta: ≥ 95%') +
         kpiCard('ti-chart-bar', 'Pesquisas',   ind.pesquisas || 0,     'neutral', '',            'esta semana') +
@@ -623,7 +623,7 @@ function renderRV_Gabrielle(ind, block) {
   const total = pedVal + audVal + erroEnvioVal;
   const max   = 250;
   rvRender(block, total, max, MESES[mesAtual], [
-    rvItem('TMT Ped. Atrasados', pedLbl, pedVal, pedS, 'Meta: < 24h'),
+    rvItem('TMT Ped. Atrasados', pedLbl, pedVal, pedS, 'Meta: < 16h'),
     rvItem('Auditorias',         audLbl, audVal, audS, 'Meta: ' + metaAuditoria + '/mês'),
     rvItem('TMR Erro de Envio',  erroEnvioLbl, erroEnvioVal, erroEnvioS, 'Meta: < 16h'),
   ]);

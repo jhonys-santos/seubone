@@ -98,7 +98,7 @@ const IE_TIMES = {
       { key: 'qtd_ppf', label: 'Tickets PPF+1', unidade: 'num', agregacao: 'soma' },
       // Mesma regra do PPF+1, só filtrado por "Erro de Envio" no lugar de
       // "Pedido atrasado" (ver indicadoresEquipe.routes.js) — mesma meta de
-      // 24h, já que os dois têm o mesmo SLA de 1 dia no Painel de Ticket.
+      // 16h úteis (seg-qui 08h-18h, sex 08h-17h), igual ao PPF+1.
       { key: 'tempo_erro_envio', label: 'TMR Erro de Envio', unidade: 'tempo', agregacao: 'media', meta: { valor: 16 * 60 * 60, direcao: 'menor' } },
       { key: 'qtd_erro_envio', label: 'Tickets Erro de Envio', unidade: 'num', agregacao: 'soma' },
       // Planilha só tem essa métrica no nível de Equipe, sem quebra por
