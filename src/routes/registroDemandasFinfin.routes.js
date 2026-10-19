@@ -3,6 +3,7 @@
 //
 // Modo (FINFIN_DEMANDAS_MODO): 'teste' (padrão) = só gestor abre e os cards saem com "[TESTE]" no título;
 //                              'producao'     = aberto a quem acessa o Registro, sem prefixo.
+const crypto = require('crypto');
 const express = require('express');
 const { requireAuth } = require('../middleware/auth');
 const env = require('../config/env');
@@ -58,10 +59,11 @@ router.post('/api/enviar', async (req, res) => {
     // Recibo local (o card mora no finfin). Se gravar falhar, o card já existe: não derruba a resposta.
     try {
       await db.query(
-        `insert into finfin_demandas (id_finfin, codigo, solicitante_slug, solicitante_nome, solicitante_email, demanda, especificacao, link_lulu, titulo, coluna, modo)
-         values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) on conflict (id_finfin) do nothing`,
+        `insert into finfin_demandas (id_finfin, codigo, solicitante_slug, solicitante_nome, solicitante_email, demanda, especificacao, link_lulu, titulo, coluna, modo, descricao, telefone, anexos_enviados)
+         values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14::json) on conflict (id_finfin) do nothing`,
         [payload.id, String(r.codigo || ''), u.slug || '', u.nome || '', payload.campos.solicitante_email, payload.campos.demanda_solicitada, payload.campos.especificacao || '',
-          payload.campos.link_lulu, payload.campos.titulo || '', (r.coluna && r.coluna.chave) || 'backlog', emTeste() ? 'teste' : 'producao'],
+          payload.campos.link_lulu, payload.campos.titulo || '', (r.coluna && r.coluna.chave) || 'backlog', emTeste() ? 'teste' : 'producao', payload.campos.descricao, payload.campos.telefone || '',
+          JSON.stringify((payload.anexos || []).map((a) => ({ nome: a.nome, hash: crypto.createHash('sha256').update(Buffer.from(a.conteudo_base64, 'base64')).digest('hex') })))],
       );
     } catch (e) { console.error('[registro-finfin] card criado, mas falhou ao gravar o recibo:', e.message); }
 

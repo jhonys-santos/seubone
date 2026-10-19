@@ -1,6 +1,7 @@
 const express = require('express');
 const { requireAuth } = require('../middleware/auth');
 const financeiroStore = require('../services/financeiroStore');
+const finfinHistorico = require('../services/finfinHistorico.service');
 const notificacoesService = require('../services/notificacoes.service');
 const env = require('../config/env');
 
@@ -106,6 +107,16 @@ router.get('/api/list', async (req, res) => {
     res.json(json);
   } catch (err) {
     res.status(502).json({ erro: 'Falha ao buscar demandas: ' + err.message });
+  }
+});
+
+// Solicitações do formulário novo (finfin), no mesmo formato de linha do /api/list, para o Histórico mostrar tudo junto.
+// Cards de teste só aparecem para gestor.
+router.get('/api/list-finfin', async (req, res) => {
+  try {
+    res.json(await finfinHistorico.listarParaHistorico({ ehGestor: req.session.user && req.session.user.role === 'gestor' }));
+  } catch (err) {
+    res.status(502).json({ erro: 'Falha ao buscar as solicitações do finfin: ' + err.message });
   }
 });
 

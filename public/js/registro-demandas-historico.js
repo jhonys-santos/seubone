@@ -47,6 +47,12 @@ async function carregar() {
     const data = await resp.json();
     if (data.erro) throw new Error(data.erro);
     solicitacoes = Array.isArray(data) ? data : [];
+    // Solicitações do formulário novo (finfin) entram na mesma lista. Se essa busca falhar, o Histórico antigo continua funcionando.
+    try {
+      const rf = await (await fetch('/registro-demandas/api/list-finfin')).json();
+      if (Array.isArray(rf)) solicitacoes = solicitacoes.concat(rf);
+    } catch (e) { console.error('finfin:', e); }
+    completarFiltroDeDemandas();
     document.getElementById('empty').innerHTML = textoVazioPadrao;
     renderizar();
   } catch (err) {
@@ -62,6 +68,16 @@ async function carregar() {
     empty.style.display = 'block';
     document.getElementById('btn-tentar-de-novo').addEventListener('click', carregar);
   }
+}
+
+// Os nomes de demanda do finfin podem diferir dos do formulário antigo (ex.: "Nota de remessa"): entram no filtro também.
+function completarFiltroDeDemandas() {
+  const sel = document.getElementById('ft-demanda');
+  const existentes = new Set(Array.from(sel.options).map((o) => o.value));
+  solicitacoes.forEach((s) => {
+    const d = s.DemandaSolicitada;
+    if (d && !existentes.has(d)) { existentes.add(d); const o = document.createElement('option'); o.textContent = d; sel.appendChild(o); }
+  });
 }
 
 function renderizar() {

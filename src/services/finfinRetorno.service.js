@@ -133,6 +133,10 @@ async function processarEvento(body, { origem = 'webhook' } = {}) {
     if (typeof atuais === 'string') { try { atuais = JSON.parse(atuais); } catch (e) { atuais = []; } }
     atuais = Array.isArray(atuais) ? atuais : [];
     const chaves = new Set(atuais.map((a) => a.hash || a.url));
+    // O finfin devolve TODOS os anexos do card: o que o solicitante mandou ao criar não é "do financeiro" (mesmo hash = ignora).
+    let enviadosPeloSolicitante = linha.anexos_enviados;
+    if (typeof enviadosPeloSolicitante === 'string') { try { enviadosPeloSolicitante = JSON.parse(enviadosPeloSolicitante); } catch (e) { enviadosPeloSolicitante = []; } }
+    for (const a of Array.isArray(enviadosPeloSolicitante) ? enviadosPeloSolicitante : []) if (a && a.hash) chaves.add(a.hash);
 
     // Só sobe o que ainda não temos (mesmo conteúdo = mesmo hash).
     const novos = [];

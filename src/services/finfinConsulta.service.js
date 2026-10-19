@@ -20,6 +20,10 @@ async function sincronizarCard(codigo) {
   if (!chave) return { ok: true, coluna: null, mudou: false };
   const antes = (await db.query('select coluna, notificado_em from finfin_demandas where codigo = $1', [codigo])).rows[0];
   if (!antes) return { ok: true, coluna: col, mudou: false };
+  const campos = (r.card && r.card.campos) || {};
+  if (campos.descricao || campos.telefone) {
+    await db.query("update finfin_demandas set descricao = case when descricao = '' then $2 else descricao end, telefone = case when telefone = '' then $3 else telefone end where codigo = $1", [codigo, String(campos.descricao || ''), String(campos.telefone || '')]);
+  }
   // "Concluído": passa pelo mesmo caminho do webhook (marca, guarda quem concluiu e avisa uma vez), só que sem anexos.
   const p = await retorno.processarEvento({ codigo, coluna: { chave, nome: col.nome } }, { origem: 'consulta' });
   const mudou = antes.coluna !== chave || (chave === 'concluido' && !antes.notificado_em);
