@@ -257,7 +257,7 @@ function renderTudo(dados) {
       kpiCard('ti-chart-bar','Pesquisas',ind.pesquisas||0,'neutral','',lbl) +
       kpiCard('ti-ticket','Tickets',ind.tickets||0,'neutral','','resolvidos');
   } else {
-    const sp = (ind.tmr_ppf||0) > 0 && (ind.tmr_ppf||0) <= 480 ? 'ok' : (ind.tmr_ppf||0) > 480 ? 'bad' : 'neutral';
+    const sp = (ind.tmr_ppf||0) > 0 && (ind.tmr_ppf||0) <= 960 ? 'ok' : (ind.tmr_ppf||0) > 960 ? 'bad' : 'neutral';
     if (slugAtivo === 'daniel') {
       const csat      = ind.csat;
       const csatSp    = csat !== null && csat !== undefined ? (csat >= 95 ? 'ok' : 'bad') : 'neutral';
@@ -266,9 +266,9 @@ function renderTudo(dados) {
       const tmaLogoSp  = tmaLogo > 0 && tmaLogo <= 30 ? 'ok' : tmaLogo > 30 ? 'bad' : 'neutral';
       const tmaLogoStr = tmaLogo > 0 ? tmaLogo + ' min' : '—';
       const tmrPPFStr  = ind.tmr_ppf > 0 ? fmtHoras(ind.tmr_ppf) : '—';
-      const tmrPPFSp   = ind.tmr_ppf > 0 && ind.tmr_ppf <= 1440 ? 'ok' : ind.tmr_ppf > 1440 ? 'bad' : 'neutral';
+      const tmrPPFSp   = ind.tmr_ppf > 0 && ind.tmr_ppf <= 960 ? 'ok' : ind.tmr_ppf > 960 ? 'bad' : 'neutral';
       const tmrEEStr   = ind.tmr_erro_envio > 0 ? fmtHoras(ind.tmr_erro_envio) : '—';
-      const tmrEESp    = ind.tmr_erro_envio > 0 && ind.tmr_erro_envio <= 1440 ? 'ok' : ind.tmr_erro_envio > 1440 ? 'bad' : 'neutral';
+      const tmrEESp    = ind.tmr_erro_envio > 0 && ind.tmr_erro_envio <= 960 ? 'ok' : ind.tmr_erro_envio > 960 ? 'bad' : 'neutral';
       const testesStr  = ind.testes_aprovados !== null && ind.testes_aprovados !== undefined ? ind.testes_aprovados : '—';
       document.getElementById('kpi-grid').innerHTML =
         kpiCard('ti-clock',     'TMT Ped. Atrasados', tmrPPFStr,              tmrPPFSp,  bdg(tmrPPFSp),  'Meta: &lt; 24h') +
@@ -285,9 +285,9 @@ function renderTudo(dados) {
       const csatSp    = csat !== null && csat !== undefined ? (csat >= 95 ? 'ok' : 'bad') : 'neutral';
       const csatStr   = csat !== null && csat !== undefined ? csat + '%' : '—';
       const tmrPPFStr = ind.tmr_ppf > 0 ? fmtHoras(ind.tmr_ppf) : '—';
-      const tmrPPFSp  = ind.tmr_ppf > 0 && ind.tmr_ppf <= 1440 ? 'ok' : ind.tmr_ppf > 1440 ? 'bad' : 'neutral';
+      const tmrPPFSp  = ind.tmr_ppf > 0 && ind.tmr_ppf <= 960 ? 'ok' : ind.tmr_ppf > 960 ? 'bad' : 'neutral';
       const tmrEEStr  = ind.tmr_erro_envio > 0 ? fmtHoras(ind.tmr_erro_envio) : '—';
-      const tmrEESp   = ind.tmr_erro_envio > 0 && ind.tmr_erro_envio <= 1440 ? 'ok' : ind.tmr_erro_envio > 1440 ? 'bad' : 'neutral';
+      const tmrEESp   = ind.tmr_erro_envio > 0 && ind.tmr_erro_envio <= 960 ? 'ok' : ind.tmr_erro_envio > 960 ? 'bad' : 'neutral';
       const meta      = ind.meta_auditoria || (periodo === 'semana' ? 30 : 120);
       const auditSp   = (ind.auditorias||0) >= meta ? 'ok' : 'bad';
       document.getElementById('kpi-grid').innerHTML =
@@ -301,7 +301,7 @@ function renderTudo(dados) {
         kpiCard('ti-ticket',    'Tickets',     ind.tickets || 0,       'neutral', '',            'resolvidos');
     } else {
       document.getElementById('kpi-grid').innerHTML =
-        kpiCard('ti-clock','TMR PPF+1',(ind.tmr_ppf||0) > 0 ? fmtHoras(ind.tmr_ppf) : '—', sp, bdg(sp),'Meta: &lt; 480 min') +
+        kpiCard('ti-clock','TMR PPF+1',(ind.tmr_ppf||0) > 0 ? fmtHoras(ind.tmr_ppf) : '—', sp, bdg(sp),'Meta: &lt; 16h') +
         kpiCard('ti-ticket','Tickets',ind.tickets||0,'neutral','','resolvidos');
     }
   }
@@ -571,8 +571,8 @@ function renderRV_Daniel(ind, block) {
 
   let pedVal = 0, pedS = 'bad';
   const pedLbl = tmrPPF > 0 ? fmtHoras(tmrPPF) : 'Sem dados';
-  if (tmrPPF > 0 && tmrPPF <= 1440) { pedVal = 150; pedS = 'ok'; }
-  else if (tmrPPF > 1440) pedS = 'bad';
+  if (tmrPPF > 0 && tmrPPF <= 960) { pedVal = 150; pedS = 'ok'; }
+  else if (tmrPPF > 960) pedS = 'bad';
 
   let csatVal = 0, csatS = csat >= 95 ? 'ok' : 'bad';
   if (csat >= 95) csatVal = 75;
@@ -586,16 +586,16 @@ function renderRV_Daniel(ind, block) {
   const tmrEE    = ind.tmr_erro_envio || 0;
   let erroEnvioVal = 0, erroEnvioS = 'bad';
   const erroEnvioLbl = tmrEE > 0 ? fmtHoras(tmrEE) : 'Sem dados';
-  if (tmrEE > 0 && tmrEE <= 1440) { erroEnvioVal = 50; erroEnvioS = 'ok'; }
-  else if (tmrEE > 1440) erroEnvioS = 'bad';
+  if (tmrEE > 0 && tmrEE <= 960) { erroEnvioVal = 50; erroEnvioS = 'ok'; }
+  else if (tmrEE > 960) erroEnvioS = 'bad';
 
   const total = pedVal + csatVal + logoVal + erroEnvioVal;
   const max   = 325;
   rvRender(block, total, max, MESES[mesAtual], [
-    rvItem('TMT Ped. Atrasados', pedLbl,  pedVal,  pedS,  'Meta: < 24h'),
+    rvItem('TMT Ped. Atrasados', pedLbl,  pedVal,  pedS,  'Meta: < 16h'),
     rvItem('CSAT',               csatLbl, csatVal, csatS, 'Meta: ≥ 95%'),
     rvItem('TMA Aprov. Logo',    logoLbl, logoVal, logoS, 'Meta: ≤ 30 min'),
-    rvItem('TMR Erro de Envio',  erroEnvioLbl, erroEnvioVal, erroEnvioS, 'Meta: < 24h'),
+    rvItem('TMR Erro de Envio',  erroEnvioLbl, erroEnvioVal, erroEnvioS, 'Meta: < 16h'),
   ]);
 }
 
@@ -605,8 +605,8 @@ function renderRV_Gabrielle(ind, block) {
 
   let pedVal = 0, pedS = 'bad';
   const pedLbl = tmrPPF > 0 ? fmtHoras(tmrPPF) : 'Sem dados';
-  if (tmrPPF > 0 && tmrPPF <= 24 * 60) { pedVal = 150; pedS = 'ok'; }
-  else if (tmrPPF > 24 * 60) pedS = 'bad';
+  if (tmrPPF > 0 && tmrPPF <= 16 * 60) { pedVal = 150; pedS = 'ok'; }
+  else if (tmrPPF > 16 * 60) pedS = 'bad';
 
   const auditorias    = ind.auditorias || 0;
   const metaAuditoria = ind.meta_auditoria || 120;
@@ -617,15 +617,15 @@ function renderRV_Gabrielle(ind, block) {
   const tmrEE    = ind.tmr_erro_envio || 0;
   let erroEnvioVal = 0, erroEnvioS = 'bad';
   const erroEnvioLbl = tmrEE > 0 ? fmtHoras(tmrEE) : 'Sem dados';
-  if (tmrEE > 0 && tmrEE <= 1440) { erroEnvioVal = 50; erroEnvioS = 'ok'; }
-  else if (tmrEE > 1440) erroEnvioS = 'bad';
+  if (tmrEE > 0 && tmrEE <= 960) { erroEnvioVal = 50; erroEnvioS = 'ok'; }
+  else if (tmrEE > 960) erroEnvioS = 'bad';
 
   const total = pedVal + audVal + erroEnvioVal;
   const max   = 250;
   rvRender(block, total, max, MESES[mesAtual], [
     rvItem('TMT Ped. Atrasados', pedLbl, pedVal, pedS, 'Meta: < 24h'),
     rvItem('Auditorias',         audLbl, audVal, audS, 'Meta: ' + metaAuditoria + '/mês'),
-    rvItem('TMR Erro de Envio',  erroEnvioLbl, erroEnvioVal, erroEnvioS, 'Meta: < 24h'),
+    rvItem('TMR Erro de Envio',  erroEnvioLbl, erroEnvioVal, erroEnvioS, 'Meta: < 16h'),
   ]);
 }
 

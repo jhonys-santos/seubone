@@ -103,7 +103,7 @@ router.get('/api/resolucao', async (req, res) => {
         return n || null;
       });
 
-      // TMR: tempo médio atribuição→fechamento (do agente que tratou o ticket; sem atribuição
+      // TMR: tempo médio atribuição→fechamento em HORÁRIO DE TRABALHO (seg-qui 08h-18h, sex 08h-17h; do agente que tratou o ticket; sem atribuição
       // registrada, vale a abertura — ver ticketsTempo.js) dos tickets resolvidos naquele
       // dia, separado por tipo — "Pedido atrasado" (PPF+1, vindos da Lulu) e
       // "Erro de Envio". A diferença entre os dois horários dá certo mesmo

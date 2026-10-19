@@ -724,8 +724,9 @@
 
   /* ================= DASHBOARD ================= */
 
-  // O TMR é o tempo do AGENTE que tratou o ticket: conta da atribuição a ele até o fechamento (mesma regra do Ranking SAC e do
-  // Painel SAC; ver ticketsTempo.js no servidor). Sem atribuição registrada, ou se ela fosse depois do fechamento, vale a abertura.
+  // O TMR é o tempo do AGENTE que tratou o ticket: da atribuição a ele até o fechamento, só em HORÁRIO DE TRABALHO (seg-qui 08h-18h,
+  // sex 08h-17h, sem sáb/dom e sem descontar almoço) — mesma regra do Ranking SAC e do Painel SAC (ver ticketsTempo.js no servidor).
+  // Sem atribuição registrada, ou se ela fosse depois do fechamento, vale a abertura.
   function inicioTratamento(r) {
     const ab = parseData(r.dataAbertura);
     const at = parseData(r.dataAtribuicao);
@@ -736,10 +737,30 @@
     return at;
   }
 
+  // Horas de expediente entre duas datas (objetos Date, horário local = Brasília): seg-qui 08h-18h, sex 08h-17h.
+  function horasUteisEntre(a, b) {
+    if (!a || !b || isNaN(a) || isNaN(b)) return null;
+    if (b <= a) return 0;
+    let total = 0;
+    const dia = new Date(a.getFullYear(), a.getMonth(), a.getDate());
+    while (dia <= b) {
+      const dow = dia.getDay();
+      if (dow !== 0 && dow !== 6) {
+        const abre = new Date(dia.getFullYear(), dia.getMonth(), dia.getDate(), 8, 0, 0);
+        const fecha = new Date(dia.getFullYear(), dia.getMonth(), dia.getDate(), dow === 5 ? 17 : 18, 0, 0);
+        const de = a > abre ? a : abre;
+        const ate = b < fecha ? b : fecha;
+        if (ate > de) total += (ate.getTime() - de.getTime()) / 3600000;
+      }
+      dia.setDate(dia.getDate() + 1);
+    }
+    return total;
+  }
+
   function tmrDe(lista) {
     const fechados = lista.filter((r) => r.status === STATUS_RESOLVIDO && r.dataAbertura && r.dataFechamento);
     if (!fechados.length) return null;
-    const soma = fechados.reduce((s, r) => s + (horasEntre(inicioTratamento(r), parseData(r.dataFechamento)) || 0), 0);
+    const soma = fechados.reduce((s, r) => s + (horasUteisEntre(inicioTratamento(r), parseData(r.dataFechamento)) || 0), 0);
     return soma / fechados.length;
   }
 
@@ -842,7 +863,7 @@
             </div>
           </div>
         </div>
-        <div class="card-sub">Tempo médio de tratamento, da atribuição ao responsável até o fechamento, só de tickets fechados no período (${tkTmrModo === 'semana' ? 'sexta a quinta, sem sáb/dom' : 'mês inteiro'}).</div>
+        <div class="card-sub">Tempo médio de tratamento em horas úteis (seg-qui 08h-18h, sex 08h-17h), da atribuição ao responsável até o fechamento, só de tickets fechados no período (${tkTmrModo === 'semana' ? 'sexta a quinta, sem sáb/dom' : 'mês inteiro'}).</div>
         ${grupos.length === 0 ? `<div class="tk-hist-empty">Sem tickets fechados nesse período ainda.</div>` : grupos.map((g) => `
           <div class="tk-rk-row">
             <div class="tk-rk-top">
@@ -1076,7 +1097,7 @@
       ${renderResolucaoChart()}
       <div class="tk-grid-2col">
         ${renderRankingResponsavel()}
-        ${renderRanking('TMR por identificador', 'Quais tipos de ticket demoram mais pra resolver (da atribuição ao responsável até o fechamento).', rankingPorIdentificador())}
+        ${renderRanking('TMR por identificador', 'Quais tipos de ticket demoram mais pra resolver (horas úteis, da atribuição ao responsável até o fechamento).', rankingPorIdentificador())}
       </div>
     `;
 

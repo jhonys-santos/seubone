@@ -44,7 +44,7 @@ function chaveDia_(dataStr) {
 // Série diária de tempo médio (segundos) + quantidade, pra uma lista de
 // tickets já filtrada por identificador — reaproveitada tanto pra "Pedido
 // atrasado" (PPF+1) quanto pra "Erro de Envio" (TMR Erro de Envio), que têm
-// exatamente a mesma conta (da atribuição ao agente até o fechamento; sem atribuição
+// exatamente a mesma conta (da atribuição ao agente até o fechamento, só em horário de trabalho: seg-qui 08h-18h, sex 08h-17h; sem atribuição
 // registrada, da abertura — ver ticketsTempo.js), só filtro diferente.
 function serieDeTickets_(tickets, dias) {
   const tempo = dias.map((chaveAlvo) => {

@@ -107,7 +107,7 @@ async function contarAuditoriasFeitas(slugAlvo, periodo, mes, ano, semIni, semFi
 // usa) pra bater exatamente com o toggle semanal/mensal existente.
 const CONSULTORES_TICKETS_SLUGS = ['gabrielle', 'daniel'];
 
-// TMR em minutos (da atribuição ao agente até o fechamento; sem atribuição registrada, da
+// TMR em minutos (da atribuição ao agente até o fechamento, só em horário de trabalho: seg-qui 08h-18h, sex 08h-17h; sem atribuição registrada, da
 // abertura — ver ticketsTempo.js) de uma lista já filtrada por
 // identificador — mesma conta pra Pedido atrasado e Erro de Envio, só muda
 // o filtro de entrada.
