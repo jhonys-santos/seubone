@@ -14,6 +14,7 @@ const { iniciarImportacaoErroEnvio } = require('./src/services/ticketsImportErro
 const { iniciarBackupPlanilhas } = require('./src/services/backupPlanilhas.service');
 const { iniciarFechamentoPremiacao } = require('./src/services/wallacDb.service');
 const { iniciarEspelho } = require('./src/services/espelhoKpi.service');
+const { iniciarConsultaFinfin } = require('./src/services/finfinConsulta.service');
 const catalogoPaineis = require('./src/config/paineis');
 const catalogoAtalhos = require('./src/config/atalhos');
 const catalogoCategorias = require('./src/config/categorias');
@@ -166,6 +167,7 @@ usuariosService
     iniciarBackupPlanilhas();
     iniciarFechamentoPremiacao();
     iniciarEspelho();
+    iniciarConsultaFinfin();
   })
   .catch((err) => {
     // Sem a lista de usuários carregada, ninguém consegue logar — melhor

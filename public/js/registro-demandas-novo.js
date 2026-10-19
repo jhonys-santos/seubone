@@ -96,12 +96,19 @@ $('btn-enviar').addEventListener('click', async () => {
 
 const NOMES_COLUNA = { backlog: 'Backlog', delegado: 'Delegado', aguardando: 'Aguardando retorno', fazendo: 'Fazendo', concluido: 'Concluído', cancelado: 'Cancelado' };
 
-// Anexos que o financeiro colocou ao concluir (links do Drive).
+// Anexos que o financeiro colocou ao concluir: botões de download, iguais aos do Histórico (usam o link de download do Drive).
 function anexosDoFinanceiro(i) {
   let a = i.anexos_retorno;
   if (typeof a === 'string') { try { a = JSON.parse(a); } catch (e) { a = []; } }
-  if (!Array.isArray(a) || !a.length) return i.concluido_em ? `<br><small>Concluído em ${esc(i.concluido_em)}</small>` : '';
-  return `<br><small>Concluído${i.concluido_por ? ' por ' + esc(i.concluido_por) : ''} em ${esc(i.concluido_em || '')} · anexos do financeiro: ` + a.filter((x) => x.url).map((x) => `<a href="${esc(x.url)}" target="_blank" rel="noopener" style="color:var(--gold)">${esc(x.nome)}</a>`).join(', ') + '</small>';
+  a = Array.isArray(a) ? a.filter((x) => x && (x.downloadUrl || x.url)) : [];
+  const quem = i.concluido_por ? ' por ' + esc(i.concluido_por) : '';
+  const quando = i.concluido_em ? ' em ' + esc(i.concluido_em) : '';
+  const linha = i.coluna === 'concluido' || i.concluido_em ? '<br><small>Concluído' + quem + quando + '</small>' : '';
+  const coment = i.comentario_retorno ? '<br><small>' + esc(i.comentario_retorno) + '</small>' : '';
+  const botoes = a.length
+    ? '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px">' + a.map((x, n) => '<a class="anexo-btn" href="' + esc(x.downloadUrl || x.url) + '" target="_blank" rel="noopener" title="' + esc(x.nome) + '"><i class="ti ti-download" aria-hidden="true"></i> ' + esc(x.nome || ('Anexo ' + (n + 1))) + '</a>').join('') + '</div>'
+    : '';
+  return linha + coment + botoes;
 }
 
 async function carregarMinhas() {
@@ -111,8 +118,8 @@ async function carregarMinhas() {
     if (!r.ok) throw new Error(r.erro);
     box.innerHTML = r.itens.length ? r.itens.map((i) => `
       <div style="display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-top:1px solid var(--border)">
-        <span><b style="color:var(--text)">${esc(i.codigo || '—')}</b> · ${esc(i.demanda)}${i.modo === 'teste' ? ' <i>(teste)</i>' : ''}<br><small>${esc(i.criado_em)}</small>${anexosDoFinanceiro(i)}${i.coluna === 'concluido' && !i.retorno_recebido ? '<br><small style="color:var(--warn-text,#d9a400)">Concluído no finfin; o retorno ainda não chegou ao hub.</small>' : ''}</span>
-        <span><span data-status="${esc(i.codigo)}">${esc(NOMES_COLUNA[i.coluna] || i.coluna)}</span> <button type="button" class="btn-link" data-atualizar="${esc(i.codigo)}" style="background:none;border:0;color:var(--gold);cursor:pointer">atualizar</button></span>
+        <span><b style="color:var(--text)">${esc(i.codigo || '—')}</b> · ${esc(i.demanda)}${i.modo === 'teste' ? ' <i>(teste)</i>' : ''}<br><small>${esc(i.criado_em)}</small>${anexosDoFinanceiro(i)}</span>
+        <span><span data-status="${esc(i.codigo)}" style="${i.coluna === 'concluido' ? 'color:var(--ok-text,#3fb950);font-weight:700' : ''}">${esc(NOMES_COLUNA[i.coluna] || i.coluna)}</span> <button type="button" class="btn-link" data-atualizar="${esc(i.codigo)}" style="background:none;border:0;color:var(--gold);cursor:pointer">atualizar</button></span>
       </div>`).join('') : 'Nenhuma ainda.';
     box.querySelectorAll('[data-atualizar]').forEach((b) => b.addEventListener('click', async () => {
       b.textContent = '...';
@@ -155,3 +162,9 @@ if ($('btn-conferir')) $('btn-conferir').addEventListener('click', async () => {
 carregarDemandas();
 carregarMinhas();
 carregarRetornos();
+
+// Atualiza sozinho (sem clicar em "atualizar"): a lista a cada 15 s e o painel de retornos a cada 30 s, só com a aba à vista;
+// ao voltar para a aba, atualiza na hora.
+setInterval(() => { if (!document.hidden) carregarMinhas(); }, 15000);
+setInterval(() => { if (!document.hidden) carregarRetornos(); }, 30000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) { carregarMinhas(); carregarRetornos(); } });

@@ -91,6 +91,8 @@ module.exports = {
   finfinDemandasModo: required('FINFIN_DEMANDAS_MODO', 'teste'),
   // Webhook de retorno do finfin (card concluido + anexos do financeiro): segredo compartilhado e hosts de onde o hub pode baixar anexos por link.
   finfinWebhookSecret: required('FINFIN_WEBHOOK_SECRET', ''),
+  // Consulta automatica ao finfin (a cada poucos minutos) para atualizar a coluna dos cards e avisar quando concluirem; 'off' desliga.
+  finfinConsulta: required('FINFIN_DEMANDAS_CONSULTA', 'on'),
   finfinAnexosHosts: required('FINFIN_ANEXOS_HOSTS', 'finfinsb.com.br,supabase.co'),
 
   rankingSacCsvUrls: {
