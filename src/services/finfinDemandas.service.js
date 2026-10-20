@@ -151,7 +151,100 @@ function montarCard(f, opcoes = {}) {
   return { payload, erros };
 }
 
+// ── Pagamento (kanban "Pagamentos") ──────────────────────────────────────────
+// Campos e regras iguais aos do formulário público do finfin (api-demandas-seubone-pagamento.md). Aqui só se conferem o básico e os
+// dígitos de CPF/CNPJ; o resto (telefone com DDD, chave aleatória...) o finfin confere e o hub repassa a mensagem de cada campo (422).
+const PIX_TIPOS = ['cpf', 'cnpj', 'email', 'telefone', 'aleatoria'];
+const so9 = (s) => str(s).replace(/\D/g, '');
+
+function cpfValido(v) {
+  const d = so9(v);
+  if (d.length !== 11 || /^(\d)\1{10}$/.test(d)) return false;
+  const dv = (n) => { let s = 0; for (let i = 0; i < n; i++) s += Number(d[i]) * (n + 1 - i); const r = (s * 10) % 11; return r === 10 ? 0 : r; };
+  return dv(9) === Number(d[9]) && dv(10) === Number(d[10]);
+}
+function cnpjValido(v) {
+  const d = so9(v);
+  if (d.length !== 14 || /^(\d)\1{13}$/.test(d)) return false;
+  const dv = (n) => { const pesos = n === 12 ? [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2] : [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]; const s = pesos.reduce((a, p, i) => a + Number(d[i]) * p, 0); const r = s % 11; return r < 2 ? 0 : 11 - r; };
+  return dv(12) === Number(d[12]) && dv(13) === Number(d[13]);
+}
+const docValido = (v) => cpfValido(v) || cnpjValido(v);
+
+/** "1.234,56" / "1234,56" / "1234.56" / 1234.56 → número (ou NaN). */
+function numeroBr(v) {
+  if (typeof v === 'number') return v;
+  const t = str(v).trim().replace(/[^\d.,-]/g, '');
+  if (!t) return NaN;
+  // Com vírgula, ponto é milhar. Sem vírgula, "1.500" (grupos de 3 dígitos) é milhar e "1234.56" é decimal.
+  const norm = t.includes(',') || /^\d{1,3}(\.\d{3})+$/.test(t) ? t.replace(/\./g, '').replace(',', '.') : t;
+  return Number(norm);
+}
+
+const PIX_ROTULO = { cpf: 'CPF', cnpj: 'CNPJ', email: 'e-mail', telefone: 'telefone', aleatoria: 'aleatória' };
+
+/**
+ * Monta o corpo do POST do kanban "Pagamentos".
+ * f:      { id?, solicitante, email, razaoSocial, vencimento (AAAA-MM-DD), cpfCnpj, motivo, banco, agencia, conta, pixTipo, pixChave, valor, notaFiscal, anexos }
+ * opcoes: { prefixoTitulo: '[TESTE] ' }
+ * Devolve { payload, erros }. O título só é enviado em teste; sem prefixo o finfin monta o dele.
+ */
+function montarCardPagamento(f, opcoes = {}) {
+  const erros = [];
+  const x = f || {};
+  const t = (v) => str(v).trim();
+  const razao = cortar(t(x.razaoSocial), 200);
+  const nome = cortar(t(x.solicitante), 120);
+  const email = t(x.email);
+  const venc = t(x.vencimento);
+  const doc = t(x.cpfCnpj);
+  const motivo = t(x.motivo);
+  const banco = t(x.banco), agencia = t(x.agencia), conta = t(x.conta), nf = t(x.notaFiscal);
+  const pixTipo = normalizar(x.pixTipo).replace(/[^a-z]/g, '');   // "E-mail" -> email, "Aleatória" -> aleatoria
+  const pixChave = t(x.pixChave);
+  const valor = numeroBr(x.valor);
+
+  if (!razao) erros.push('Informe a razão social (quem vai receber).');
+  if (!nome) erros.push('Solicitante vazio.');
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) erros.push('Informe um e-mail válido.');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(venc) || Number.isNaN(Date.parse(venc + 'T12:00:00Z'))) erros.push('Informe a data de vencimento.');
+  if (!doc) erros.push('Informe o CPF/CNPJ de quem vai receber.');
+  else if (!docValido(doc)) erros.push('CPF/CNPJ inválido (confira os dígitos).');
+  if (!motivo) erros.push('Informe o motivo do pagamento.');
+  if (!banco) erros.push('Informe o banco.');
+  if (!agencia) erros.push('Informe a agência.');
+  if (!conta) erros.push('Informe a conta.');
+  if (!PIX_TIPOS.includes(pixTipo)) erros.push('Escolha o tipo da chave pix.');
+  if (!pixChave) erros.push('Informe a chave pix.');
+  else if (pixTipo === 'cpf' && !cpfValido(pixChave)) erros.push('A chave pix não é um CPF válido.');
+  else if (pixTipo === 'cnpj' && !cnpjValido(pixChave)) erros.push('A chave pix não é um CNPJ válido.');
+  else if (pixTipo === 'email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(pixChave)) erros.push('A chave pix não é um e-mail válido.');
+  if (!(valor > 0)) erros.push('Informe o valor (maior que zero).');
+  if (!nf) erros.push('Informe o número da nota fiscal.');
+
+  const arquivos = Array.isArray(x.anexos) ? x.anexos.filter((a) => a && (a.base64 || a.conteudo_base64)) : [];
+  if (!arquivos.length) erros.push('Anexe ao menos 1 arquivo (nota fiscal, boleto ou comprovante).');
+  const tamanhos = arquivos.map((a) => Math.floor(str(a.base64 || a.conteudo_base64).length * 0.75));
+  if (arquivos.length > MAX_ANEXOS) erros.push(`Máximo de ${MAX_ANEXOS} anexos.`);
+  if (tamanhos.some((n) => n > MAX_ARQUIVO_BYTES)) erros.push(`Cada anexo pode ter até ${MAX_ARQUIVO_BYTES / 1048576} MB.`);
+  if (tamanhos.reduce((s, n) => s + n, 0) > MAX_TOTAL_BYTES) erros.push(`Os anexos somados passam de ${MAX_TOTAL_BYTES / 1048576} MB (limite do finfin). Envie arquivos menores.`);
+
+  const campos = {
+    razao_social: razao, solicitante_nome: nome, vencimento: venc, cpf_cnpj: doc, solicitante_email: email, motivo,
+    banco, agencia, conta, pix_tipo: pixTipo, pix_chave: pixChave, valor: Number.isFinite(valor) ? Math.round(valor * 100) / 100 : 0, nota_fiscal: nf,
+  };
+  if (opcoes.prefixoTitulo) campos.titulo = cortar(`${opcoes.prefixoTitulo}Pagamento - ${razao}`, 200);
+
+  const payload = { id: UUID.test(str(x.id)) ? str(x.id).toLowerCase() : crypto.randomUUID(), empresa: 'seubone', formulario: 'pagamento', campos };
+  if (arquivos.length) payload.anexos = arquivos.map((a) => ({ nome: str(a.nome || 'arquivo'), tipo: str(a.tipo || 'application/octet-stream'), conteudo_base64: str(a.base64 || a.conteudo_base64) }));
+  return { payload, erros };
+}
+
+/** Coluna final de cada kanban: "Concluído" nas demandas gerais, "Pago" nos pagamentos. */
+const COLUNA_FINAL = { gerais: 'concluido', pagamento: 'pago' };
+
 module.exports = {
+  montarCardPagamento, cpfValido, cnpjValido, numeroBr, PIX_TIPOS, PIX_ROTULO, COLUNA_FINAL,
   configurado, criarCard, consultarCard, moverCard, listarDemandas, extrairNomesDemandas, demandasAceitas, limparCache,
   montarCard, resolverDemanda, normalizar, definirHttp, DEMANDAS_RESERVA, MAX_ANEXOS, MAX_ARQUIVO_BYTES, MAX_TOTAL_BYTES,
 };

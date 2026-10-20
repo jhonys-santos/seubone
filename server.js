@@ -37,6 +37,7 @@ const pedidosUrgentesRoutes = require('./src/routes/pedidosUrgentes.routes');
 const rankingSacRoutes = require('./src/routes/rankingSac.routes');
 const registroDemandasRoutes = require('./src/routes/registroDemandas.routes');
 const registroDemandasFinfinRoutes = require('./src/routes/registroDemandasFinfin.routes');
+const registroPagamentoFinfinRoutes = require('./src/routes/registroPagamentoFinfin.routes');
 const finfinWebhookRoutes = require('./src/routes/finfinWebhook.routes');
 const indicadoresEquipeRoutes = require('./src/routes/indicadoresEquipe.routes');
 const quitacoesRoutes = require('./src/routes/quitacoes.routes');
@@ -133,6 +134,7 @@ app.use('/pedidos-urgentes', pedidosUrgentesRoutes);
 app.use('/ranking-sac', rankingSacRoutes);
 // Formulario novo (card direto no finfin): montado ANTES do Registro antigo para valer em /registro-demandas/novo; o antigo nao muda.
 app.use('/registro-demandas/novo', registroDemandasFinfinRoutes);
+app.use('/registro-demandas/pagamento/novo', registroPagamentoFinfinRoutes);
 // Retorno do finfin (card concluido + anexos): publico, protegido por segredo (FINFIN_WEBHOOK_SECRET), como o webhook do n8n.
 app.use('/webhooks/finfin/demandas', finfinWebhookRoutes);
 app.use('/registro-demandas', registroDemandasRoutes);

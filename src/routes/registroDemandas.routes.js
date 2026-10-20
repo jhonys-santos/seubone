@@ -98,7 +98,11 @@ router.get('/historico-reembolso', (req, res) => {
   res.render('registro-demandas/historico-reembolso');
 });
 
+// Idem para o Pagamento: com FINFIN_PAGAMENTO_MODO=producao, /registro-demandas/pagamento leva ao formulário novo (kanban "Pagamentos" do finfin).
+const finfinPagamentoNoAr = () => env.finfinPagamentoModo === 'producao';
+
 router.get('/pagamento', (req, res) => {
+  if (finfinPagamentoNoAr()) return res.redirect('/registro-demandas/pagamento/novo');
   res.render('registro-demandas/pagamento');
 });
 
@@ -122,6 +126,15 @@ router.get('/api/list-finfin', async (req, res) => {
     res.json(await finfinHistorico.listarParaHistorico({ ehGestor: req.session.user && req.session.user.role === 'gestor' }));
   } catch (err) {
     res.status(502).json({ erro: 'Falha ao buscar as solicitações do finfin: ' + err.message });
+  }
+});
+
+// Pagamentos do formulário novo (finfin), no mesmo formato de linha do /api/list-pagamento. Cards de teste só aparecem para gestor.
+router.get('/api/list-pagamento-finfin', async (req, res) => {
+  try {
+    res.json(await finfinHistorico.listarPagamentosParaHistorico({ ehGestor: req.session.user && req.session.user.role === 'gestor' }));
+  } catch (err) {
+    res.status(502).json({ erro: 'Falha ao buscar os pagamentos do finfin: ' + err.message });
   }
 });
 
@@ -185,6 +198,10 @@ router.post('/api/create-reembolso', async (req, res) => {
 });
 
 router.post('/api/create-pagamento', async (req, res) => {
+  // Aba do formulário antigo que ficou aberta durante a troca: não grava mais (o pagamento nasceria fora do finfin).
+  if (finfinPagamentoNoAr()) {
+    return res.status(410).json({ ok: false, erro: 'O formulário de Pagamento foi atualizado. Recarregue a página (F5) e envie novamente.' });
+  }
   try {
     const { anexos, ...campos } = req.body;
     // "solicitanteSlug" vem sempre da sessão — ver comentário equivalente

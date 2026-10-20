@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<%- include('../partials/head') %>
+<title>Pagamento - SeuBoné</title>
+<link rel="stylesheet" href="/css/pedidos-urgentes.css">
+</head>
+<body>
+<div class="app-shell">
+<%- include('../partials/sidebar') %>
+<div class="app-main">
+
+<div class="pu-scope">
+<div class="pu-container">
+  <div class="card">
+    <% if (emTeste) { %>
+    <div class="msg ok" style="display:block;margin:0 0 14px">Formulário em teste: só gestores veem esta página e os cards saem com <b>[TESTE]</b> no título.</div>
+    <% } %>
+    <% if (!integracaoConfigurada) { %>
+    <div class="msg err" style="display:block;margin:0 0 14px">A integração com o finfin ainda não está configurada no servidor (falta o token). O envio não vai funcionar.</div>
+    <% } %>
+
+    <div style="font-size:13px;color:var(--text-muted);margin-bottom:14px">Solicitante: <b style="color:var(--text)"><%= nomeSolicitante %></b></div>
+
+    <div class="row2">
+      <div>
+        <label>Razão social *</label>
+        <input type="text" id="pg-razaosocial" placeholder="Nome de quem vai receber o pagamento">
+      </div>
+      <div>
+        <label>CPF/CNPJ *</label>
+        <input type="text" id="pg-cpfcnpj" inputmode="numeric" placeholder="CPF ou CNPJ de quem recebe">
+      </div>
+    </div>
+
+    <div class="row2">
+      <div>
+        <label>Data de vencimento *</label>
+        <input type="date" id="pg-vencimento">
+      </div>
+      <div>
+        <label>E-mail do solicitante *</label>
+        <input type="email" id="pg-email" placeholder="Inserir e-mail">
+      </div>
+    </div>
+
+    <label>Motivo do pagamento *</label>
+    <textarea id="pg-motivo" rows="3" placeholder="Inserir texto"></textarea>
+
+    <div class="row2">
+      <div>
+        <label>Banco *</label>
+        <input type="text" id="pg-banco" list="pg-lista-bancos" placeholder="Escolha da lista ou digite o nome do banco">
+        <datalist id="pg-lista-bancos">
+          <option value="Banco do Brasil S.A.">
+          <option value="Itaú Unibanco S.A.">
+          <option value="Banco Bradesco S.A.">
+          <option value="Banco Santander (Brasil) S.A.">
+          <option value="Caixa Econômica Federal">
+          <option value="Nu Pagamentos S.A. (Nubank)">
+          <option value="Banco Inter S.A.">
+          <option value="Banco C6 S.A.">
+          <option value="Banco Cooperativo Sicoob S.A.">
+          <option value="Banco Cooperativo Sicredi S.A.">
+          <option value="Banco do Nordeste do Brasil S.A.">
+          <option value="Banco BTG Pactual S.A.">
+          <option value="Banco Original S.A.">
+          <option value="Banco Safra S.A.">
+          <option value="Banco Mercantil do Brasil S.A.">
+          <option value="Mercado Pago">
+          <option value="PagBank (PagSeguro Internet)">
+          <option value="Banco Neon S.A.">
+        </datalist>
+      </div>
+      <div>
+        <label>Agência *</label>
+        <input type="text" id="pg-agencia" placeholder="Inserir número">
+      </div>
+    </div>
+
+    <div class="row2">
+      <div>
+        <label>Conta *</label>
+        <input type="text" id="pg-conta" placeholder="Ex.: 12345-6">
+      </div>
+      <div>
+        <label>Valor *</label>
+        <input type="text" id="pg-valor" inputmode="decimal" placeholder="Ex.: 1.234,56">
+      </div>
+    </div>
+
+    <div class="row2">
+      <div>
+        <label>Tipo de chave pix *</label>
+        <select id="pg-tipochave">
+          <option value="">Selecionar opção...</option>
+          <option value="cpf">CPF</option>
+          <option value="cnpj">CNPJ</option>
+          <option value="email">E-mail</option>
+          <option value="telefone">Telefone</option>
+          <option value="aleatoria">Aleatória</option>
+        </select>
+      </div>
+      <div>
+        <label>Chave pix *</label>
+        <input type="text" id="pg-chavepix" placeholder="A chave no formato do tipo escolhido">
+      </div>
+    </div>
+
+    <label>Número da nota fiscal *</label>
+    <input type="text" id="pg-numeronf" placeholder="Inserir número">
+
+    <label>Anexos *</label>
+    <div style="font-size:12px;color:var(--text-muted);margin:0 0 6px;">Nota fiscal, boleto ou comprovante (pelo menos 1 arquivo)</div>
+    <input type="file" id="pg-anexos" multiple>
+    <div style="font-size:12px;color:var(--text-muted);margin-top:6px;">Até 10 arquivos, 4 MB somados (limite do finfin).</div>
+    <div class="anexos-lista" id="pg-anexos-lista"></div>
+
+    <button class="btn-primary" id="btn-registrar"><i class="ti ti-send" aria-hidden="true"></i> Enviar ao financeiro</button>
+    <div class="msg" id="form-msg"></div>
+  </div>
+
+  <div class="card" style="margin-top:16px">
+    <div style="font-weight:700;margin-bottom:8px">Meus últimos pagamentos</div>
+    <div id="minhas" style="font-size:13px;color:var(--text-muted)">Carregando...</div>
+  </div>
+</div>
+</div>
+
+</div>
+</div>
+
+<script src="/js/registro-demandas-pagamento-novo.js"></script>
+</body>
+</html>

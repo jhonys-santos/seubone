@@ -52,6 +52,11 @@ async function carregar() {
     const data = await resp.json();
     if (data.erro) throw new Error(data.erro);
     pagamentos = Array.isArray(data) ? data : [];
+    // Pagamentos do formulário novo (finfin) entram na mesma lista. Se essa busca falhar, o Histórico antigo continua funcionando.
+    try {
+      const rf = await (await fetch('/registro-demandas/api/list-pagamento-finfin')).json();
+      if (Array.isArray(rf)) pagamentos = pagamentos.concat(rf);
+    } catch (e) { console.error('finfin:', e); }
     document.getElementById('empty').innerHTML = textoVazioPadrao;
     renderizar();
   } catch (err) {
@@ -77,7 +82,8 @@ function renderizar() {
     if (de && dataInserido < de) return false;
     if (ate && dataInserido > ate) return false;
     if (statusFiltro && p.Status !== statusFiltro) return false;
-    if (bancoFiltro && p.Banco !== bancoFiltro) return false;
+    // Os pagamentos do finfin trazem o nome completo do banco (ex.: "Itaú Unibanco S.A."): o filtro casa por parte do nome.
+    if (bancoFiltro && !(p.Banco || '').toLowerCase().includes(bancoFiltro.toLowerCase())) return false;
     if (busca) {
       const alvo = ((p.RazaoSocial || '') + ' ' + (p.Solicitante || '') + ' ' + (p.CPFCNPJ || '')).toLowerCase();
       if (!alvo.includes(busca)) return false;
@@ -119,7 +125,7 @@ function renderizar() {
       <td>${formatarValor(p.Valor)}</td>
       <td>${escapeHtml(p.NumeroNotaFiscal) || '—'}</td>
       <td>${renderizarAnexos(p.Anexos)}</td>
-      <td><span class="badge ${p.Status === 'Feito' ? 'ok' : 'warn'}">${p.Status}</span></td>
+      <td><span class="badge ${p.Status === 'Feito' ? 'ok' : 'warn'}">${escapeHtml(p.Status)}</span></td>
       <td>${escapeHtml(p.FeitoPor) || '—'}</td>
     </tr>
   `).join('');

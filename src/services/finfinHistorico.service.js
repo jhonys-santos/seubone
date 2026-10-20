@@ -31,9 +31,50 @@ async function listarParaHistorico({ ehGestor = false } = {}) {
             solicitante_slug as "SolicitanteSlug",
             'finfin' as "Origem"
        from finfin_demandas
-      where codigo <> '' and ($1::boolean or modo <> 'teste')
+      where codigo <> '' and formulario = 'gerais' and ($1::boolean or modo <> 'teste')
       order by ordem`, [!!ehGestor]);
   return r.rows;
 }
 
-module.exports = { listarParaHistorico };
+/**
+ * Pagamentos do formulário novo (finfin) no MESMO formato de linha do Histórico de Pagamentos (planilha/tabela "pagamentos"): RazaoSocial,
+ * Solicitante, CPFCNPJ, Motivo, Banco, Agencia, Conta, ChavePix, TipoChave, Valor, NumeroNotaFiscal, Anexos, Status, FeitoPor, InseridoEm...
+ * Pago no finfin = "Feito"; cancelado = "Cancelado"; o resto = "Pendente". Cards de teste só aparecem para gestor.
+ */
+const TIPO_PIX = { cpf: 'CPF', cnpj: 'CNPJ', email: 'E-mail', telefone: 'Telefone', aleatoria: 'Aleatória' };
+async function listarPagamentosParaHistorico({ ehGestor = false } = {}) {
+  const r = await db.query(
+    `select codigo, solicitante_nome, solicitante_email, solicitante_slug, dados, anexos_retorno, coluna, concluido_por, criado_em
+       from finfin_demandas
+      where codigo <> '' and formulario = 'pagamento' and ($1::boolean or modo <> 'teste')
+      order by ordem`, [!!ehGestor]);
+  const json = (v) => { if (typeof v === 'string') { try { return JSON.parse(v); } catch (e) { return {}; } } return v || {}; };
+  return r.rows.map((l) => {
+    const d = json(l.dados);
+    return {
+      ID: l.codigo,
+      DataVencimento: d.vencimento || '',
+      Solicitante: l.solicitante_nome,
+      Email: l.solicitante_email,
+      RazaoSocial: d.razao_social || '',
+      CPFCNPJ: d.cpf_cnpj || '',
+      Motivo: d.motivo || '',
+      Banco: d.banco || '',
+      Agencia: d.agencia || '',
+      Conta: d.conta || '',
+      ChavePix: d.pix_chave || '',
+      TipoChave: TIPO_PIX[d.pix_tipo] || d.pix_tipo || '',
+      Valor: d.valor != null ? d.valor : '',
+      Empresa: 'SeuBoné',
+      NumeroNotaFiscal: d.nota_fiscal || '',
+      Anexos: JSON.stringify(Array.isArray(json(l.anexos_retorno)) ? json(l.anexos_retorno) : []),
+      Status: l.coluna === 'pago' ? 'Feito' : l.coluna === 'cancelado' ? 'Cancelado' : 'Pendente',
+      FeitoPor: l.concluido_por || '',
+      InseridoEm: new Date(l.criado_em).toISOString(),
+      SolicitanteSlug: l.solicitante_slug,
+      Origem: 'finfin',
+    };
+  });
+}
+
+module.exports = { listarParaHistorico, listarPagamentosParaHistorico };

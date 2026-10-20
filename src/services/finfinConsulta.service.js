@@ -26,7 +26,7 @@ async function sincronizarCard(codigo) {
   }
   // "Concluído": passa pelo mesmo caminho do webhook (marca, guarda quem concluiu e avisa uma vez), só que sem anexos.
   const p = await retorno.processarEvento({ codigo, coluna: { chave, nome: col.nome } }, { origem: 'consulta' });
-  const mudou = antes.coluna !== chave || (chave === 'concluido' && !antes.notificado_em);
+  const mudou = antes.coluna !== chave || (['concluido', 'pago'].includes(chave) && !antes.notificado_em);
   return { ok: p.http === 200, coluna: col, mudou };
 }
 
@@ -35,7 +35,7 @@ async function sincronizarAbertos({ limite = LIMITE_POR_RODADA } = {}) {
   const lista = await db.query(
     `select codigo from finfin_demandas
       where codigo <> '' and criado_em > now() - interval '60 days'
-        and (coluna not in ('concluido', 'cancelado') or (coluna = 'concluido' and notificado_em is null))
+        and (coluna not in ('concluido', 'pago', 'cancelado') or (coluna in ('concluido', 'pago') and notificado_em is null))
       order by ordem desc limit $1`, [limite]);
   let verificados = 0, mudaram = 0; const falhas = [];
   for (const { codigo } of lista.rows) {

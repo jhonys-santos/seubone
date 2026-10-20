@@ -70,7 +70,10 @@ function normalizarEvento(b) {
     anexos,
   };
 }
-const ehConcluido = (chave) => ['concluido', 'finalizado', 'concluida'].includes(chave);
+// "Concluído" nas demandas gerais; "Pago" no kanban de Pagamentos (a coluna final de cada um).
+const ehConcluido = (chave, formulario = 'gerais') => (formulario === 'pagamento' ? ['pago', 'paga'] : ['concluido', 'finalizado', 'concluida']).includes(chave);
+const colunaFinal = (formulario) => (formulario === 'pagamento' ? 'pago' : 'concluido');
+const linkDoFormulario = (formulario) => (formulario === 'pagamento' ? '/registro-demandas/pagamento/novo' : '/registro-demandas/novo');
 
 /** Cada anexo vira { nome, tipo, buffer } (conteúdo em mãos) ou { nome, tipo, url } (só o link, de host que não podemos baixar). */
 async function prepararAnexos(lista) {
@@ -116,10 +119,11 @@ async function processarEvento(body, { origem = 'webhook' } = {}) {
   if (!ev.codigo && !ev.id) return { http: 400, corpo: { ok: false, erro: 'Informe "codigo" (DM-…) ou "id" do card.' } };
   if (!ev.chave) return { http: 400, corpo: { ok: false, erro: 'Informe a coluna do card ("coluna": { "chave": "concluido" }).' } };
 
-  const achado = await db.query('select ordem from finfin_demandas where (codigo <> \'\' and codigo = $1) or id_finfin = $2', [ev.codigo, ev.id]);
+  const achado = await db.query('select ordem, formulario from finfin_demandas where (codigo <> \'\' and codigo = $1) or id_finfin = $2', [ev.codigo, ev.id]);
   if (!achado.rowCount) return { http: 200, corpo: { ok: true, ignorado: true, motivo: 'card não foi criado pelo hub' } };
 
-  if (!ehConcluido(ev.chave)) {
+  const formulario = achado.rows[0].formulario || 'gerais';
+  if (!ehConcluido(ev.chave, formulario)) {
     await db.query('update finfin_demandas set coluna = $2, atualizado_em = now() where ordem = $1', [achado.rows[0].ordem, ev.chave]);
     return { http: 200, corpo: { ok: true, codigo: ev.codigo, coluna: ev.chave, concluido: false } };
   }
@@ -150,7 +154,7 @@ async function processarEvento(body, { origem = 'webhook' } = {}) {
     const paraDrive = novos.filter((n) => n.buffer);
     let enviados = [];
     if (paraDrive.length) {
-      enviados = await financeiroDb.anexosProcessados('registro', paraDrive.map((n) => ({ nome: n.nome, tipo: n.tipo, base64: n.buffer.toString('base64') })));
+      enviados = await financeiroDb.anexosProcessados(formulario === 'pagamento' ? 'pagamento' : 'registro', paraDrive.map((n) => ({ nome: n.nome, tipo: n.tipo, base64: n.buffer.toString('base64') })));
     }
     let i = 0;
     const gravar = novos.map((n) => {
@@ -162,15 +166,15 @@ async function processarEvento(body, { origem = 'webhook' } = {}) {
 
     const primeiraVez = !linha.notificado_em;
     await tx.query(
-      `update finfin_demandas set coluna = 'concluido', atualizado_em = now(), concluido_em = coalesce(concluido_em, now()),
+      `update finfin_demandas set coluna = $6, atualizado_em = now(), concluido_em = coalesce(concluido_em, now()),
               anexos_retorno = $2::json, concluido_por = case when $3 <> '' then $3 else concluido_por end,
               comentario_retorno = case when $4 <> '' then $4 else comentario_retorno end,
               notificado_em = coalesce(notificado_em, now()),
               retorno_webhook_em = case when $5 then coalesce(retorno_webhook_em, now()) else retorno_webhook_em end
         where ordem = $1`,
-      [linha.ordem, JSON.stringify(todos), ev.concluidoPor, ev.comentario, origem === 'webhook'],
+      [linha.ordem, JSON.stringify(todos), ev.concluidoPor, ev.comentario, origem === 'webhook', colunaFinal(formulario)],
     );
-    const dados = { slug: linha.solicitante_slug || null, codigo: linha.codigo || ev.codigo, demanda: linha.demanda };
+    const dados = { slug: linha.solicitante_slug || null, codigo: linha.codigo || ev.codigo, demanda: linha.demanda, formulario };
     if (primeiraVez) aviso = { ...dados, anexos: todos.length };
     else if (gravar.length) avisoAnexos = { ...dados, novos: gravar.length };   // já tinha sido avisado da conclusão (ex.: pela consulta); agora chegaram arquivos
     return { codigo: linha.codigo || ev.codigo, anexosNovos: gravar.length, anexosTotal: todos.length, notificado: primeiraVez };
@@ -178,13 +182,16 @@ async function processarEvento(body, { origem = 'webhook' } = {}) {
 
   // Aviso fora da transação: se falhar, o card já está concluído (e o finfin não precisa repetir).
   if (aviso) {
-    const msg = `Sua solicitação ${aviso.codigo} (${aviso.demanda}) foi concluída pelo financeiro.${aviso.anexos ? ` ${aviso.anexos} anexo(s) do financeiro.` : ''}`;
-    try { await notificacoes.adicionar(msg, '/registro-demandas/novo', aviso.slug); }
+    const anexosTxt = aviso.anexos ? ` ${aviso.anexos} anexo(s) do financeiro.` : '';
+    const msg = aviso.formulario === 'pagamento'
+      ? `Seu pagamento ${aviso.codigo} (${aviso.demanda}) foi pago pelo financeiro.${anexosTxt}`
+      : `Sua solicitação ${aviso.codigo} (${aviso.demanda}) foi concluída pelo financeiro.${anexosTxt}`;
+    try { await notificacoes.adicionar(msg, linkDoFormulario(aviso.formulario), aviso.slug); }
     catch (e) { console.error('[finfin-retorno] card concluído, mas falhou ao criar a notificação:', e.message); }
   }
   if (avisoAnexos) {
     const msg = `O financeiro enviou ${avisoAnexos.novos} anexo(s) na solicitação ${avisoAnexos.codigo} (${avisoAnexos.demanda}).`;
-    try { await notificacoes.adicionar(msg, '/registro-demandas/novo', avisoAnexos.slug); }
+    try { await notificacoes.adicionar(msg, linkDoFormulario(avisoAnexos.formulario), avisoAnexos.slug); }
     catch (e) { console.error('[finfin-retorno] falhou ao avisar dos anexos:', e.message); }
   }
   return { http: 200, corpo: { ok: true, concluido: true, ...resultado } };
