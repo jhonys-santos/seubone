@@ -14,15 +14,6 @@ const anexos = F.criarAnexos('pg-anexos', 'pg-anexos-lista');
 let idDaTentativa = crypto.randomUUID();
 const CAMPOS_LIMPAR = ['pg-razaosocial', 'pg-cpfcnpj', 'pg-vencimento', 'pg-motivo', 'pg-banco', 'pg-agencia', 'pg-conta', 'pg-valor', 'pg-tipochave', 'pg-chavepix', 'pg-numeronf'];
 
-const minhas = F.criarMinhas({
-  api: API,
-  nomesColuna: { backlog: 'Backlog', lancar_omie: 'Lançar no Omie', aguardando: 'Ajuste/Aguardando retorno', lancado: 'Lançado', pago: 'Pago', cancelado: 'Cancelado' },
-  colunasOk: ['pago'],
-  titulo: (i, d) => `${esc(d.razao_social || '')}${d.valor != null ? ' · ' + esc(F.brl(d.valor)) : ''}`,
-  rotuloFim: (i) => (i.coluna === 'cancelado' ? 'Cancelado' : 'Pago'),
-  vazio: 'Nenhum ainda.', erroCarregar: 'Não consegui carregar seus pagamentos.', aoErro: (m) => mostrarMsg(m, 'err'),
-});
-
 $('btn-registrar').addEventListener('click', async () => {
   const v = (id) => $(id).value.trim();
   const dados = {
@@ -52,7 +43,6 @@ $('btn-registrar').addEventListener('click', async () => {
     CAMPOS_LIMPAR.forEach((id) => { $(id).value = ''; });
     anexos.limpar();
     idDaTentativa = crypto.randomUUID();   // próximo pagamento = id novo
-    minhas.carregar();
   } catch (e) {
     mostrarMsg('Erro: ' + e.message, 'err');   // mantém o id: tentar de novo não duplica
   } finally {

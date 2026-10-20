@@ -85,7 +85,6 @@ $('btn-enviar').addEventListener('click', async () => {
     $('bloco-especificacao').style.display = 'none';
     anexos = []; renderAnexos();
     idDaTentativa = crypto.randomUUID();   // próxima solicitação = id novo
-    carregarMinhas();
   } catch (e) {
     mostrarMsg('Erro: ' + e.message, 'err');   // mantém o id: tentar de novo não duplica
   } finally {
@@ -93,45 +92,6 @@ $('btn-enviar').addEventListener('click', async () => {
     btn.innerHTML = '<i class="ti ti-send" aria-hidden="true"></i> Enviar ao financeiro';
   }
 });
-
-const NOMES_COLUNA = { backlog: 'Backlog', delegado: 'Delegado', aguardando: 'Aguardando retorno', fazendo: 'Fazendo', concluido: 'Concluído', cancelado: 'Cancelado' };
-
-// Anexos que o financeiro colocou ao concluir: botões de download, iguais aos do Histórico (usam o link de download do Drive).
-function anexosDoFinanceiro(i) {
-  let a = i.anexos_retorno;
-  if (typeof a === 'string') { try { a = JSON.parse(a); } catch (e) { a = []; } }
-  a = Array.isArray(a) ? a.filter((x) => x && (x.downloadUrl || x.url)) : [];
-  const quem = i.concluido_por ? ' por ' + esc(i.concluido_por) : '';
-  const quando = i.concluido_em ? ' em ' + esc(i.concluido_em) : '';
-  const linha = i.coluna === 'concluido' || i.concluido_em ? '<br><small>Concluído' + quem + quando + '</small>' : '';
-  const coment = i.comentario_retorno ? '<br><small>' + esc(i.comentario_retorno) + '</small>' : '';
-  const botoes = a.length
-    ? '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px">' + a.map((x, n) => '<a class="anexo-btn" href="' + esc(x.downloadUrl || x.url) + '" target="_blank" rel="noopener" title="' + esc(x.nome) + '"><i class="ti ti-download" aria-hidden="true"></i> ' + esc(x.nome || ('Anexo ' + (n + 1))) + '</a>').join('') + '</div>'
-    : '';
-  return linha + coment + botoes;
-}
-
-async function carregarMinhas() {
-  const box = $('minhas');
-  try {
-    const r = await (await fetch(API + '/minhas', { cache: 'no-store' })).json();
-    if (!r.ok) throw new Error(r.erro);
-    box.innerHTML = r.itens.length ? r.itens.map((i) => `
-      <div style="display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-top:1px solid var(--border)">
-        <span><b style="color:var(--text)">${esc(i.codigo || '—')}</b> · ${esc(i.demanda)}${i.modo === 'teste' ? ' <i>(teste)</i>' : ''}<br><small>${esc(i.criado_em)}</small>${anexosDoFinanceiro(i)}</span>
-        <span><span data-status="${esc(i.codigo)}" style="${i.coluna === 'concluido' ? 'color:var(--ok-text,#3fb950);font-weight:700' : ''}">${esc(NOMES_COLUNA[i.coluna] || i.coluna)}</span> <button type="button" class="btn-link" data-atualizar="${esc(i.codigo)}" style="background:none;border:0;color:var(--gold);cursor:pointer">atualizar</button></span>
-      </div>`).join('') : 'Nenhuma ainda.';
-    box.querySelectorAll('[data-atualizar]').forEach((b) => b.addEventListener('click', async () => {
-      b.textContent = '...';
-      try {
-        const s = await (await fetch(API + '/status?codigo=' + encodeURIComponent(b.dataset.atualizar), { cache: 'no-store' })).json();
-        if (!s.ok) throw new Error(s.erro);
-        box.querySelector(`[data-status="${CSS.escape(b.dataset.atualizar)}"]`).textContent = (s.coluna && s.coluna.nome) || '—';
-      } catch (e) { mostrarMsg('Não consegui consultar: ' + e.message, 'err'); }
-      b.textContent = 'atualizar';
-    }));
-  } catch (e) { box.textContent = 'Não consegui carregar suas solicitações.'; }
-}
 
 // ── Retornos do finfin (gestor) ───────────────────────────────────────────────
 async function carregarRetornos() {
@@ -154,17 +114,15 @@ if ($('btn-conferir')) $('btn-conferir').addEventListener('click', async () => {
     const r = await (await fetch(API + '/conferir', { method: 'POST' })).json();
     if (!r.ok) throw new Error(r.erro);
     mostrarMsg(`Conferidos ${r.verificados} card(s) abertos; ${r.mudaram} mudaram de coluna.${r.concluidosSemRetorno.length ? ' Concluídos sem retorno: ' + r.concluidosSemRetorno.join(', ') + '.' : ''}`, r.concluidosSemRetorno.length ? 'err' : 'ok');
-    carregarRetornos(); carregarMinhas();
+    carregarRetornos();
   } catch (e) { mostrarMsg('Erro ao conferir: ' + e.message, 'err'); }
   b.disabled = false; b.textContent = 'Conferir com o finfin agora';
 });
 
 carregarDemandas();
-carregarMinhas();
 carregarRetornos();
 
-// Atualiza sozinho (sem clicar em "atualizar"): a lista a cada 15 s e o painel de retornos a cada 30 s, só com a aba à vista;
-// ao voltar para a aba, atualiza na hora.
-setInterval(() => { if (!document.hidden) carregarMinhas(); }, 15000);
+
+// Atualiza sozinho o painel de retornos (gestor) a cada 30 s, só com a aba à vista; ao voltar para a aba, atualiza na hora.
 setInterval(() => { if (!document.hidden) carregarRetornos(); }, 30000);
-document.addEventListener('visibilitychange', () => { if (!document.hidden) { carregarMinhas(); carregarRetornos(); } });
+document.addEventListener('visibilitychange', () => { if (!document.hidden) carregarRetornos(); });

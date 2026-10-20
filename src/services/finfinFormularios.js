@@ -15,14 +15,14 @@ const anexosTxt = (d) => (d.anexos ? ` ${d.anexos} anexo(s) do financeiro.` : ''
 
 const FORMULARIOS = {
   gerais: {
-    chave: 'gerais', modoEnv: 'finfinDemandasModo', link: '/registro-demandas/novo', driveArea: 'registro',
+    chave: 'gerais', modoEnv: 'finfinDemandasModo', link: '/registro-demandas/historico', driveArea: 'registro',
     colunas: (() => {
       const concluido = { fecha: true, msg: (d) => `Sua solicitação ${d.codigo} (${d.demanda}) foi concluída pelo financeiro.${anexosTxt(d)}` };
       return { concluido, finalizado: { ...concluido, canonica: 'concluido' }, concluida: { ...concluido, canonica: 'concluido' } };
     })(),
   },
   pagamento: {
-    chave: 'pagamento', modoEnv: 'finfinPagamentoModo', link: '/registro-demandas/pagamento/novo', driveArea: 'pagamento',
+    chave: 'pagamento', modoEnv: 'finfinPagamentoModo', link: '/registro-demandas/historico-pagamento', driveArea: 'pagamento',
     nomesColunas: { backlog: 'Backlog', lancar_omie: 'Lançar no Omie', aguardando: 'Ajuste/Aguardando retorno', lancado: 'Lançado', pago: 'Pago', cancelado: 'Cancelado' },
     colunas: {
       pago: { fecha: true, msg: (d) => comComentario(`Seu pagamento ${d.codigo} foi pago pelo financeiro.${anexosTxt(d)}`, d) },
@@ -31,7 +31,7 @@ const FORMULARIOS = {
     },
   },
   reembolso_sac: {
-    chave: 'reembolso_sac', modoEnv: 'finfinReembolsoModo', link: '/registro-demandas/reembolso/novo', driveArea: 'registro',
+    chave: 'reembolso_sac', modoEnv: 'finfinReembolsoModo', link: '/registro-demandas/historico-reembolso', driveArea: 'registro',
     nomesColunas: { solicitacao_feita: 'Solicitação feita', em_aprovacao: 'Em aprovação', aprovado: 'Aprovado', aguardando: 'Aguardando retorno/Ajuste', lancado: 'Lançado no Omie', pago: 'Pago', negado: 'Negado' },
     colunas: {
       pago: { fecha: true, msg: (d) => comComentario(`Seu reembolso ${d.codigo} foi pago pelo financeiro.${anexosTxt(d)}`, d) },

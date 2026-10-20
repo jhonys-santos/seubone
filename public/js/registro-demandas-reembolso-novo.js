@@ -13,15 +13,6 @@ const anexos = F.criarAnexos('r-anexos', 'r-anexos-lista');
 let idDaTentativa = crypto.randomUUID();
 const CAMPOS_LIMPAR = ['r-idvenda', 'r-vencimento', 'r-cpfcnpj', 'r-link', 'r-motivo', 'r-razaosocial', 'r-banco', 'r-agencia', 'r-conta', 'r-tipochave', 'r-chavepix', 'r-valor'];
 
-const minhas = F.criarMinhas({
-  api: API,
-  nomesColuna: { solicitacao_feita: 'Solicitação feita', em_aprovacao: 'Em aprovação', aprovado: 'Aprovado', aguardando: 'Aguardando retorno/Ajuste', lancado: 'Lançado no Omie', pago: 'Pago', negado: 'Negado' },
-  colunasOk: ['pago'],
-  titulo: (i, d) => `Venda ${esc(d.id_venda || '')}${d.valor != null ? ' · ' + esc(F.brl(d.valor)) : ''}`,
-  rotuloFim: (i) => (i.coluna === 'negado' ? 'Negado' : 'Pago'),
-  vazio: 'Nenhum ainda.', erroCarregar: 'Não consegui carregar seus reembolsos.', aoErro: (m) => mostrarMsg(m, 'err'),
-});
-
 $('btn-registrar').addEventListener('click', async () => {
   const v = (id) => $(id).value.trim();
   const dados = {
@@ -52,7 +43,6 @@ $('btn-registrar').addEventListener('click', async () => {
     CAMPOS_LIMPAR.forEach((id) => { $(id).value = ''; });
     anexos.limpar();
     idDaTentativa = crypto.randomUUID();   // próximo reembolso = id novo
-    minhas.carregar();
   } catch (e) {
     mostrarMsg('Erro: ' + e.message, 'err');   // mantém o id: tentar de novo não duplica
   } finally {
