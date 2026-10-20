@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<%- include('../partials/head') %>
+<meta name="robots" content="noindex, nofollow">
+<title>Cotação de frete - SeuBoné</title>
+<link rel="stylesheet" href="/css/cotacoes.css">
+</head>
+<body>
+
+<div class="ct-scope ct-externa">
+
+  <div class="ct-marca">
+    <img src="/img/logo-seubone.png" alt="SeuBoné">
+    <span>Seu<span class="gold">Boné</span></span>
+  </div>
+
+  <div class="ct-header">
+    <div>
+      <p class="ct-sobretitulo">Cotação de frete</p>
+      <h1><i class="ti ti-truck-delivery" aria-hidden="true"></i> Quanto custa o frete?</h1>
+      <p class="ct-lede">Escolha a transportadora, informe o CEP de destino e as medidas do volume. A cotação usa a tabela da SeuBoné e não cria envio nem gera cobrança.</p>
+    </div>
+  </div>
+
+  <div class="ct-abas" role="tablist" aria-label="Transportadora">
+    <button type="button" class="ct-aba ativa" role="tab" id="abaCorreios" aria-selected="true" aria-controls="painelCorreios" data-alvo="painelCorreios"><i class="ti ti-mailbox" aria-hidden="true"></i> Correios</button>
+    <button type="button" class="ct-aba" role="tab" id="abaAzul" aria-selected="false" aria-controls="painelAzul" data-alvo="painelAzul"><i class="ti ti-plane" aria-hidden="true"></i> Azul Cargo</button>
+  </div>
+
+  <div id="painelCorreios" class="ct-painel" role="tabpanel" aria-labelledby="abaCorreios">
+    <p class="ct-nota">SEDEX e PAC lado a lado. Cada volume é um objeto nos Correios.</p>
+    <%- include('_correios-grade', { cepOrigemPadrao: correiosCepOrigemPadrao }) %>
+  </div>
+
+  <div id="painelAzul" class="ct-painel" role="tabpanel" aria-labelledby="abaAzul" hidden>
+    <p class="ct-nota">Entrega no endereço ou retirada na unidade Azul.</p>
+    <%- include('_azul-grade', { cepOrigemPadrao: azulCepOrigemPadrao }) %>
+  </div>
+
+</div>
+
+<script>window.COTACOES_API_BASE = '/cotacao/api';</script>
+<script src="/js/cotacoes.js?v=<%= appVersion %>"></script>
+<script src="/js/cotacao-externa.js?v=<%= appVersion %>"></script>
+</body>
+</html>

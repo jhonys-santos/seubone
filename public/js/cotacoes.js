@@ -5,6 +5,7 @@
 (function () {
   'use strict';
 
+  const API_COTACOES = window.COTACOES_API_BASE || '/cotacoes/api';
   const form = document.getElementById('ctForm');
   if (!form) return; // não é a tela da Azul (ex: Correios, sem formulário)
 
@@ -110,7 +111,7 @@
     };
 
     try {
-      const res = await fetch('/cotacoes/api/azul/cotar', {
+      const res = await fetch(API_COTACOES + '/azul/cotar', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(corpo),
@@ -142,6 +143,7 @@
 (function () {
   'use strict';
 
+  const API_COTACOES = window.COTACOES_API_BASE || '/cotacoes/api';
   const form = document.getElementById('ctFormCorreios');
   if (!form) return; // não é a tela dos Correios
 
@@ -248,7 +250,7 @@
     };
 
     try {
-      const res = await fetch('/cotacoes/api/correios/cotar', {
+      const res = await fetch(API_COTACOES + '/correios/cotar', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(corpo),

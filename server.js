@@ -48,6 +48,7 @@ const errosRoutes = require('./src/routes/erros.routes');
 const ticketsRoutes = require('./src/routes/tickets.routes');
 const manifestoRoutes = require('./src/routes/manifesto.routes');
 const cotacoesRoutes = require('./src/routes/cotacoes.routes');
+const cotacaoExternaRoutes = require('./src/routes/cotacaoExterna.routes');
 const correiosEtiquetaRoutes = require('./src/routes/correiosEtiqueta.routes');
 const latamMinutaRoutes = require('./src/routes/latamMinuta.routes');
 
@@ -144,6 +145,8 @@ app.use('/erros', errosRoutes);
 app.use('/tickets', ticketsRoutes);
 app.use('/manifesto', manifestoRoutes);
 app.use('/cotacoes', cotacoesRoutes);
+// Cotação para quem não tem acesso ao hub: pública (sem login), com limite de consultas por IP.
+app.use('/cotacao', cotacaoExternaRoutes);
 app.use('/emissao-correios', correiosEtiquetaRoutes);
 app.use('/emissao-latam', latamMinutaRoutes);
 app.use(notificacoesRoutes);
