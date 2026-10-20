@@ -1,8 +1,10 @@
 // Formulário NOVO de solicitação ao financeiro: só os campos que o finfin pede, e o card nasce direto no kanban "Envio de demandas -
-// Gerais" do finfin. Convive com o Registro antigo (/registro-demandas, n8n + planilha), que NÃO foi alterado.
+// Gerais" do finfin.
 //
-// Modo (FINFIN_DEMANDAS_MODO): 'teste' (padrão) = só gestor abre e os cards saem com "[TESTE]" no título;
-//                              'producao'     = aberto a quem acessa o Registro, sem prefixo.
+// Modo (FINFIN_DEMANDAS_MODO): 'teste' (padrão) = só gestor abre e os cards saem com "[TESTE]" no título; o Registro antigo
+//                                                 (/registro-demandas, n8n + planilha) segue valendo para todos;
+//                              'producao'     = este formulário é o Registro de todo mundo, sem prefixo; /registro-demandas
+//                                                 redireciona para cá e o /api/create antigo deixa de gravar.
 const crypto = require('crypto');
 const express = require('express');
 const { requireAuth } = require('../middleware/auth');

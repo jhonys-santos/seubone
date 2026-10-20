@@ -77,7 +77,12 @@ async function notificarN8nPagamento(payload) {
 // Sem restrição de painel — "visível pra todo mundo" no hub, por decisão
 // do usuário (diferente da Gestão de Estoque do Wallac, que é só de uma
 // pessoa).
+// Com FINFIN_DEMANDAS_MODO=producao o "Registro" passa a ser o formulário novo (card direto no finfin) para todo mundo: o menu e
+// os favoritos continuam em /registro-demandas, só o destino muda. Voltar o modo para 'teste' devolve o formulário antigo.
+const finfinNoAr = () => env.finfinDemandasModo === 'producao';
+
 router.get('/', (req, res) => {
+  if (finfinNoAr()) return res.redirect('/registro-demandas/novo');
   res.render('registro-demandas/index');
 });
 
@@ -139,6 +144,10 @@ router.get('/api/list-pagamento', async (req, res) => {
 });
 
 router.post('/api/create', async (req, res) => {
+  // Aba do formulário antigo que ficou aberta durante a troca: não grava mais (a solicitação nasceria fora do finfin).
+  if (finfinNoAr()) {
+    return res.status(410).json({ ok: false, erro: 'O formulário de Registro foi atualizado. Recarregue a página (F5) e envie novamente.' });
+  }
   try {
     // "solicitanteSlug" vem sempre da sessão, nunca do corpo enviado pelo
     // cliente — é o que a notificação de retorno usa pra saber quem avisar,
