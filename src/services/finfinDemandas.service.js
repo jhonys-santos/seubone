@@ -151,11 +151,13 @@ function montarCard(f, opcoes = {}) {
   return { payload, erros };
 }
 
-// ── Pagamento (kanban "Pagamentos") ──────────────────────────────────────────
-// Campos e regras iguais aos do formulário público do finfin (api-demandas-seubone-pagamento.md). Aqui só se conferem o básico e os
-// dígitos de CPF/CNPJ; o resto (telefone com DDD, chave aleatória...) o finfin confere e o hub repassa a mensagem de cada campo (422).
+// ── Pagamento, Reembolso SAC e Análise de termo ──────────────────────────────
+// Campos e regras iguais aos dos formulários públicos do finfin (api-demandas-seubone-pagamento / reembolso_sac / analise_termo.md). Aqui só se
+// conferem o básico e os dígitos de CPF/CNPJ; o resto (telefone com DDD, chave aleatória...) o finfin confere e o hub repassa a mensagem de cada
+// campo (422). Em teste, o aviso "[TESTE]" vai num campo que o finfin documenta (motivo / observações): "titulo" só é documentado nas demandas gerais.
 const PIX_TIPOS = ['cpf', 'cnpj', 'email', 'telefone', 'aleatoria'];
 const so9 = (s) => str(s).replace(/\D/g, '');
+const EMAIL_OK = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function cpfValido(v) {
   const d = so9(v);
@@ -181,36 +183,31 @@ function numeroBr(v) {
   return Number(norm);
 }
 
-const PIX_ROTULO = { cpf: 'CPF', cnpj: 'CNPJ', email: 'e-mail', telefone: 'telefone', aleatoria: 'aleatória' };
+const dataValida = (s) => /^\d{4}-\d{2}-\d{2}$/.test(s) && !Number.isNaN(Date.parse(s + 'T12:00:00Z'));
+const linkHttps = (s) => { const l = str(s).trim(); return /^http:\/\//i.test(l) ? 'https://' + l.slice(7) : l; };
 
-/**
- * Monta o corpo do POST do kanban "Pagamentos".
- * f:      { id?, solicitante, email, razaoSocial, vencimento (AAAA-MM-DD), cpfCnpj, motivo, banco, agencia, conta, pixTipo, pixChave, valor, notaFiscal, anexos }
- * opcoes: { prefixoTitulo: '[TESTE] ' }
- * Devolve { payload, erros }. O título só é enviado em teste; sem prefixo o finfin monta o dele.
- */
-function montarCardPagamento(f, opcoes = {}) {
-  const erros = [];
-  const x = f || {};
+/** Confere os anexos (limites do finfin). Devolve a lista no formato do finfin; "erros" recebe o que estiver errado. */
+function conferirAnexos(lista, erros, { obrigatorio = false } = {}) {
+  const arquivos = Array.isArray(lista) ? lista.filter((a) => a && (a.base64 || a.conteudo_base64)) : [];
+  if (obrigatorio && !arquivos.length) erros.push('Anexe ao menos 1 arquivo (nota fiscal, boleto ou comprovante).');
+  const tamanhos = arquivos.map((a) => Math.floor(str(a.base64 || a.conteudo_base64).length * 0.75));
+  if (arquivos.length > MAX_ANEXOS) erros.push(`Máximo de ${MAX_ANEXOS} anexos.`);
+  if (tamanhos.some((n) => n > MAX_ARQUIVO_BYTES)) erros.push(`Cada anexo pode ter até ${MAX_ARQUIVO_BYTES / 1048576} MB.`);
+  if (tamanhos.reduce((s, n) => s + n, 0) > MAX_TOTAL_BYTES) erros.push(`Os anexos somados passam de ${MAX_TOTAL_BYTES / 1048576} MB (limite do finfin). Envie arquivos menores.`);
+  return arquivos.map((a) => {
+    const o = { nome: str(a.nome || 'arquivo'), tipo: str(a.tipo || 'application/octet-stream'), conteudo_base64: str(a.base64 || a.conteudo_base64) };
+    if (a.categoria) o.categoria = str(a.categoria);
+    return o;
+  });
+}
+
+/** Banco, agência, conta, chave pix e valor (comuns ao Pagamento e ao Reembolso). Devolve os campos no formato do finfin. */
+function conferirContaPix(x, erros) {
   const t = (v) => str(v).trim();
-  const razao = cortar(t(x.razaoSocial), 200);
-  const nome = cortar(t(x.solicitante), 120);
-  const email = t(x.email);
-  const venc = t(x.vencimento);
-  const doc = t(x.cpfCnpj);
-  const motivo = t(x.motivo);
-  const banco = t(x.banco), agencia = t(x.agencia), conta = t(x.conta), nf = t(x.notaFiscal);
   const pixTipo = normalizar(x.pixTipo).replace(/[^a-z]/g, '');   // "E-mail" -> email, "Aleatória" -> aleatoria
   const pixChave = t(x.pixChave);
   const valor = numeroBr(x.valor);
-
-  if (!razao) erros.push('Informe a razão social (quem vai receber).');
-  if (!nome) erros.push('Solicitante vazio.');
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) erros.push('Informe um e-mail válido.');
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(venc) || Number.isNaN(Date.parse(venc + 'T12:00:00Z'))) erros.push('Informe a data de vencimento.');
-  if (!doc) erros.push('Informe o CPF/CNPJ de quem vai receber.');
-  else if (!docValido(doc)) erros.push('CPF/CNPJ inválido (confira os dígitos).');
-  if (!motivo) erros.push('Informe o motivo do pagamento.');
+  const banco = t(x.banco), agencia = t(x.agencia), conta = t(x.conta);
   if (!banco) erros.push('Informe o banco.');
   if (!agencia) erros.push('Informe a agência.');
   if (!conta) erros.push('Informe a conta.');
@@ -218,33 +215,108 @@ function montarCardPagamento(f, opcoes = {}) {
   if (!pixChave) erros.push('Informe a chave pix.');
   else if (pixTipo === 'cpf' && !cpfValido(pixChave)) erros.push('A chave pix não é um CPF válido.');
   else if (pixTipo === 'cnpj' && !cnpjValido(pixChave)) erros.push('A chave pix não é um CNPJ válido.');
-  else if (pixTipo === 'email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(pixChave)) erros.push('A chave pix não é um e-mail válido.');
+  else if (pixTipo === 'email' && !EMAIL_OK.test(pixChave)) erros.push('A chave pix não é um e-mail válido.');
   if (!(valor > 0)) erros.push('Informe o valor (maior que zero).');
+  return { banco, agencia, conta, pix_tipo: pixTipo, pix_chave: pixChave, valor: Number.isFinite(valor) ? Math.round(valor * 100) / 100 : 0 };
+}
+
+const idDoCard = (x) => (UUID.test(str(x.id)) ? str(x.id).toLowerCase() : crypto.randomUUID());
+
+/**
+ * Pagamento (kanban "Pagamentos").
+ * f:      { id?, solicitante, email, razaoSocial, vencimento (AAAA-MM-DD), cpfCnpj, motivo, banco, agencia, conta, pixTipo, pixChave, valor, notaFiscal, anexos }
+ * opcoes: { prefixoTitulo: '[TESTE] ' }   (em teste o prefixo vai no início do motivo)
+ */
+function montarCardPagamento(f, opcoes = {}) {
+  const erros = [];
+  const x = f || {};
+  const t = (v) => str(v).trim();
+  const razao = cortar(t(x.razaoSocial), 200), nome = cortar(t(x.solicitante), 120), email = t(x.email), venc = t(x.vencimento), doc = t(x.cpfCnpj), motivo = t(x.motivo), nf = t(x.notaFiscal);
+
+  if (!razao) erros.push('Informe a razão social (quem vai receber).');
+  if (!nome) erros.push('Solicitante vazio.');
+  if (!EMAIL_OK.test(email)) erros.push('Informe um e-mail válido.');
+  if (!dataValida(venc)) erros.push('Informe a data de vencimento.');
+  if (!doc) erros.push('Informe o CPF/CNPJ de quem vai receber.');
+  else if (!docValido(doc)) erros.push('CPF/CNPJ inválido (confira os dígitos).');
+  if (!motivo) erros.push('Informe o motivo do pagamento.');
+  const conta = conferirContaPix(x, erros);
   if (!nf) erros.push('Informe o número da nota fiscal.');
+  const anexos = conferirAnexos(x.anexos, erros, { obrigatorio: true });
 
-  const arquivos = Array.isArray(x.anexos) ? x.anexos.filter((a) => a && (a.base64 || a.conteudo_base64)) : [];
-  if (!arquivos.length) erros.push('Anexe ao menos 1 arquivo (nota fiscal, boleto ou comprovante).');
-  const tamanhos = arquivos.map((a) => Math.floor(str(a.base64 || a.conteudo_base64).length * 0.75));
-  if (arquivos.length > MAX_ANEXOS) erros.push(`Máximo de ${MAX_ANEXOS} anexos.`);
-  if (tamanhos.some((n) => n > MAX_ARQUIVO_BYTES)) erros.push(`Cada anexo pode ter até ${MAX_ARQUIVO_BYTES / 1048576} MB.`);
-  if (tamanhos.reduce((s, n) => s + n, 0) > MAX_TOTAL_BYTES) erros.push(`Os anexos somados passam de ${MAX_TOTAL_BYTES / 1048576} MB (limite do finfin). Envie arquivos menores.`);
-
-  const campos = {
-    razao_social: razao, solicitante_nome: nome, vencimento: venc, cpf_cnpj: doc, solicitante_email: email, motivo,
-    banco, agencia, conta, pix_tipo: pixTipo, pix_chave: pixChave, valor: Number.isFinite(valor) ? Math.round(valor * 100) / 100 : 0, nota_fiscal: nf,
-  };
-  if (opcoes.prefixoTitulo) campos.titulo = cortar(`${opcoes.prefixoTitulo}Pagamento - ${razao}`, 200);
-
-  const payload = { id: UUID.test(str(x.id)) ? str(x.id).toLowerCase() : crypto.randomUUID(), empresa: 'seubone', formulario: 'pagamento', campos };
-  if (arquivos.length) payload.anexos = arquivos.map((a) => ({ nome: str(a.nome || 'arquivo'), tipo: str(a.tipo || 'application/octet-stream'), conteudo_base64: str(a.base64 || a.conteudo_base64) }));
+  const campos = { razao_social: razao, solicitante_nome: nome, vencimento: venc, cpf_cnpj: doc, solicitante_email: email, motivo: (opcoes.prefixoTitulo || '') + motivo, ...conta, nota_fiscal: nf };
+  const payload = { id: idDoCard(x), empresa: 'seubone', formulario: 'pagamento', campos };
+  if (anexos.length) payload.anexos = anexos;
   return { payload, erros };
 }
 
-/** Coluna final de cada kanban: "Concluído" nas demandas gerais, "Pago" nos pagamentos. */
-const COLUNA_FINAL = { gerais: 'concluido', pagamento: 'pago' };
+/**
+ * Reembolso (kanban "Solicitações de reembolso - SAC"). Anexos opcionais.
+ * f: { id?, solicitante, email, idVenda, vencimento, cpfCnpj, linkLulu, motivo, razaoSocial, banco, agencia, conta, pixTipo, pixChave, valor, anexos }
+ */
+function montarCardReembolso(f, opcoes = {}) {
+  const erros = [];
+  const x = f || {};
+  const t = (v) => str(v).trim();
+  const razao = cortar(t(x.razaoSocial), 200), nome = cortar(t(x.solicitante), 120), email = t(x.email), venc = t(x.vencimento), doc = t(x.cpfCnpj), motivo = t(x.motivo), idVenda = t(x.idVenda);
+  const link = linkHttps(x.linkLulu);
+
+  if (!idVenda) erros.push('Informe o ID da venda.');
+  else if (idVenda.length > 60) erros.push('O ID da venda pode ter até 60 caracteres.');
+  if (!nome) erros.push('Solicitante vazio.');
+  if (!EMAIL_OK.test(email)) erros.push('Informe um e-mail válido.');
+  if (!dataValida(venc)) erros.push('Informe a data de vencimento.');
+  if (!doc) erros.push('Informe o CPF/CNPJ do cliente.');
+  else if (!docValido(doc)) erros.push('CPF/CNPJ inválido (confira os dígitos).');
+  if (!/^https:\/\/\S+$/i.test(link)) erros.push('O link do card do Lulu precisa ser um link completo (https://…).');
+  if (!motivo) erros.push('Informe o motivo do reembolso.');
+  if (!razao) erros.push('Informe a razão social do cliente.');
+  const conta = conferirContaPix(x, erros);
+  const anexos = conferirAnexos(x.anexos, erros);
+
+  const campos = { id_venda: idVenda, vencimento: venc, cpf_cnpj: doc, solicitante_email: email, solicitante_nome: nome, link_lulu: link, motivo: (opcoes.prefixoTitulo || '') + motivo, razao_social: razao, ...conta };
+  const payload = { id: idDoCard(x), empresa: 'seubone', formulario: 'reembolso_sac', campos };
+  if (anexos.length) payload.anexos = anexos;
+  return { payload, erros };
+}
+
+/**
+ * Análise de termo (kanban "Análise de termo"). Dois anexos obrigatórios: orçamento e layout (categorias do finfin).
+ * f: { id?, solicitante, email, cpfCnpj, idVenda, linkLulu, formaPagamento, pagamentoAposNf ('sim'|'nao'), observacoes, anexos: [{ nome, tipo, base64, categoria }] }
+ */
+function montarCardAnaliseTermo(f, opcoes = {}) {
+  const erros = [];
+  const x = f || {};
+  const t = (v) => str(v).trim();
+  const nome = cortar(t(x.solicitante), 120), email = t(x.email), doc = t(x.cpfCnpj), idVenda = t(x.idVenda), forma = t(x.formaPagamento), obs = t(x.observacoes);
+  const apos = normalizar(x.pagamentoAposNf).replace(/[^a-z]/g, '');   // "Não" -> nao
+  const link = linkHttps(x.linkLulu);
+
+  if (!nome) erros.push('Solicitante vazio.');
+  if (!EMAIL_OK.test(email)) erros.push('Informe um e-mail válido.');
+  if (!doc) erros.push('Informe o CPF/CNPJ do cliente.');
+  else if (!docValido(doc)) erros.push('CPF/CNPJ inválido (confira os dígitos).');
+  if (!idVenda) erros.push('Informe o ID da venda.');
+  else if (idVenda.length > 60) erros.push('O ID da venda pode ter até 60 caracteres.');
+  if (!/^https:\/\/\S+$/i.test(link)) erros.push('O link do card do Lulu precisa ser um link completo (https://…).');
+  if (!forma) erros.push('Informe a forma de pagamento.');
+  else if (forma.length > 300) erros.push('A forma de pagamento pode ter até 300 caracteres.');
+  if (apos !== 'sim' && apos !== 'nao') erros.push('Diga se o pagamento será após a emissão da NF.');
+  const anexos = conferirAnexos(x.anexos, erros);
+  const tem = (cat) => anexos.some((a) => a.categoria === cat);
+  if (!tem('orcamento')) erros.push('Anexe o PDF do orçamento.');
+  if (!tem('layout')) erros.push('Anexe o layout do boné.');
+
+  const campos = { solicitante_nome: nome, solicitante_email: email, cpf_cnpj: doc, id_venda: idVenda, link_lulu: link, forma_pagamento: forma, pagamento_apos_nf: apos === 'sim' ? 'sim' : 'nao' };
+  const observacoes = ((opcoes.prefixoTitulo || '') + obs).trim();
+  if (observacoes) campos.observacoes = observacoes;
+  const payload = { id: idDoCard(x), empresa: 'seubone', formulario: 'analise_termo', campos };
+  if (anexos.length) payload.anexos = anexos;
+  return { payload, erros };
+}
 
 module.exports = {
-  montarCardPagamento, cpfValido, cnpjValido, numeroBr, PIX_TIPOS, PIX_ROTULO, COLUNA_FINAL,
+  montarCardPagamento, montarCardReembolso, montarCardAnaliseTermo, cpfValido, cnpjValido, numeroBr, PIX_TIPOS,
   configurado, criarCard, consultarCard, moverCard, listarDemandas, extrairNomesDemandas, demandasAceitas, limparCache,
   montarCard, resolverDemanda, normalizar, definirHttp, DEMANDAS_RESERVA, MAX_ANEXOS, MAX_ARQUIVO_BYTES, MAX_TOTAL_BYTES,
 };

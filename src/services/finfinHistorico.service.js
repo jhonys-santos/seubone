@@ -77,4 +77,44 @@ async function listarPagamentosParaHistorico({ ehGestor = false } = {}) {
   });
 }
 
-module.exports = { listarParaHistorico, listarPagamentosParaHistorico };
+/**
+ * Reembolsos do formulário novo (finfin) no MESMO formato de linha do Histórico de Reembolsos (IDReferencia = ID da venda, RazaoSocialCliente,
+ * MotivoReembolso...). Pago = "Feito"; negado = "Negado"; o resto = "Pendente". Cards de teste só aparecem para gestor.
+ */
+async function listarReembolsosParaHistorico({ ehGestor = false } = {}) {
+  const r = await db.query(
+    `select codigo, solicitante_nome, solicitante_email, solicitante_slug, link_lulu, dados, anexos_retorno, coluna, concluido_por, criado_em
+       from finfin_demandas
+      where codigo <> '' and formulario = 'reembolso_sac' and ($1::boolean or modo <> 'teste')
+      order by ordem`, [!!ehGestor]);
+  const json = (v) => { if (typeof v === 'string') { try { return JSON.parse(v); } catch (e) { return {}; } } return v || {}; };
+  return r.rows.map((l) => {
+    const d = json(l.dados);
+    return {
+      ID: l.codigo,
+      DataVencimento: d.vencimento || '',
+      IDReferencia: d.id_venda || '',
+      LinkLulu: l.link_lulu || '',
+      CPFCNPJ: d.cpf_cnpj || '',
+      Email: l.solicitante_email,
+      Solicitante: l.solicitante_nome,
+      MotivoReembolso: d.motivo || '',
+      RazaoSocialCliente: d.razao_social || '',
+      Banco: d.banco || '',
+      Agencia: d.agencia || '',
+      Conta: d.conta || '',
+      ChavePix: d.pix_chave || '',
+      TipoChave: TIPO_PIX[d.pix_tipo] || d.pix_tipo || '',
+      Valor: d.valor != null ? d.valor : '',
+      EmpresaResponsavel: 'SeuBoné',
+      Anexos: JSON.stringify(Array.isArray(json(l.anexos_retorno)) ? json(l.anexos_retorno) : []),
+      Status: l.coluna === 'pago' ? 'Feito' : l.coluna === 'negado' ? 'Negado' : 'Pendente',
+      FeitoPor: l.concluido_por || '',
+      InseridoEm: new Date(l.criado_em).toISOString(),
+      SolicitanteSlug: l.solicitante_slug,
+      Origem: 'finfin',
+    };
+  });
+}
+
+module.exports = { listarParaHistorico, listarPagamentosParaHistorico, listarReembolsosParaHistorico };

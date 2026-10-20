@@ -71,6 +71,7 @@ module.exports = [
       { titulo: 'Registro', url: '/registro-demandas', icone: 'ti-file-text' },
       { titulo: 'Reembolso', url: '/registro-demandas/reembolso', icone: 'ti-cash' },
       { titulo: 'Pagamento', url: '/registro-demandas/pagamento', icone: 'ti-credit-card' },
+      { titulo: 'Análise de Termo', url: '/registro-demandas/analise-termo', icone: 'ti-file-certificate' },
       { titulo: 'Histórico', url: '/registro-demandas/historico', icone: 'ti-history' },
       { titulo: 'Histórico de Reembolsos', url: '/registro-demandas/historico-reembolso', icone: 'ti-receipt' },
       { titulo: 'Histórico de Pagamentos', url: '/registro-demandas/historico-pagamento', icone: 'ti-receipt-2' },

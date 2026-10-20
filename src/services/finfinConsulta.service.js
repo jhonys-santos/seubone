@@ -5,6 +5,7 @@ const db = require('../db');
 const env = require('../config/env');
 const finfin = require('./finfinDemandas.service');
 const retorno = require('./finfinRetorno.service');
+const formularios = require('./finfinFormularios');
 
 const INTERVALO_MS = 3 * 60 * 1000;
 const LIMITE_POR_RODADA = 40;   // o finfin aceita 60 consultas por minuto
@@ -18,7 +19,7 @@ async function sincronizarCard(codigo) {
   const col = r.card && r.card.coluna;
   const chave = col && col.chave;
   if (!chave) return { ok: true, coluna: null, mudou: false };
-  const antes = (await db.query('select coluna, notificado_em from finfin_demandas where codigo = $1', [codigo])).rows[0];
+  const antes = (await db.query('select coluna, notificado_coluna, formulario from finfin_demandas where codigo = $1', [codigo])).rows[0];
   if (!antes) return { ok: true, coluna: col, mudou: false };
   const campos = (r.card && r.card.campos) || {};
   if (campos.descricao || campos.telefone) {
@@ -26,16 +27,17 @@ async function sincronizarCard(codigo) {
   }
   // "Concluído": passa pelo mesmo caminho do webhook (marca, guarda quem concluiu e avisa uma vez), só que sem anexos.
   const p = await retorno.processarEvento({ codigo, coluna: { chave, nome: col.nome } }, { origem: 'consulta' });
-  const mudou = antes.coluna !== chave || (['concluido', 'pago'].includes(chave) && !antes.notificado_em);
+  const regra = formularios.regraDaColuna(antes.formulario, chave);
+  const mudou = antes.coluna !== chave || (!!regra && antes.notificado_coluna !== (regra.canonica || chave));
   return { ok: p.http === 200, coluna: col, mudou };
 }
 
-/** Cards abertos (ou concluídos que ainda não foram avisados) criados nos últimos 60 dias. */
+/** Cards abertos (ou encerrados cujo desfecho ainda não foi avisado) criados nos últimos 60 dias. */
 async function sincronizarAbertos({ limite = LIMITE_POR_RODADA } = {}) {
   const lista = await db.query(
     `select codigo from finfin_demandas
       where codigo <> '' and criado_em > now() - interval '60 days'
-        and (coluna not in ('concluido', 'pago', 'cancelado') or (coluna in ('concluido', 'pago') and notificado_em is null))
+        and ((concluido_em is null and coluna <> 'cancelado') or (concluido_em is not null and notificado_coluna is distinct from coluna))
       order by ordem desc limit $1`, [limite]);
   let verificados = 0, mudaram = 0; const falhas = [];
   for (const { codigo } of lista.rows) {

@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<%- include('../partials/head') %>
+<title>Reembolso - SeuBoné</title>
+<link rel="stylesheet" href="/css/pedidos-urgentes.css">
+</head>
+<body>
+<div class="app-shell">
+<%- include('../partials/sidebar') %>
+<div class="app-main">
+
+<div class="pu-scope">
+<div class="pu-container">
+  <div class="card">
+    <% if (emTeste) { %>
+    <div class="msg ok" style="display:block;margin:0 0 14px">Formulário em teste: só gestores veem esta página e os cards saem com <b>[TESTE]</b> no início do motivo.</div>
+    <% } %>
+    <% if (!integracaoConfigurada) { %>
+    <div class="msg err" style="display:block;margin:0 0 14px">A integração com o finfin ainda não está configurada no servidor (falta o token). O envio não vai funcionar.</div>
+    <% } %>
+
+    <div style="font-size:13px;color:var(--text-muted);margin-bottom:14px">Solicitante: <b style="color:var(--text)"><%= nomeSolicitante %></b></div>
+
+    <div class="row2">
+      <div>
+        <label>ID da venda *</label>
+        <input type="text" id="r-idvenda" maxlength="60" placeholder="Inserir número">
+      </div>
+      <div>
+        <label>Data de vencimento *</label>
+        <input type="date" id="r-vencimento">
+      </div>
+    </div>
+
+    <div class="row2">
+      <div>
+        <label>CPF/CNPJ do cliente *</label>
+        <input type="text" id="r-cpfcnpj" inputmode="numeric" placeholder="CPF ou CNPJ">
+      </div>
+      <div>
+        <label>Seu e-mail *</label>
+        <input type="email" id="r-email" placeholder="Inserir e-mail">
+      </div>
+    </div>
+
+    <label>Link do card no Lulu *</label>
+    <input type="text" id="r-link" placeholder="https://lulu.seubone.com/...">
+
+    <label>Motivo do reembolso *</label>
+    <textarea id="r-motivo" rows="3" placeholder="Inserir texto"></textarea>
+
+    <div class="row2">
+      <div>
+        <label>Razão social do cliente *</label>
+        <input type="text" id="r-razaosocial" placeholder="Nome de quem vai receber o reembolso">
+      </div>
+      <div>
+        <label>Banco *</label>
+        <input type="text" id="r-banco" list="r-lista-bancos" placeholder="Escolha da lista ou digite o nome do banco">
+        <%- include('_bancos-datalist', { id: 'r-lista-bancos' }) %>
+      </div>
+    </div>
+
+    <div class="row2">
+      <div>
+        <label>Agência *</label>
+        <input type="text" id="r-agencia" placeholder="Inserir número">
+      </div>
+      <div>
+        <label>Conta *</label>
+        <input type="text" id="r-conta" placeholder="Ex.: 12345-6">
+      </div>
+    </div>
+
+    <div class="row2">
+      <div>
+        <label>Tipo de chave pix *</label>
+        <select id="r-tipochave">
+          <option value="">Selecionar opção...</option>
+          <option value="cpf">CPF</option>
+          <option value="cnpj">CNPJ</option>
+          <option value="email">E-mail</option>
+          <option value="telefone">Telefone</option>
+          <option value="aleatoria">Aleatória</option>
+        </select>
+      </div>
+      <div>
+        <label>Chave pix *</label>
+        <input type="text" id="r-chavepix" placeholder="A chave no formato do tipo escolhido">
+      </div>
+    </div>
+
+    <label>Valor *</label>
+    <input type="text" id="r-valor" inputmode="decimal" placeholder="Ex.: 150,00">
+
+    <label>Anexos</label>
+    <div style="font-size:12px;color:var(--text-muted);margin:0 0 6px;">Opcional: comprovante, nota, print da conversa...</div>
+    <input type="file" id="r-anexos" multiple>
+    <div style="font-size:12px;color:var(--text-muted);margin-top:6px;">Até 10 arquivos, 4 MB somados (limite do finfin).</div>
+    <div class="anexos-lista" id="r-anexos-lista"></div>
+
+    <button class="btn-primary" id="btn-registrar"><i class="ti ti-send" aria-hidden="true"></i> Enviar ao financeiro</button>
+    <div class="msg" id="form-msg"></div>
+  </div>
+
+  <div class="card" style="margin-top:16px">
+    <div style="font-weight:700;margin-bottom:8px">Meus últimos reembolsos</div>
+    <div id="minhas" style="font-size:13px;color:var(--text-muted)">Carregando...</div>
+  </div>
+</div>
+</div>
+
+</div>
+</div>
+
+<script src="/js/finfin-form-comum.js"></script>
+<script src="/js/registro-demandas-reembolso-novo.js"></script>
+</body>
+</html>

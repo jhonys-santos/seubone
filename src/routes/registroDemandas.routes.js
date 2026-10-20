@@ -86,7 +86,11 @@ router.get('/', (req, res) => {
   res.render('registro-demandas/index');
 });
 
+// Idem para o Reembolso: com FINFIN_REEMBOLSO_MODO=producao, /registro-demandas/reembolso leva ao formulário novo (kanban "Solicitações de reembolso - SAC").
+const finfinReembolsoNoAr = () => env.finfinReembolsoModo === 'producao';
+
 router.get('/reembolso', (req, res) => {
+  if (finfinReembolsoNoAr()) return res.redirect('/registro-demandas/reembolso/novo');
   res.render('registro-demandas/reembolso');
 });
 
@@ -138,6 +142,15 @@ router.get('/api/list-pagamento-finfin', async (req, res) => {
   }
 });
 
+// Reembolsos do formulário novo (finfin), no mesmo formato de linha do /api/list-reembolso. Cards de teste só aparecem para gestor.
+router.get('/api/list-reembolso-finfin', async (req, res) => {
+  try {
+    res.json(await finfinHistorico.listarReembolsosParaHistorico({ ehGestor: req.session.user && req.session.user.role === 'gestor' }));
+  } catch (err) {
+    res.status(502).json({ erro: 'Falha ao buscar os reembolsos do finfin: ' + err.message });
+  }
+});
+
 router.get('/api/list-reembolso', async (req, res) => {
   try {
     const json = await financeiroStore.listarReembolsos();
@@ -177,6 +190,10 @@ router.post('/api/create', async (req, res) => {
 });
 
 router.post('/api/create-reembolso', async (req, res) => {
+  // Aba do formulário antigo que ficou aberta durante a troca: não grava mais (o reembolso nasceria fora do finfin).
+  if (finfinReembolsoNoAr()) {
+    return res.status(410).json({ ok: false, erro: 'O formulário de Reembolso foi atualizado. Recarregue a página (F5) e envie novamente.' });
+  }
   try {
     // "solicitanteSlug" vem sempre da sessão — ver comentário equivalente
     // em /api/create.

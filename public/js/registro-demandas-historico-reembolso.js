@@ -51,6 +51,11 @@ async function carregar() {
     const data = await resp.json();
     if (data.erro) throw new Error(data.erro);
     reembolsos = Array.isArray(data) ? data : [];
+    // Reembolsos do formulário novo (finfin) entram na mesma lista. Se essa busca falhar, o Histórico antigo continua funcionando.
+    try {
+      const rf = await (await fetch('/registro-demandas/api/list-reembolso-finfin')).json();
+      if (Array.isArray(rf)) reembolsos = reembolsos.concat(rf);
+    } catch (e) { console.error('finfin:', e); }
     document.getElementById('empty').innerHTML = textoVazioPadrao;
     renderizar();
   } catch (err) {
@@ -77,7 +82,8 @@ function renderizar() {
     if (de && dataInserido < de) return false;
     if (ate && dataInserido > ate) return false;
     if (statusFiltro && r.Status !== statusFiltro) return false;
-    if (bancoFiltro && r.Banco !== bancoFiltro) return false;
+    // Os reembolsos do finfin trazem o nome completo do banco (ex.: "Itaú Unibanco S.A."): o filtro casa por parte do nome.
+    if (bancoFiltro && !(r.Banco || '').toLowerCase().includes(bancoFiltro.toLowerCase())) return false;
     if (empresaFiltro && r.EmpresaResponsavel !== empresaFiltro) return false;
     if (busca) {
       const alvo = ((r.IDReferencia || '') + ' ' + (r.RazaoSocialCliente || '') + ' ' + (r.CPFCNPJ || '')).toLowerCase();
@@ -119,7 +125,7 @@ function renderizar() {
       <td>${escapeHtml(r.ChavePix)}${r.TipoChave ? ' (' + escapeHtml(r.TipoChave) + ')' : ''}</td>
       <td>${formatarValor(r.Valor)}</td>
       <td>${renderizarAnexos(r.Anexos)}</td>
-      <td><span class="badge ${r.Status === 'Feito' ? 'ok' : 'warn'}">${r.Status}</span></td>
+      <td><span class="badge ${r.Status === 'Feito' ? 'ok' : 'warn'}">${escapeHtml(r.Status)}</span></td>
       <td>${escapeHtml(r.FeitoPor) || '—'}</td>
     </tr>
   `).join('');

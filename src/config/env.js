@@ -91,6 +91,9 @@ module.exports = {
   finfinDemandasModo: required('FINFIN_DEMANDAS_MODO', 'teste'),
   // Mesma ideia para o formulario de PAGAMENTO (kanban "Pagamentos"): 'teste' (padrao) = so gestor abre o novo e o antigo segue valendo; 'producao' = o novo vira o Pagamento de todos.
   finfinPagamentoModo: required('FINFIN_PAGAMENTO_MODO', 'teste'),
+  // Idem para o Reembolso (kanban "Solicitacoes de reembolso - SAC") e a Analise de termo (kanban "Analise de termo", pagina nova).
+  finfinReembolsoModo: required('FINFIN_REEMBOLSO_MODO', 'teste'),
+  finfinAnaliseTermoModo: required('FINFIN_ANALISE_TERMO_MODO', 'teste'),
   // Webhook de retorno do finfin (card concluido + anexos do financeiro): segredo compartilhado e hosts de onde o hub pode baixar anexos por link.
   finfinWebhookSecret: required('FINFIN_WEBHOOK_SECRET', ''),
   // Consulta automatica ao finfin (a cada poucos minutos) para atualizar a coluna dos cards e avisar quando concluirem; 'off' desliga.

@@ -14,7 +14,7 @@
 <div class="pu-container">
   <div class="card">
     <% if (emTeste) { %>
-    <div class="msg ok" style="display:block;margin:0 0 14px">Formulário em teste: só gestores veem esta página e os cards saem com <b>[TESTE]</b> no título.</div>
+    <div class="msg ok" style="display:block;margin:0 0 14px">Formulário em teste: só gestores veem esta página e os cards saem com <b>[TESTE]</b> no início do motivo.</div>
     <% } %>
     <% if (!integracaoConfigurada) { %>
     <div class="msg err" style="display:block;margin:0 0 14px">A integração com o finfin ainda não está configurada no servidor (falta o token). O envio não vai funcionar.</div>
@@ -51,26 +51,7 @@
       <div>
         <label>Banco *</label>
         <input type="text" id="pg-banco" list="pg-lista-bancos" placeholder="Escolha da lista ou digite o nome do banco">
-        <datalist id="pg-lista-bancos">
-          <option value="Banco do Brasil S.A.">
-          <option value="Itaú Unibanco S.A.">
-          <option value="Banco Bradesco S.A.">
-          <option value="Banco Santander (Brasil) S.A.">
-          <option value="Caixa Econômica Federal">
-          <option value="Nu Pagamentos S.A. (Nubank)">
-          <option value="Banco Inter S.A.">
-          <option value="Banco C6 S.A.">
-          <option value="Banco Cooperativo Sicoob S.A.">
-          <option value="Banco Cooperativo Sicredi S.A.">
-          <option value="Banco do Nordeste do Brasil S.A.">
-          <option value="Banco BTG Pactual S.A.">
-          <option value="Banco Original S.A.">
-          <option value="Banco Safra S.A.">
-          <option value="Banco Mercantil do Brasil S.A.">
-          <option value="Mercado Pago">
-          <option value="PagBank (PagSeguro Internet)">
-          <option value="Banco Neon S.A.">
-        </datalist>
+        <%- include('_bancos-datalist', { id: 'pg-lista-bancos' }) %>
       </div>
       <div>
         <label>Agência *</label>
@@ -130,6 +111,7 @@
 </div>
 </div>
 
+<script src="/js/finfin-form-comum.js"></script>
 <script src="/js/registro-demandas-pagamento-novo.js"></script>
 </body>
 </html>

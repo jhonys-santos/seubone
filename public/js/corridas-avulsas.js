@@ -216,6 +216,19 @@ function limparValor(txt) {
 
 // ── SOLICITAR PAGAMENTO ── vira uma solicitação de Reembolso de verdade
 // (mesmo endpoint/planilha/caminho pro financeiro do Registro de Demandas).
+// Com o pagamento indo direto ao finfin (FINFIN_PAGAMENTO_MODO=producao): tipo da chave e pelo menos 1 anexo passam a ser obrigatórios, a empresa
+// some (é sempre SeuBoné) e o limite de anexos é o do finfin (4 MB somados).
+const CA_FINFIN = !!window.CA_PAGAMENTO_FINFIN;
+const CA_FINFIN_MAX_TOTAL = 4 * 1024 * 1024;
+let caIdTentativa = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : '';
+if (CA_FINFIN) {
+  document.getElementById('pgBlocoEmpresa').style.display = 'none';
+  document.getElementById('pgSolicitante').parentElement.style.display = 'none';   // o solicitante é quem está logado
+  document.getElementById('pgTipoChaveObrig').textContent = ' *';
+  document.getElementById('pgAnexosObrig').textContent = ' *';
+  document.getElementById('pgAnexosDica').textContent = 'Comprovante ou nota da solicitação (pelo menos 1 arquivo, 4 MB somados).';
+}
+
 function caAbrirPagamento() {
   const filtro = document.getElementById('caFiltroMotorista').value;
   document.getElementById('pgRazaoSocial').value = filtro;
@@ -258,8 +271,19 @@ async function caEnviarPagamento() {
   const msg = document.getElementById('pgMsg');
   msg.className = 'msg';
 
-  if (!razaoSocial || !solicitante || !dataVencimento || !cpfCnpj || !email || !motivo ||
-      !banco || !agencia || !conta || !chavePix || !valorTexto || !empresaResponsavel) {
+  if (CA_FINFIN && (!tipoChave || !arquivos.length)) {
+    msg.textContent = 'Escolha o tipo da chave pix e anexe pelo menos 1 arquivo.';
+    msg.classList.add('err');
+    return;
+  }
+  if (CA_FINFIN && arquivos.reduce((soma, f) => soma + f.size, 0) > CA_FINFIN_MAX_TOTAL) {
+    msg.textContent = 'Os anexos somados passam de 4 MB (limite do finfin). Envie arquivos menores.';
+    msg.classList.add('err');
+    return;
+  }
+
+  if (!razaoSocial || !(solicitante || CA_FINFIN) || !dataVencimento || !cpfCnpj || !email || !motivo ||
+      !banco || !agencia || !conta || !chavePix || !valorTexto || !(empresaResponsavel || CA_FINFIN)) {
     msg.textContent = 'Preencha todos os campos obrigatórios (*).';
     msg.classList.add('err');
     return;
@@ -292,6 +316,7 @@ async function caEnviarPagamento() {
       body: JSON.stringify({
         dataVencimento, cpfCnpj, email, motivo, razaoSocial, banco, agencia, conta,
         chavePix, tipoChave, valor, empresaResponsavel, solicitante, numeroNotaFiscal, anexos,
+        ...(CA_FINFIN ? { idTentativa: caIdTentativa } : {}),   // clicar duas vezes não cria dois cards
       }),
     });
     const resultado = await resp.json();
@@ -299,6 +324,7 @@ async function caEnviarPagamento() {
 
     await hubAlert('Solicitação de pagamento enviada pro financeiro!', 'sucesso');
     caFecharPagamento();
+    if (window.crypto && crypto.randomUUID) caIdTentativa = crypto.randomUUID();
   } catch (err) {
     msg.textContent = 'Erro: ' + err.message;
     msg.classList.add('err');

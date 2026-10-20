@@ -114,7 +114,7 @@ router.get('/api/retornos', soGestor, async (req, res) => {
          from finfin_webhook_log order by id desc limit 30`);
     const pend = await db.query(
       `select codigo, demanda, solicitante_nome, to_char(criado_em at time zone 'America/Sao_Paulo', 'DD/MM HH24:MI') as criado_em
-         from finfin_demandas where coluna in ('concluido', 'pago') and retorno_webhook_em is null order by ordem desc limit 30`);
+         from finfin_demandas where concluido_em is not null and retorno_webhook_em is null order by ordem desc limit 30`);
     res.json({ ok: true, chamadas: log.rows, concluidosSemRetorno: pend.rows, webhookConfigurado: !!env.finfinWebhookSecret });
   } catch (err) {
     res.status(502).json({ ok: false, erro: 'Falha ao buscar os retornos: ' + err.message });
@@ -127,7 +127,7 @@ router.post('/api/conferir', soGestor, async (req, res) => {
   try {
     if (!finfin.configurado()) return res.status(503).json({ ok: false, erro: 'Falta o token do finfin no servidor.' });
     const { verificados, mudaram, falhas } = await consulta.sincronizarAbertos();
-    const pend = await db.query("select codigo from finfin_demandas where coluna in ('concluido', 'pago') and retorno_webhook_em is null order by ordem desc limit 30");
+    const pend = await db.query("select codigo from finfin_demandas where concluido_em is not null and retorno_webhook_em is null order by ordem desc limit 30");
     res.json({ ok: true, verificados, mudaram, falhas, concluidosSemRetorno: pend.rows.map((x) => x.codigo) });
   } catch (err) {
     res.status(502).json({ ok: false, erro: 'Falha ao conferir com o finfin: ' + err.message });

@@ -3,6 +3,7 @@ const { requireAuth } = require('../middleware/auth');
 const financeiroStore = require('../services/financeiroStore');
 const notificacoesService = require('../services/notificacoes.service');
 const env = require('../config/env');
+const envio = require('../services/finfinEnvio.service');
 
 const router = express.Router();
 
@@ -57,10 +58,24 @@ async function notificarN8nPagamento(payload) {
   }
 }
 
-router.get('/', (req, res) => res.render('corridas-avulsas/index'));
+// "Solicitar pagamento" é um pagamento: com FINFIN_PAGAMENTO_MODO=producao ele nasce direto no kanban "Pagamentos" do finfin (como o
+// formulário novo de Pagamento); fora disso segue pelo caminho antigo (tabela + n8n).
+const pagamentoNoFinfin = () => env.finfinPagamentoModo === 'producao';
+
+router.get('/', (req, res) => res.render('corridas-avulsas/index', { pagamentoNoFinfin: pagamentoNoFinfin() }));
 
 router.post('/api/solicitar-pagamento', async (req, res) => {
   try {
+    if (pagamentoNoFinfin()) {
+      const b = req.body || {};
+      // Corrida avulsa não tem nota fiscal: o finfin exige o campo, então vai "S/N" quando ficar em branco.
+      const r = await envio.enviar({
+        formulario: 'pagamento', usuario: req.session.user, origem: 'corridas-avulsas',
+        corpo: { id: b.idTentativa, vencimento: b.dataVencimento, cpfCnpj: b.cpfCnpj, email: b.email, motivo: b.motivo, razaoSocial: b.razaoSocial, banco: b.banco, agencia: b.agencia,
+          conta: b.conta, pixChave: b.chavePix, pixTipo: b.tipoChave, valor: b.valor, notaFiscal: String(b.numeroNotaFiscal || '').trim() || 'S/N', anexos: b.anexos },
+      });
+      return res.status(r.http).json(r.json);
+    }
     const { anexos, ...campos } = req.body;
     // "solicitanteSlug" vem sempre da sessão, nunca do corpo enviado pelo
     // cliente — é o que a notificação de retorno usa pra saber quem avisar.
