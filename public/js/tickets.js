@@ -225,12 +225,15 @@
   // Só roda uma vez no carregamento inicial — um refresh normal não deve
   // desfazer um filtro que a pessoa já trocou de propósito.
   function aplicaFiltroPadraoResponsavel() {
-    if (papel !== 'gestor' || !SESSAO || !SESSAO.nome) return;
-    const temAtivoMeu = RECORDS.some((r) => r.responsavel === SESSAO.nome && r.status !== STATUS_RESOLVIDO);
-    if (!temAtivoMeu) return;
-    tkState.fResponsavel = SESSAO.nome;
+    if (papel !== 'gestor' || !SESSAO) return;
+    // Casa pelo slug (é o que identifica o responsável) e, na falta dele, pelo nome. O filtro compara o NOME gravado no ticket, que pode
+    // diferir do nome da sessão (ex.: "Jhonys" x "Jhonys Santos"): usa o do próprio ticket.
+    const meu = RECORDS.find((r) => r.status !== STATUS_RESOLVIDO && r.responsavel
+      && ((SESSAO.slug && r.responsavelSlug === SESSAO.slug) || (SESSAO.nome && r.responsavel === SESSAO.nome)));
+    if (!meu) return;
+    tkState.fResponsavel = meu.responsavel;
     const sel = document.getElementById('tkFResponsavel');
-    if (sel) sel.value = SESSAO.nome;
+    if (sel) sel.value = meu.responsavel;
   }
 
   async function tkRefreshData(silent) {
