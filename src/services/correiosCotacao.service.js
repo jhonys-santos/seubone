@@ -116,6 +116,22 @@ let loginEmAndamento = null;
 /** Só para testes */
 function limparCacheToken() { cacheToken = null; loginEmAndamento = null; }
 
+// Margem de segurança interna (mesma regra da Azul): soma 1 dia útil ao prazo e à data de entrega que os Correios devolvem antes
+// de mostrar pra quem cota — decisão de negócio (evitar prometer um prazo que os Correios não batem), não é o prazo real cotado.
+const MARGEM_PRAZO_DIAS = 1;
+
+// Soma N dias úteis (seg-sex, no calendário de Brasília, UTC-3) a um instante; o horário do dia é mantido.
+function somarDiasUteis(instante, n) {
+  const OFFSET_MS = 3 * 3600000;
+  const d = new Date(instante - OFFSET_MS);
+  let restantes = n;
+  while (restantes > 0) {
+    d.setUTCDate(d.getUTCDate() + 1);
+    if (d.getUTCDay() !== 0 && d.getUTCDay() !== 6) restantes--;
+  }
+  return new Date(d.getTime() + OFFSET_MS);
+}
+
 function dataBrasilia(s) {
   const t = String(s ?? '').trim();
   if (!t) return NaN;
@@ -237,8 +253,8 @@ async function cotarFrete(entradaBruta, cred) {
     return {
       ...vazio,
       total,
-      prazoDias: Number(prazo.json.prazoEntrega),
-      entregaAte: Number.isFinite(dataMax) ? new Date(dataMax).toISOString() : null,
+      prazoDias: Number(prazo.json.prazoEntrega) + MARGEM_PRAZO_DIAS,
+      entregaAte: Number.isFinite(dataMax) ? somarDiasUteis(dataMax, MARGEM_PRAZO_DIAS).toISOString() : null,
       entregaSabado: prazo.json.entregaSabado === 'S',
       valorDeclarado: Math.round(valorDeclarado * 100) / 100,
       volumes: linhas,
@@ -272,4 +288,4 @@ async function cotarFrete(entradaBruta, cred) {
   };
 }
 
-module.exports = { ErroCotacao, validarEntrada, avisosEntrada, cotarFrete, limparCacheToken, numeroBr, SERVICOS, LIMITES };
+module.exports = { ErroCotacao, validarEntrada, avisosEntrada, cotarFrete, limparCacheToken, numeroBr, SERVICOS, LIMITES, somarDiasUteis, MARGEM_PRAZO_DIAS };
