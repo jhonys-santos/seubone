@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<%- include('../partials/head') %>
+<title>Histórico LATAM - SeuBoné</title>
+<link rel="stylesheet" href="/css/emissao-latam.css">
+</head>
+<body>
+<div class="app-shell">
+<%- include('../partials/sidebar') %>
+<div class="app-main">
+
+<div class="el-scope el-ampla">
+
+  <div class="el-header">
+    <p class="el-sobretitulo">LATAM Cargo · contrato SeuBoné</p>
+    <div class="el-topo">
+      <h1><i class="ti ti-history" aria-hidden="true"></i> Histórico de e-Minutas</h1>
+      <a class="el-botao" href="/emissao-latam">Emitir e-Minuta</a>
+    </div>
+    <p class="el-lede">As e-Minutas emitidas pelo hub, com quem emitiu, reimpressão da etiqueta e consulta do rastreio. A LATAM não tem listagem de e-Minutas nem cancelamento: este histórico começa nas emissões feitas pelo hub e não inclui as feitas direto no portal da LATAM.</p>
+  </div>
+
+  <section class="el-filtros" aria-label="Filtros">
+    <div class="el-periodo">
+      <label class="el-campo"><span>De</span><input id="elHDe" type="date"></label>
+      <label class="el-campo"><span>Até</span><input id="elHAte" type="date"></label>
+      <button type="button" class="el-botao" id="elHBuscar">Buscar</button>
+      <div class="el-atalhos" role="group" aria-label="Atalhos de período">
+        <button type="button" class="el-atalho" data-dias="7">7 dias</button>
+        <button type="button" class="el-atalho" data-dias="30">30 dias</button>
+        <button type="button" class="el-atalho" data-dias="90">90 dias</button>
+      </div>
+    </div>
+    <div class="el-chips" id="elHChips" role="group" aria-label="Filtrar por situação do rastreio"></div>
+    <div class="el-linhaBusca">
+      <label class="el-campo el-busca">
+        <span class="el-sr">Buscar</span>
+        <input id="elHBusca" type="search" placeholder="Buscar por AWB, destinatário, cidade, CEP, NF, chave da NF-e ou quem emitiu">
+      </label>
+      <span class="el-contador" id="elHContador"></span>
+      <button type="button" class="el-secundario" id="elHAtualizar" disabled>Atualizar rastreio</button>
+      <button type="button" class="el-secundario" id="elHCsv" disabled>Exportar planilha (CSV)</button>
+    </div>
+  </section>
+
+  <p class="el-erro" id="elHErro" role="alert" style="display:none"></p>
+  <p class="el-aviso" id="elHAviso" style="display:none"></p>
+
+  <div class="el-tabela">
+    <table>
+      <thead>
+        <tr>
+          <th>Emitida em</th><th>e-Minuta / AWB</th><th>Serviço</th><th>Rastreio</th><th>Destinatário</th><th>NF</th>
+          <th>Entrega</th><th class="el-num">Volumes / peso</th><th><span class="el-sr">Ações</span></th>
+        </tr>
+      </thead>
+      <tbody id="elHCorpo"><tr><td colspan="9" class="el-vazio">Carregando…</td></tr></tbody>
+    </table>
+  </div>
+  <p class="el-dica el-rodape">"Atualizar rastreio" consulta a LATAM, uma e-Minuta por vez, só as que ainda não foram entregues (até 15 por clique). A LATAM só mostra a e-Minuta no rastreio depois que a carga é recebida no balcão.</p>
+
+</div>
+
+<!-- Consulta de rastreio -->
+<div class="el-modal" id="elHModal" hidden>
+  <div class="el-modalCaixa" role="dialog" aria-modal="true" aria-labelledby="elHModalTitulo">
+    <div class="el-modalTopo">
+      <h2 id="elHModalTitulo" class="el-h2">Consulta</h2>
+      <button type="button" class="el-fechar" id="elHModalFechar" aria-label="Fechar">✕</button>
+    </div>
+    <div id="elHModalCorpo"></div>
+  </div>
+</div>
+
+</div>
+</div>
+
+<script>
+  window.AEROPORTOS_INFO = <%- JSON.stringify(aeroportos) %>;
+</script>
+<script src="/js/latam-etiqueta.js?v=<%= appVersion %>"></script>
+<script src="/js/emissao-latam-historico.js?v=<%= appVersion %>"></script>
+</body>
+</html>

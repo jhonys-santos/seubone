@@ -4,10 +4,16 @@ const env = require('../config/env');
 const {
   previa, emitir, verificarPorChaveNfe, ErroMinuta, SERVICOS_MANUAIS, NOMES_SERVICO, AEROPORTOS, AEROPORTO_POR_UF,
 } = require('../services/latamMinuta.service');
+const emissoes = require('../services/latamEmissoes.service');
+const historico = require('../services/latamHistorico.service');
 
 const router = express.Router();
 
 router.use(requireAuth, requirePainel('emissao-latam'));
+
+const aeroportosOrdenados = () => Object.entries(AEROPORTOS)
+  .map(([iata, cidade]) => ({ iata, cidade }))
+  .sort((a, b) => a.cidade.localeCompare(b.cidade, 'pt-BR'));
 
 router.get('/', (req, res) => {
   res.render('emissao-latam/index', {
@@ -51,6 +57,8 @@ router.post('/api/previa', (req, res) => {
 router.post('/api/emitir', async (req, res) => {
   try {
     const r = await emitir(req.body || {}, env);
+    // Registro de quem emitiu (alimenta o Histórico). A prévia é só o cálculo local dos dados do envio: não chama a LATAM.
+    await emissoes.registrarEmissao({ resultado: r, previa: previa(req.body || {}, env), usuario: req.session.user });
     console.info('[emissao-latam] emitida', r.minuta, r.aviso ? `(aviso: ${r.aviso})` : '', '- por', req.session.user.slug);
     res.json(r);
   } catch (e) {
@@ -67,6 +75,54 @@ router.get('/api/verificar', async (req, res) => {
     res.json(r);
   } catch (e) {
     respostaDeErro(res, e);
+  }
+});
+
+// ── Histórico de e-Minutas e consulta de rastreio ──
+const STATUS_HISTORICO = { VALIDACAO: 400, CREDENCIAL: 502, INDISPONIVEL: 503 };
+function erroHistorico(res, e) {
+  if (e && STATUS_HISTORICO[e.tipo]) {
+    if (e.tipo !== 'VALIDACAO') console.error('[latam-historico]', e.tipo, e.message, e.detalhe || '');
+    return res.status(STATUS_HISTORICO[e.tipo]).json({ erro: e.message, tipo: e.tipo });
+  }
+  console.error('[latam-historico] erro inesperado', e);
+  res.status(500).json({ erro: 'Erro inesperado. Tente novamente.', tipo: 'INDISPONIVEL' });
+}
+
+router.get('/historico', (req, res) => {
+  res.render('emissao-latam/historico', { aeroportos: aeroportosOrdenados() });
+});
+
+// GET /emissao-latam/api/historico?de=AAAA-MM-DD&ate=AAAA-MM-DD — e-Minutas emitidas pelo hub no período.
+router.get('/api/historico', async (req, res) => {
+  try {
+    res.set('Cache-Control', 'no-store');
+    res.json(await historico.montarHistorico({ de: req.query.de || undefined, ate: req.query.ate || undefined }));
+  } catch (e) {
+    erroHistorico(res, e);
+  }
+});
+
+// GET /emissao-latam/api/consulta?awb=957-XXXXXXXX — rastreio do AWB (e guarda a situação no registro).
+router.get('/api/consulta', async (req, res) => {
+  try {
+    res.set('Cache-Control', 'no-store');
+    res.json(await historico.consultar(req.query.awb));
+  } catch (e) {
+    erroHistorico(res, e);
+  }
+});
+
+// GET /emissao-latam/api/etiqueta/:minuta — dados da emissão para reimprimir a etiqueta interna.
+router.get('/api/etiqueta/:minuta', async (req, res) => {
+  try {
+    if (!/^[0-9]{3,4}-?[0-9]{6,8}$/.test(req.params.minuta)) return res.status(400).json({ erro: 'e-Minuta inválida' });
+    const r = await emissoes.obterPrevia(req.params.minuta);
+    if (!r) return res.status(404).json({ erro: 'e-Minuta não encontrada no registro do hub' });
+    res.set('Cache-Control', 'no-store');
+    res.json(r);
+  } catch (e) {
+    erroHistorico(res, e);
   }
 });
 

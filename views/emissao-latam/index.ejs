@@ -14,7 +14,10 @@
 
   <div class="el-header">
     <p class="el-sobretitulo">LATAM Cargo · contrato SeuBoné</p>
-    <h1><i class="ti ti-plane-departure" aria-hidden="true"></i> Emitir e-Minuta</h1>
+    <div class="el-topo">
+      <h1><i class="ti ti-plane-departure" aria-hidden="true"></i> Emitir e-Minuta</h1>
+      <a class="el-secundario" href="/emissao-latam/historico"><i class="ti ti-history" aria-hidden="true"></i>&nbsp;Histórico</a>
+    </div>
     <p class="el-lede">Cria o conhecimento de transporte (AWB) da LATAM Cargo a partir da NF-e. Remetente e tomador são sempre a SeuBoné.</p>
     <ol class="el-passos" id="elPassos" aria-label="Etapas">
       <li data-passo="form" class="el-ativo">1. Dados do envio</li>
@@ -178,6 +181,7 @@
   window.AEROPORTOS_INFO = <%- JSON.stringify(aeroportos) %>;
   window.AEROPORTO_POR_UF = <%- JSON.stringify(aeroportoPorUf) %>;
 </script>
+<script src="/js/latam-etiqueta.js?v=<%= appVersion %>"></script>
 <script src="/js/emissao-latam.js?v=<%= appVersion %>"></script>
 </body>
 </html>

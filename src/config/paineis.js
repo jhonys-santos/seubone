@@ -116,5 +116,9 @@ module.exports = [
   {
     chave: 'emissao-latam', titulo: 'Emissão Latam', descricao: 'Emite e-Minuta (AWB) da LATAM Cargo a partir da NF-e',
     url: '/emissao-latam', icone: 'ti-plane-departure', categoria: 'logistica',
+    subpaginas: [
+      { titulo: 'Emitir e-Minuta', url: '/emissao-latam', icone: 'ti-plane-departure' },
+      { titulo: 'Histórico', url: '/emissao-latam/historico', icone: 'ti-history' },
+    ],
   },
 ];
