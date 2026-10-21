@@ -2,8 +2,10 @@ const express = require('express');
 const { requireAuth, requirePainel } = require('../middleware/auth');
 const env = require('../config/env');
 const {
-  previa, emitir, consultar, cancelar, baixarEtiqueta, baixarEtiquetas, ErroEtiqueta, LAYOUTS, MAX_CAIXAS,
+  previa, emitir, consultar, cancelar, baixarEtiqueta, baixarEtiquetas, consultaCompleta, ErroEtiqueta, LAYOUTS, MAX_CAIXAS, STATUS_HISTORICO,
 } = require('../services/correiosEtiqueta.service');
+const emissoes = require('../services/correiosEmissoes.service');
+const { montarHistorico } = require('../services/correiosHistorico.service');
 
 const router = express.Router();
 
@@ -44,6 +46,38 @@ router.get('/', (req, res) => {
   res.render('emissao-correios/index');
 });
 
+// Histórico de emissões e consulta (pré-postagens do contrato + o registro de quem emitiu no hub).
+router.get('/historico', (req, res) => {
+  res.render('emissao-correios/historico');
+});
+
+// GET /emissao-correios/api/historico?de=AAAA-MM-DD&ate=AAAA-MM-DD&status=POSTADO,PREPOSTADO — antes de /api/:id.
+router.get('/api/historico', async (req, res) => {
+  try {
+    const status = String(req.query.status || '').split(',').map((v) => v.trim().toUpperCase()).filter((v) => STATUS_HISTORICO.includes(v));
+    const r = await montarHistorico({ de: req.query.de || undefined, ate: req.query.ate || undefined, status }, credCorreios());
+    res.set('Cache-Control', 'no-store');
+    res.json(r);
+  } catch (e) {
+    respostaDeErro(res, e);
+  }
+});
+
+// GET /emissao-correios/api/consulta?id=<pré-postagem>&codigo=<código de rastreio> — situação, dados da postagem e rastreio de um objeto.
+router.get('/api/consulta', async (req, res) => {
+  try {
+    const id = String(req.query.id || '').trim();
+    const codigo = String(req.query.codigo || '').trim();
+    if (!id && !codigo) throw new ErroEtiqueta('VALIDACAO', 'Informe o id da pré-postagem ou o código de rastreio');
+    if (id && !/^[A-Za-z0-9_-]{5,64}$/.test(id)) throw new ErroEtiqueta('VALIDACAO', 'id inválido');
+    if (codigo && !/^[A-Za-z]{2}\d{9}[A-Za-z]{2}$/.test(codigo.replace(/[^A-Za-z0-9]/g, ''))) throw new ErroEtiqueta('VALIDACAO', 'Código de rastreio inválido');
+    res.set('Cache-Control', 'no-store');
+    res.json(await consultaCompleta({ id, codigoObjeto: codigo.replace(/[^A-Za-z0-9]/g, '').toUpperCase() }, credCorreios()));
+  } catch (e) {
+    respostaDeErro(res, e);
+  }
+});
+
 // POST /emissao-correios/api/previa — monta e valida o envio a partir do
 // formulário. NÃO cria nada nos Correios.
 router.post('/api/previa', (req, res) => {
@@ -59,9 +93,10 @@ router.post('/api/previa', (req, res) => {
 // caixas juntas num PDF por layout. Envie `idsPrePostagem` (um por caixa) de uma
 // tentativa anterior pra reaproveitar em vez de criar de novo.
 router.post('/api/emitir', async (req, res) => {
-  // TODO(time): registrar quem emitiu (auditoria) — ver observação no README do projeto original.
   try {
     const r = await emitir(req.body || {}, credCorreios());
+    // Registro de quem emitiu (alimenta o Histórico). A prévia é só o cálculo local dos dados do envio: não chama os Correios.
+    await emissoes.registrarEmissao({ resultado: r, previa: previa(req.body || {}, credCorreios()), usuario: req.session.user });
     console.info('[etiqueta-correios] emitida', r.volumes.map((v) => `${v.id}:${v.codigoObjeto}`).join(','), r.servico, r.pendente ? '(pendente)' : '', '- por', req.session.user.slug);
     res.json(r);
   } catch (e) {
@@ -100,9 +135,9 @@ router.get('/api/:id', async (req, res) => {
 
 // DELETE /emissao-correios/api/:id — cancela (só antes de postar na agência)
 router.delete('/api/:id', async (req, res) => {
-  // TODO(time): registrar quem cancelou (auditoria).
   try {
     const r = await cancelar(req.params.id, credCorreios());
+    await emissoes.registrarCancelamento({ id: req.params.id, status: r.status, usuario: req.session.user });
     console.info('[etiqueta-correios] cancelada', req.params.id, r.status, '- por', req.session.user.slug);
     res.json(r);
   } catch (e) {

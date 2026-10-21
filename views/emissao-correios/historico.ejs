@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<%- include('../partials/head') %>
+<title>Histórico Correios - SeuBoné</title>
+<link rel="stylesheet" href="/css/emissao-correios.css">
+</head>
+<body>
+<div class="app-shell">
+<%- include('../partials/sidebar') %>
+<div class="app-main">
+
+<div class="ec-scope ec-largo">
+
+  <div class="ec-header">
+    <p class="ec-sobretitulo">Correios · contrato SeuBoné</p>
+    <div class="ec-topo">
+      <h1><i class="ti ti-history" aria-hidden="true"></i> Histórico de etiquetas</h1>
+      <a class="ec-botao" href="/emissao-correios">Emitir etiqueta</a>
+    </div>
+    <p class="ec-lede">Todas as pré-postagens do contrato, inclusive as feitas no site dos Correios, com quem emitiu aqui no hub. Os Correios guardam só os últimos 120 dias; antes disso aparecem as emissões feitas pelo hub.</p>
+  </div>
+
+  <section class="ec-filtros" aria-label="Filtros">
+    <div class="ec-periodo">
+      <label class="ec-campo"><span>De</span><input id="ecHDe" type="date"></label>
+      <label class="ec-campo"><span>Até</span><input id="ecHAte" type="date"></label>
+      <button type="button" class="ec-botao" id="ecHBuscar">Buscar</button>
+      <div class="ec-atalhos" role="group" aria-label="Atalhos de período">
+        <button type="button" class="ec-atalho" data-dias="7">7 dias</button>
+        <button type="button" class="ec-atalho" data-dias="30">30 dias</button>
+        <button type="button" class="ec-atalho" data-dias="120">120 dias</button>
+      </div>
+    </div>
+    <div class="ec-chips" id="ecHChips" role="group" aria-label="Filtrar por status"></div>
+    <div class="ec-linhaBusca">
+      <label class="ec-campo ec-busca">
+        <span class="ec-sr">Buscar</span>
+        <input id="ecHBusca" type="search" placeholder="Buscar por código, pedido, destinatário, cidade, CEP, chave da NF-e ou quem emitiu">
+      </label>
+      <span class="ec-contador" id="ecHContador"></span>
+      <button type="button" class="ec-secundario" id="ecHCsv" disabled>Exportar planilha (CSV)</button>
+    </div>
+  </section>
+
+  <p class="ec-erro" id="ecHErro" role="alert" style="display:none"></p>
+  <p class="ec-aviso" id="ecHAviso" style="display:none"></p>
+
+  <div class="ec-tabela">
+    <table>
+      <thead>
+        <tr>
+          <th>Criado em</th><th>Código</th><th>Serviço</th><th>Status</th><th>Destinatário</th><th>Pedido</th>
+          <th class="ec-num">Peso</th><th>Levar até</th><th><span class="ec-sr">Ações</span></th>
+        </tr>
+      </thead>
+      <tbody id="ecHCorpo"><tr><td colspan="9" class="ec-vazio">Consultando os Correios…</td></tr></tbody>
+    </table>
+  </div>
+  <p class="ec-dica ec-rodape">"Aferido" é o peso medido na agência. Em vermelho: aferido mais de 10% acima do informado, ou prazo de postagem vencendo em até 4 dias.</p>
+
+</div>
+
+<!-- Consulta de um objeto -->
+<div class="ec-modal" id="ecHModal" hidden>
+  <div class="ec-modalCaixa" role="dialog" aria-modal="true" aria-labelledby="ecHModalTitulo">
+    <div class="ec-modalTopo">
+      <h2 id="ecHModalTitulo" class="ec-h2">Consulta</h2>
+      <button type="button" class="ec-fechar" id="ecHModalFechar" aria-label="Fechar">✕</button>
+    </div>
+    <div id="ecHModalCorpo"></div>
+  </div>
+</div>
+
+</div>
+</div>
+
+<script src="/js/emissao-correios-historico.js?v=<%= appVersion %>"></script>
+</body>
+</html>

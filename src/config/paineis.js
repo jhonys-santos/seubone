@@ -108,6 +108,10 @@ module.exports = [
   {
     chave: 'emissao-correios', titulo: 'Emissão Correios', descricao: 'Emite pré-postagem e etiqueta (SEDEX/PAC) a partir da NF-e',
     url: '/emissao-correios', icone: 'ti-tag', categoria: 'logistica',
+    subpaginas: [
+      { titulo: 'Emitir etiqueta', url: '/emissao-correios', icone: 'ti-tag' },
+      { titulo: 'Histórico', url: '/emissao-correios/historico', icone: 'ti-history' },
+    ],
   },
   {
     chave: 'emissao-latam', titulo: 'Emissão Latam', descricao: 'Emite e-Minuta (AWB) da LATAM Cargo a partir da NF-e',

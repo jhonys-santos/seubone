@@ -399,6 +399,49 @@ class CorreiosPrePostagem extends CorreiosApi {
     return { resultado: String(r?.resultadoCancelamento ?? ''), mensagem: String(r?.mensagem ?? '') };
   }
 
+  /**
+   * Lista as pré-postagens do contrato (inclusive as feitas fora do hub), da mais recente para a mais antiga.
+   * Os Correios só guardam 120 dias, listam por status e aceitam janela de no máximo 30 dias por consulta (PPN-335): divide o período em
+   * janelas de 30 dias, consulta cada status e pagina até o fim.
+   */
+  async listar(filtro) {
+    const DIA = 86400000;
+    const ate = filtro.ate ?? new Date();
+    const limite = new Date(Date.now() - 120 * DIA);
+    const de = filtro.de < limite ? limite : filtro.de;
+    if (de > ate) return [];
+    const status = filtro.status?.length ? filtro.status : STATUS_HISTORICO;
+    const tamanho = filtro.tamanhoPagina ?? 50;
+    const maxItens = filtro.maxItens ?? 5000;
+
+    const janelas = [];
+    for (let ini = de.getTime(); ini <= ate.getTime(); ini += 30 * DIA) {
+      const fim = Math.min(ini + 29 * DIA, ate.getTime());
+      janelas.push([diaBrasilia(new Date(ini)), diaBrasilia(new Date(fim))]);
+    }
+
+    const vistos = new Map();
+    for (const st of status) {
+      for (const [d1, d2] of janelas) {
+        // A flag `next` da API não é confiável: segue enquanto a página vier cheia
+        for (let pagina = 0; pagina < 200; pagina++) {
+          const q = `status=${st}&dataInicialCriacaoPrePostagem=${d1}&dataFinalCriacaoPrePostagem=${d2}&page=${pagina}&size=${tamanho}`;
+          let itens = [];
+          try {
+            itens = (await this.chamar('GET', `/prepostagem/v2/prepostagens?${q}`))?.itens ?? [];
+          } catch (e) {
+            if (e instanceof CorreiosErro && e.status === 404) break; // PPN-344: nada nesse filtro
+            throw e;
+          }
+          for (const it of itens) if (it?.id && !vistos.has(it.id)) vistos.set(it.id, normalizarItemHistorico(it));
+          if (itens.length < tamanho || vistos.size >= maxItens) break;
+        }
+        if (vistos.size >= maxItens) break;
+      }
+    }
+    return [...vistos.values()].sort((a, b) => (b.criadoEm ?? '').localeCompare(a.criadoEm ?? ''));
+  }
+
   /** Dados da postagem na agência (peso/medidas aferidos e valor cobrado). Só existe depois de postado. */
   async dadosPostagem(codigoObjeto) {
     try {
@@ -430,6 +473,33 @@ function normalizarPrePostagem(r) {
     pedido: r.pedidoExternoOrigem || null,
     bruto: r,
   };
+}
+
+/** Status consultados quando o filtro não informa (PREATENDIDO não aparece para contrato a faturar). */
+const STATUS_HISTORICO = ['PREPOSTADO', 'POSTADO', 'PENDENTE', 'CANCELADO', 'EXPIRADO', 'ESTORNADO'];
+
+const txtOuNull = (v) => (typeof v === 'string' && v.trim() ? v.trim() : null);
+const numOuNull = (v) => { const n = Number(v); return v != null && v !== '' && Number.isFinite(n) ? n : null; };
+
+/** Item da listagem v2: a pré-postagem + destinatário, pesos, medidas e quem criou (idCorreios). */
+function normalizarItemHistorico(r) {
+  const end = r.destinatario?.endereco ?? {};
+  return {
+    ...normalizarPrePostagem(r),
+    criadoEm: dataBrasilia(r.dataHora) ?? null,
+    criadoPor: txtOuNull(r.idCorreios),
+    destinatario: { nome: txtOuNull(r.destinatario?.nome), cidade: txtOuNull(end.cidade), uf: txtOuNull(end.uf), cep: txtOuNull(end.cep) },
+    chaveNFe: txtOuNull(r.chaveNFe),
+    pesoG: numOuNull(r.pesoInformado),
+    pesoAferidoG: numOuNull(r.pesoPreAfericao),
+    medidasCm: { altura: numOuNull(r.alturaInformada), largura: numOuNull(r.larguraInformada), comprimento: numOuNull(r.comprimentoInformado) },
+    observacao: txtOuNull(r.observacao),
+  };
+}
+
+/** Data no fuso de Brasília em AAAA-MM-DD (formato que a listagem v2 exige) */
+function diaBrasilia(d) {
+  return new Date(d.getTime() - 3 * 3600000).toISOString().slice(0, 10);
 }
 
 /** Aceita a etiqueta como bytes, base64 solto ou dentro de um campo (dados/arquivo/pdf/conteudo). */
@@ -944,6 +1014,84 @@ async function cancelar(id, env) {
   }
 }
 
+const dataValida = (s, padrao) => {
+  if (!s) return padrao;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) throw new ErroEtiqueta('VALIDACAO', `Data inválida: "${s}" (use AAAA-MM-DD)`);
+  return new Date(`${s}T12:00:00-03:00`);
+};
+
+/**
+ * Lista as pré-postagens do contrato (inclusive as feitas fora do hub), mais recentes primeiro.
+ * filtro: { de, ate (AAAA-MM-DD), status: [] }. A busca por texto é feita na tela (os Correios não filtram por texto).
+ */
+async function listarHistorico(filtro, env) {
+  const f = filtro ?? {};
+  const agora = new Date();
+  const ate = dataValida(f.ate, agora);
+  const de = dataValida(f.de, new Date(agora.getTime() - 30 * 86400000));
+  if (de > ate) throw new ErroEtiqueta('VALIDACAO', 'A data inicial é depois da final');
+  const limite = new Date(agora.getTime() - 120 * 86400000);
+  const validos = new Set(STATUS_HISTORICO);
+  const status = (f.status ?? []).filter((s) => validos.has(s));
+  try {
+    const lista = await obterCliente(env).listar({ de, ate, status });
+    const itens = lista.map((i) => ({
+      id: i.id,
+      codigoObjeto: i.codigoObjeto,
+      servico: i.nomeServico,
+      codigoServico: i.servico,
+      status: i.status,
+      criadoEm: i.criadoEm,
+      criadoPor: i.criadoPor,
+      prazoPostagem: i.prazoPostagem,
+      pedido: i.pedido,
+      destinatario: i.destinatario.nome,
+      cidadeUf: i.destinatario.cidade ? `${i.destinatario.cidade}/${i.destinatario.uf ?? ''}` : null,
+      cep: i.destinatario.cep,
+      chaveNFe: i.chaveNFe,
+      pesoG: i.pesoG,
+      pesoAferidoG: i.pesoAferidoG,
+      medidas: i.medidasCm.altura ? `${i.medidasCm.altura}×${i.medidasCm.largura}×${i.medidasCm.comprimento}` : null,
+      observacao: i.observacao,
+      podeReimprimir: i.status === 'PREPOSTADO',
+      podeCancelar: i.status === 'PREPOSTADO' || i.status === 'PENDENTE',
+    }));
+    return { itens, de: diaBrasilia(de < limite ? limite : de), ate: diaBrasilia(ate), limitadoA120Dias: de < limite };
+  } catch (e) {
+    throw traduzir(e);
+  }
+}
+
+/**
+ * Consulta de um objeto: situação atual da pré-postagem, dados da postagem na agência (peso aferido e valor cobrado, só depois de postado) e
+ * rastreio (eventos). Cada parte é independente: o que falhar vem em "erros" e o resto continua.
+ */
+async function consultaCompleta({ id, codigoObjeto }, env) {
+  const out = { id: id || null, codigoObjeto: codigoObjeto || null, servico: null, status: null, prazoPostagem: null, postagem: null, rastreio: null, erros: [] };
+  const pp = obterCliente(env);
+  if (id) {
+    try {
+      const p = await pp.consultar(id);
+      if (p) { out.codigoObjeto = p.codigoObjeto || out.codigoObjeto; out.servico = p.nomeServico; out.status = p.status; out.prazoPostagem = p.prazoPostagem; }
+      else out.erros.push('Pré-postagem não encontrada nos Correios (eles guardam só 120 dias).');
+    } catch (e) { out.erros.push('Pré-postagem: ' + traduzir(e).message); }
+  }
+  const codigo = out.codigoObjeto;
+  if (codigo) {
+    if (out.status === 'POSTADO') {
+      try { out.postagem = await pp.dadosPostagem(codigo); if (out.postagem) delete out.postagem.bruto; } catch (e) { out.erros.push('Dados da postagem: ' + traduzir(e).message); }
+    }
+    try {
+      const r = await require('./correiosRastreio').rastrear(pp, codigo, CorreiosErro);
+      out.rastreio = r ? {
+        situacao: r.situacao, previsaoEntrega: r.previsaoEntrega ?? null, entregueEm: r.entregueEm ?? null, previsaoVencida: !!r.previsaoVencida,
+        ocorrencias: (r.ocorrencias ?? []).map((o) => ({ codigo: o.codigo, descricao: o.descricao, detalhe: o.detalhe || '', dataHora: o.dataHora, municipio: o.municipio, uf: o.uf, alerta: !!o.alerta, catalogado: !!o.catalogado })),
+      } : null;
+    } catch (e) { out.erros.push('Rastreio: ' + traduzir(e).message); }
+  }
+  return out;
+}
+
 function traduzir(e) {
   if (e instanceof ErroEtiqueta) return e;
   if (!(e instanceof CorreiosErro)) return e;
@@ -959,7 +1107,8 @@ function traduzir(e) {
 module.exports = {
   CorreiosErro, CorreiosApi, CorreiosPrePostagem, normalizarPrePostagem,
   ErroEtiqueta, REMETENTE, LAYOUTS,
-  MAX_CAIXAS, previa, emitir, baixarEtiqueta, baixarEtiquetas, consultar, cancelar, definirCliente, obterCliente,
+  MAX_CAIXAS, previa, emitir, baixarEtiqueta, baixarEtiquetas, consultar, cancelar, listarHistorico, consultaCompleta, definirCliente, obterCliente,
+  normalizarItemHistorico, STATUS_HISTORICO,
   lerNFe, montarEnvio,
   resolverServico, nomeServico, SERVICOS,
 };
