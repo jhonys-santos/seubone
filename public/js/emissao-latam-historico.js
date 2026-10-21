@@ -56,7 +56,7 @@
     const t = $('elHBusca').value.trim().toLowerCase();
     const dig = t.replace(/\D/g, '');
     return (linhas || []).filter((l) => (!filtroSit.length || filtroSit.includes(chaveSit(l))) && (!t
-      || [l.minuta, l.destinatario, l.cidadeUf, l.emitidoPor, l.numeroNf, l.servico].some((v) => v && String(v).toLowerCase().includes(t))
+      || [l.minuta, l.destinatario, l.cidadeUf, l.emitidoPor, l.numeroNf, l.servico, l.idPedido, l.tituloNegocio, l.origem === 'lulu' ? 'lulu' : ''].some((v) => v && String(v).toLowerCase().includes(t))
       || (dig.length >= 4 && [l.chaveNFe, l.cep, l.minuta, l.numeroNf].some((v) => v && String(v).includes(dig)))));
   }
 
@@ -84,17 +84,17 @@
     corpo.innerHTML = lista.map((l) => {
       const st = rotuloSit(l.situacao);
       return `<tr>
-        <td class="el-num">${esc(dataHora(l.emitidoEm))}<small>${esc(l.emitidoPor || '')}</small></td>
+        <td class="el-num">${esc(dataHora(l.emitidoEm))}${l.emitidoExato === false ? ' <span class="el-aprox" title="Data em que o card entrou em alerta no Lulu. A data real da emissão aparece depois de consultar o rastreio.">~</span>' : ''}<small>${l.origem === 'lulu' ? '<span class="el-tagLulu">Lulu</span>' : esc(l.emitidoPor || '')}</small></td>
         <td class="el-codigoCel">${esc(l.minuta)}</td>
         <td>${esc(l.servico || '—')}</td>
         <td><span class="el-status" data-tom="${st.tom}">${esc(st.rotulo)}</span>${l.entregueEm ? `<small>${esc(dataHora(l.entregueEm))}</small>` : l.consultadoEm ? `<small>consultado ${esc(dataHora(l.consultadoEm))}</small>` : ''}</td>
-        <td class="el-dest">${esc(l.destinatario || '—')}<small>${esc(l.cidadeUf || '')}</small></td>
+        <td class="el-dest">${esc(l.destinatario || '—')}<small>${esc(l.cidadeUf || '')}${l.idPedido ? (l.cidadeUf ? ' · ' : '') + (l.linkLulu ? `<a href="${esc(l.linkLulu)}" target="_blank" rel="noopener" title="${esc(l.tituloNegocio || '')}">pedido ${esc(l.idPedido)}</a>` : 'pedido ' + esc(l.idPedido)) : ''}</small></td>
         <td>${esc(l.numeroNf || '—')}<small>${esc(brl(l.valorNf))}</small></td>
-        <td>${l.entregaDomicilio ? 'Domicílio' : 'Retirada'}<small>${esc(nomeAeroporto(l.destinoIata) || '')}</small></td>
+        <td>${l.origem === 'lulu' ? '—' : l.entregaDomicilio ? 'Domicílio' : 'Retirada'}<small>${esc(nomeAeroporto(l.destinoIata) || '')}</small></td>
         <td class="el-num">${l.volumes != null ? esc(String(l.volumes)) : '—'} vol.<small>${esc(kg(l.pesoKg))}</small></td>
         <td><div class="el-celAcoes">
-          <button type="button" class="el-acao" data-etiqueta="termica" data-minuta="${esc(l.minuta)}">10x15</button>
-          <button type="button" class="el-acao" data-etiqueta="a4" data-minuta="${esc(l.minuta)}">A4</button>
+          ${l.temEtiqueta ? `<button type="button" class="el-acao" data-etiqueta="termica" data-minuta="${esc(l.minuta)}">10x15</button>
+          <button type="button" class="el-acao" data-etiqueta="a4" data-minuta="${esc(l.minuta)}">A4</button>` : ''}
           <button type="button" class="el-acao" data-consultar="${esc(l.minuta)}">Consultar</button>
         </div></td>
       </tr>`;
@@ -126,6 +126,7 @@
   }
   function aplicar(l, c) {
     l.situacao = c.situacao; l.entregueEm = c.entregueEm || null; l.consultadoEm = new Date().toISOString();
+    if (l.origem === 'lulu' && c.emitidoEm) { l.emitidoEm = new Date(c.emitidoEm).toISOString(); l.emitidoExato = true; }
   }
 
   function fecharModal() { $('elHModal').hidden = true; }
@@ -150,7 +151,7 @@
       ['Serviço', esc(l.servico || '—')],
       ['Destinatário', esc(l.destinatario || '—') + (l.cidadeUf ? ` · ${esc(l.cidadeUf)}` : '')],
       ['Nota fiscal', esc(l.numeroNf || '—') + (l.valorNf != null ? ` · ${esc(brl(l.valorNf))}` : '')],
-      ['Emitida por', esc(l.emitidoPor || '—')],
+      ['Emitida por', esc(l.origem === 'lulu' ? 'Card do Lulu' : l.emitidoPor || '—')],
       ['Emitida em', esc(dataHora(l.emitidoEm))],
     ];
     if (c.localizacao) campos.push(['Localização', esc(c.localizacao)]);
@@ -188,12 +189,28 @@
     render();
   }
 
+  // ── Puxar as e-Minutas LATAM dos cards do Lulu ──
+  async function puxarLulu() {
+    const btn = $('elHLulu');
+    btn.disabled = true; btn.textContent = 'Puxando do Lulu…'; mostrarErro(''); mostrarAviso('');
+    try {
+      const res = await fetch(`${API}/puxar-lulu`, { method: 'POST' });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.erro || 'Não foi possível puxar do Lulu');
+      const resumo = `Lulu: ${json.lidos} card(s) lidos, ${json.latam} da LATAM (${json.novos} novo(s), ${json.atualizados} já conhecido(s))${json.semCodigo ? `, ${json.semCodigo} sem código de rastreio` : ''}. A data de cada e-Minuta do Lulu (marcada com ~) fica exata depois de consultar o rastreio.`;
+      await carregar();   // recarrega a lista (e limpa os avisos)
+      mostrarAviso(resumo);
+    } catch (e) {
+      mostrarErro(e.message);
+    } finally { btn.disabled = false; btn.textContent = 'Puxar do Lulu'; }
+  }
+
   // ── Exportar CSV ──
   function exportarCsv(lista) {
-    const cab = ['Emitida em', 'e-Minuta/AWB', 'Serviço', 'Rastreio', 'Entregue em', 'Destinatário', 'Cidade/UF', 'CEP', 'NF', 'Valor NF', 'Chave NF-e', 'Entrega', 'Aeroporto destino', 'Volumes', 'Peso (kg)', 'Emitida por'];
+    const cab = ['Emitida em', 'e-Minuta/AWB', 'Serviço', 'Rastreio', 'Entregue em', 'Destinatário', 'Cidade/UF', 'CEP', 'NF', 'Valor NF', 'Chave NF-e', 'Entrega', 'Aeroporto destino', 'Volumes', 'Peso (kg)', 'Emitida por', 'Origem', 'Pedido'];
     const cel = (v) => { const t = v == null ? '' : String(v); return /[;"\n]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t; };
     const linhasCsv = lista.map((l) => [dataHora(l.emitidoEm), l.minuta, l.servico, rotuloSit(l.situacao).rotulo, l.entregueEm ? dataHora(l.entregueEm) : '', l.destinatario, l.cidadeUf, l.cep, l.numeroNf,
-      l.valorNf, l.chaveNFe ? `'${l.chaveNFe}` : '', l.entregaDomicilio ? 'Domicílio' : 'Retirada', l.destinoIata, l.volumes, l.pesoKg, l.emitidoPor].map(cel).join(';'));
+      l.valorNf, l.chaveNFe ? `'${l.chaveNFe}` : '', l.origem === 'lulu' ? '' : l.entregaDomicilio ? 'Domicílio' : 'Retirada', l.destinoIata, l.volumes, l.pesoKg, l.emitidoPor, l.origem === 'lulu' ? 'Lulu' : 'Hub', l.idPedido].map(cel).join(';'));
     const csv = '﻿' + [cab.join(';'), ...linhasCsv].join('\r\n');
     const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
     const a = document.createElement('a');
@@ -211,6 +228,7 @@
   $('elHBusca').addEventListener('input', render);
   $('elHCsv').addEventListener('click', () => exportarCsv(visiveis()));
   $('elHAtualizar').addEventListener('click', atualizarLote);
+  $('elHLulu').addEventListener('click', puxarLulu);
   $('elHModalFechar').addEventListener('click', fecharModal);
   $('elHModal').addEventListener('click', (e) => { if (e.target === $('elHModal')) fecharModal(); });
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('elHModal').hidden) fecharModal(); });

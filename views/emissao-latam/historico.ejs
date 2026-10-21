@@ -18,7 +18,7 @@
       <h1><i class="ti ti-history" aria-hidden="true"></i> Histórico de e-Minutas</h1>
       <a class="el-botao" href="/emissao-latam">Emitir e-Minuta</a>
     </div>
-    <p class="el-lede">As e-Minutas emitidas pelo hub, com quem emitiu, reimpressão da etiqueta e consulta do rastreio. A LATAM não tem listagem de e-Minutas nem cancelamento: este histórico começa nas emissões feitas pelo hub e não inclui as feitas direto no portal da LATAM.</p>
+    <p class="el-lede">As e-Minutas emitidas pelo hub, com quem emitiu, reimpressão da etiqueta e consulta do rastreio, mais as que estão nos cards do Lulu (botão "Puxar do Lulu"). A LATAM não tem listagem de e-Minutas nem cancelamento: as emitidas direto no portal da LATAM só aparecem se estiverem num card do Lulu.</p>
   </div>
 
   <section class="el-filtros" aria-label="Filtros">
@@ -39,6 +39,7 @@
         <input id="elHBusca" type="search" placeholder="Buscar por AWB, destinatário, cidade, CEP, NF, chave da NF-e ou quem emitiu">
       </label>
       <span class="el-contador" id="elHContador"></span>
+      <button type="button" class="el-secundario" id="elHLulu">Puxar do Lulu</button>
       <button type="button" class="el-secundario" id="elHAtualizar" disabled>Atualizar rastreio</button>
       <button type="button" class="el-secundario" id="elHCsv" disabled>Exportar planilha (CSV)</button>
     </div>

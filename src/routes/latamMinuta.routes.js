@@ -6,6 +6,7 @@ const {
 } = require('../services/latamMinuta.service');
 const emissoes = require('../services/latamEmissoes.service');
 const historico = require('../services/latamHistorico.service');
+const lulu = require('../services/latamLulu.service');
 
 const router = express.Router();
 
@@ -108,6 +109,15 @@ router.get('/api/consulta', async (req, res) => {
   try {
     res.set('Cache-Control', 'no-store');
     res.json(await historico.consultar(req.query.awb));
+  } catch (e) {
+    erroHistorico(res, e);
+  }
+});
+
+// POST /emissao-latam/api/puxar-lulu — lê os cards do Lulu e guarda as e-Minutas LATAM no histórico.
+router.post('/api/puxar-lulu', async (req, res) => {
+  try {
+    res.json({ ok: true, ...(await lulu.puxar()) });
   } catch (e) {
     erroHistorico(res, e);
   }

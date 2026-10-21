@@ -99,6 +99,9 @@ async function importarErrosEnvio() {
     const cards = await buscarCardsAlertaEntrega();
     if (!cards.length) return;
 
+    // As e-Minutas LATAM desses cards entram no Histórico de Emissão LATAM (não derruba a importação de tickets).
+    try { await require('./latamEmissoes.service').importarCardsLulu(cards); } catch (err) { console.error('[tickets-erro-envio] falha ao guardar as e-Minutas LATAM no histórico:', err.message); }
+
     const ticketsJson = await ticketsStore.listar();
     if (!ticketsJson.ok || !Array.isArray(ticketsJson.tickets)) return;
     // Uma vez que já existe um ticket de ERRO DE ENVIO pra esse negócio (mesmo

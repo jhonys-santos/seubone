@@ -35,6 +35,12 @@ function linha(e) {
     situacao: e.situacao || null,
     entregueEm: e.entregue_em ? new Date(e.entregue_em).toISOString() : null,
     consultadoEm: e.consultado_em ? new Date(e.consultado_em).toISOString() : null,
+    origem: e.origem || 'hub',
+    idPedido: e.id_pedido || null,
+    tituloNegocio: e.titulo_negocio || null,
+    linkLulu: e.negocio_id ? `https://lulu.seubone.com/business/?businessId=${e.negocio_id}` : null,
+    temEtiqueta: !!e.tem_previa,
+    emitidoExato: e.emitido_exato !== false,
   };
 }
 
@@ -74,14 +80,14 @@ async function consultar(awb) {
   }
   const { cidadeDoAeroporto } = require('./latamRastreio/localizacao');
   const out = {
-    awb: r.awb || minuta, encontrado: true, situacao: r.situacao, previsaoEntrega: r.previsaoEntrega || null, entregueEm: r.entregueEm || null,
+    awb: r.awb || minuta, encontrado: true, emitidoEm: r.emitidoEm || null, situacao: r.situacao, previsaoEntrega: r.previsaoEntrega || null, entregueEm: r.entregueEm || null,
     recebedor: r.recebedor || null, localizacao: (r.localizacao && r.localizacao.texto) || null,
     ocorrencias: (r.ocorrencias || []).map((o) => ({
       codigo: o.codigo, descricao: o.descricao, dataHora: o.dataHora, aeroporto: o.aeroporto || null, municipio: cidadeDoAeroporto(o.aeroporto) || null,
       voo: o.voo || null, alerta: !!o.alerta, catalogado: !!o.catalogado,
     })),
   };
-  await emissoes.atualizarRastreio(minuta, { situacao: out.situacao, entregueEm: out.entregueEm }).catch((e) => console.error('[latam-historico] não consegui guardar o rastreio:', e.message));
+  await emissoes.atualizarRastreio(minuta, { situacao: out.situacao, entregueEm: out.entregueEm, emitidoEm: r.emitidoEm }).catch((e) => console.error('[latam-historico] não consegui guardar o rastreio:', e.message));
   return out;
 }
 

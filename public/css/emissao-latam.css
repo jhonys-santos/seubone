@@ -159,3 +159,6 @@
 .el-linhaTempo small { display: block; color: var(--text-muted); font-size: 11.5px; margin-top: 2px; }
 .el-notaConsulta { margin: 8px 0 0; font-size: 12.5px; color: var(--warn); }
 @media (max-width: 640px) { .el-periodo .el-campo { width: calc(50% - 6px); } }
+.el-tagLulu { display: inline-block; padding: 0 7px; border-radius: 999px; background: var(--gold-dim); color: var(--gold-dark); font-size: 10.5px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+.el-aprox { color: var(--warn); font-weight: 700; cursor: help; }
+.el-tabela td small a { color: var(--gold-dark); text-decoration: underline; }

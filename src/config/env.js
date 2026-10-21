@@ -136,6 +136,9 @@ module.exports = {
   // autenticação via header x-integracao-key (confirmado em teste direto).
   luluAlertaEntregaUrl: required('LULU_ALERTA_ENTREGA_URL', 'https://intranet.seubone.com/integracoes/sucesso-cliente/alerta-entrega'),
   luluIntegracaoKey: required('LULU_INTEGRACAO_KEY', ''),
+  // Endpoint do Lulu para a coluna "Código de rastreio" (mesmo formato de card do alerta-entrega). Ainda não existe: quando o Lulu liberar, o Histórico LATAM
+  // passa a puxar todas as e-Minutas dessa coluna (ver latamLulu.service.js). Vazio = só a coluna "Alerta de Entrega".
+  luluCodigoRastreioUrl: required('LULU_CODIGO_RASTREIO_URL', ''),
 
   // Cotação de frete Azul Logística ("Integração Fácil") — ver
   // src/services/azulCotacao.service.js. Token de autenticação da Azul;
