@@ -1442,6 +1442,45 @@
     return { ...d, inicioMes: ini, fimMes: fim, pendentesMes: d.pendentesPeriodo };
   }
 
+  // ── Período livre (De/Até) ──
+  const pad2_ = (n) => String(n).padStart(2, '0');
+  function dataIso_(d) { return d.getFullYear() + '-' + pad2_(d.getMonth() + 1) + '-' + pad2_(d.getDate()); }
+  function dataDeIso_(s) { const [y, m, d] = String(s).split('-').map(Number); return new Date(y, (m || 1) - 1, d || 1); }
+  function fmtDMA_(d) { return pad2_(d.getDate()) + '/' + pad2_(d.getMonth() + 1) + '/' + d.getFullYear(); }
+  function nomeMesCurto_(ym) { const t = dataDoYm_(ym).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }); return t.charAt(0).toUpperCase() + t.slice(1); }
+
+  /** Atalhos do seletor de período -> { de, ate } (AAAA-MM-DD). "tudo" começa no caso mais antigo do(s) setor(es) da reunião. */
+  function periodoPresetData_(preset, setores) {
+    const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+    let de = primeiroDiaMes_(hoje), ate = hoje;
+    if (preset === 'mesPassado') { const ant = mesAnterior_(hoje); de = primeiroDiaMes_(ant); ate = ultimoDiaMes_(ant); }
+    else if (preset === '3m') { const x = new Date(hoje); x.setMonth(x.getMonth() - 2); de = primeiroDiaMes_(x); }
+    else if (preset === 'ano') { de = new Date(hoje.getFullYear(), 0, 1); }
+    else if (preset === 'tudo') {
+      const datas = RECORDS.filter((r) => setores.includes(r.setor) && r.date).map((r) => diaSemHora_(r.date));
+      de = datas.length ? new Date(Math.min(...datas)) : primeiroDiaMes_(hoje);
+    }
+    return { de: dataIso_(de), ate: dataIso_(ate) };
+  }
+
+  /**
+   * Agrega um período livre (De/Até inclusive, AAAA-MM-DD), comparado com o período anterior de mesmo tamanho, e traz o custo mês a mês com o acumulado.
+   * Só casos auditados entram nos números (os pendentes aparecem em pendentesPeriodo), igual à semana e ao mês.
+   */
+  function reuniaoDataPeriodo(deStr, ateStr, setores, responsavelFiltro) {
+    const ini = dataDeIso_(deStr), fim = dataDeIso_(ateStr);
+    const dias = Math.round((diaSemHora_(fim) - diaSemHora_(ini)) / 86400000) + 1;
+    const fimAnt = new Date(ini); fimAnt.setDate(fimAnt.getDate() - 1);
+    const iniAnt = new Date(fimAnt); iniAnt.setDate(iniAnt.getDate() - (dias - 1));
+    const d = periodoData(ini, fim, iniAnt, fimAnt, setores, responsavelFiltro);
+    const meses = {};
+    d.casosOrdenados.forEach((r) => { const k = ymMes_(r.date); if (!meses[k]) meses[k] = { ym: k, n: 0, custo: 0 }; meses[k].n++; meses[k].custo += (r.custo || 0); });
+    const porMes = Object.values(meses).sort((a, b) => a.ym.localeCompare(b.ym));
+    let acumulado = 0;
+    porMes.forEach((m) => { acumulado += m.custo; m.acumulado = acumulado; });
+    return { ...d, ini, fim, dias, porMes };
+  }
+
   /* ================= DADOS INCOMPLETOS (backfill de setor) ================= */
   function sugerirSetor(r) {
     const t = ((r.nomeCard || '') + ' ' + (r.descricao || '') + ' ' + (r.subproblema || '')).toLowerCase();
@@ -1518,16 +1557,32 @@
     const squadAtiva = ehVendas && erState[squadKey] ? SQUADS_VENDAS.find((s) => s.nome === erState[squadKey]) : null;
     const filtroEfetivo = squadAtiva || erState[respKey] || '';
 
-    const d = reuniaoData(erState[cfg.stateKey], cfg.setores, filtroEfetivo);
-    const { monday, sunday, n, custoTotal, deltaN, deltaCusto, causasTop, respTop, casosOrdenados, pendentesSemana } = d;
+    // Modo da tela: "semana" (navegação semana a semana, como sempre) ou "período" (De/Até livres, com o custo acumulado e o custo mês a mês).
+    const modoKey = cfg.stateKey + 'Modo', deKey = cfg.stateKey + 'De', ateKey = cfg.stateKey + 'Ate';
+    if (!erState[modoKey]) erState[modoKey] = 'semana';
+    const modoPeriodo = erState[modoKey] === 'periodo';
+    if (!erState[deKey] || !erState[ateKey]) { const p = periodoPresetData_('tudo', cfg.setores); erState[deKey] = p.de; erState[ateKey] = p.ate; }
+    const fotosKey = cfg.stateKey + 'FotosPdf';
+
+    const d = modoPeriodo
+      ? reuniaoDataPeriodo(erState[deKey], erState[ateKey], cfg.setores, filtroEfetivo)
+      : reuniaoData(erState[cfg.stateKey], cfg.setores, filtroEfetivo);
+    const { monday, sunday, n, custoTotal, deltaN, deltaCusto, causasTop, respTop, casosOrdenados } = d;
+    const pendentesSemana = modoPeriodo ? d.pendentesPeriodo : d.pendentesSemana;
+    // Palavras que mudam entre a visão semanal e a de período
+    const T = modoPeriodo
+      ? { na: 'no período', da: 'do período', comp: 'vs período anterior', custoLbl: 'Custo acumulado do período', pendNaSemana: 'neste período', vazioTit: 'neste período' }
+      : { na: 'na semana', da: 'da semana', comp: 'vs semana anterior', custoLbl: 'Custo total da semana', pendNaSemana: 'nesta semana', vazioTit: 'nesta semana' };
     // Mês do PDF mensal — seletor próprio, independente da semana navegada
     // (só usa a semana atual como sugestão inicial, na primeira vez que a
     // tela abre; depois disso fica na mão de quem está usando).
     const mesKey = cfg.stateKey + 'MesPdf';
     if (!erState[mesKey]) erState[mesKey] = ymMes_(new Date(erState[cfg.stateKey]));
     const dataMesEscolhido = dataDoYm_(erState[mesKey]);
-    const dMes = reuniaoDataMensal(dataMesEscolhido, cfg.setores, filtroEfetivo);
+    const dMes = modoPeriodo ? { n: 0 } : reuniaoDataMensal(dataMesEscolhido, cfg.setores, filtroEfetivo);
     const nomeMesEscolhido = dataMesEscolhido.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+    if (erState[fotosKey] === undefined) erState[fotosKey] = null;   // null = automático (com fotos até 40 casos)
+    const fotosPdf = erState[fotosKey] === null ? n <= 40 : !!erState[fotosKey];
 
     const filtroResp = `
       <div class="er-filters" style="margin-bottom:14px">
@@ -1540,16 +1595,20 @@
           <option value="">Todas as squads</option>
           ${SQUADS_VENDAS.map((s) => `<option value="${erEsc(s.nome)}" ${erState[squadKey] === s.nome ? 'selected' : ''}>Squad ${erEsc(s.nome)}</option>`).join('')}
         </select>` : ''}
+        <div class="er-seg" id="erModoSeg" role="group" aria-label="Tipo de período">
+          <button type="button" data-modo="semana" class="${modoPeriodo ? '' : 'active'}">Semana</button>
+          <button type="button" data-modo="periodo" class="${modoPeriodo ? 'active' : ''}">Período</button>
+        </div>
       </div>
     `;
 
-    const nav = filtroResp + `
+    const navSemana = `
       <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:22px;flex-wrap:wrap">
         <div style="display:flex;align-items:center;gap:14px">
           <button class="er-iconbtn" id="erSemanaPrev" title="Semana anterior">←</button>
           <div style="text-align:center">
             <div style="font-size:12px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.05em">Semana</div>
-            <div style="font-size:18px;font-weight:800;color:var(--text)">${fmtDM(new Date(monday))} a ${fmtDM(sunday)}</div>
+            <div style="font-size:18px;font-weight:800;color:var(--text)">${monday ? fmtDM(new Date(monday)) : ''} a ${sunday ? fmtDM(sunday) : ''}</div>
           </div>
           <button class="er-iconbtn" id="erSemanaNext" title="Próxima semana">→</button>
         </div>
@@ -1561,10 +1620,46 @@
       </div>
     `;
 
+    const navPeriodo = `
+      <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:22px;flex-wrap:wrap">
+        <div style="display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap">
+          <label style="display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.05em">De
+            <input type="date" id="erPeriodoDe" value="${erState[deKey]}" max="${erState[ateKey]}" class="er-mes-input"></label>
+          <label style="display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.05em">Até
+            <input type="date" id="erPeriodoAte" value="${erState[ateKey]}" min="${erState[deKey]}" class="er-mes-input"></label>
+          <div style="display:flex;gap:6px;flex-wrap:wrap" id="erPresets" role="group" aria-label="Atalhos de período">
+            <button type="button" class="er-chip" data-preset="mes">Mês atual</button>
+            <button type="button" class="er-chip" data-preset="mesPassado">Mês passado</button>
+            <button type="button" class="er-chip" data-preset="3m">Últimos 3 meses</button>
+            <button type="button" class="er-chip" data-preset="ano">Este ano</button>
+            <button type="button" class="er-chip" data-preset="tudo">Tudo</button>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+          <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--text-muted)" title="Com muitos casos o PDF fica pesado: sem as fotos ele sai bem mais leve."><input type="checkbox" id="erPdfFotos" ${fotosPdf ? 'checked' : ''}> Fotos no PDF</label>
+          <button class="er-btn er-btn-primary" id="erBtnPdfPeriodo" ${n === 0 ? 'disabled style="opacity:.5"' : ''}>⤓ Exportar PDF (período)</button>
+        </div>
+      </div>
+    `;
+    const nav = filtroResp + (modoPeriodo ? navPeriodo : navSemana);
+
     const bindNav = () => {
       document.getElementById('erRespFiltro').addEventListener('change', (e) => { erState[respKey] = e.target.value; if (e.target.value) erState[squadKey] = ''; erRender(); });
       const selSquad = document.getElementById('erSquadFiltro');
       if (selSquad) selSquad.addEventListener('change', (e) => { erState[squadKey] = e.target.value; if (e.target.value) erState[respKey] = ''; erRender(); });
+      document.querySelectorAll('#erModoSeg button').forEach((b) => b.addEventListener('click', () => { erState[modoKey] = b.dataset.modo; erRender(); }));
+      if (modoPeriodo) {
+        const de = document.getElementById('erPeriodoDe'), ate = document.getElementById('erPeriodoAte');
+        de.addEventListener('change', () => { if (de.value) { erState[deKey] = de.value; if (erState[ateKey] < de.value) erState[ateKey] = de.value; erState[fotosKey] = null; erRender(); } });
+        ate.addEventListener('change', () => { if (ate.value) { erState[ateKey] = ate.value; if (erState[deKey] > ate.value) erState[deKey] = ate.value; erState[fotosKey] = null; erRender(); } });
+        document.querySelectorAll('#erPresets [data-preset]').forEach((b) => b.addEventListener('click', () => {
+          const p = periodoPresetData_(b.dataset.preset, cfg.setores); erState[deKey] = p.de; erState[ateKey] = p.ate; erState[fotosKey] = null; erRender();
+        }));
+        document.getElementById('erPdfFotos').addEventListener('change', (e) => { erState[fotosKey] = e.target.checked; });
+        const bp = document.getElementById('erBtnPdfPeriodo');
+        if (bp && n > 0) bp.addEventListener('click', () => exportarPDFPeriodo(erState[deKey], erState[ateKey], cfg, filtroEfetivo, document.getElementById('erPdfFotos').checked));
+        return;
+      }
       document.getElementById('erSemanaPrev').addEventListener('click', () => { erState[cfg.stateKey] -= 7 * 86400000; erRender(); });
       document.getElementById('erSemanaNext').addEventListener('click', () => { erState[cfg.stateKey] += 7 * 86400000; erRender(); });
       const bap = document.getElementById('erBtnPdf'); if (bap && n > 0) bap.addEventListener('click', () => exportarPDF(erState[cfg.stateKey], cfg, filtroEfetivo));
@@ -1578,29 +1673,42 @@
 
     if (n === 0) {
       const filtroAtivo = squadAtiva ? ` (filtrado pela squad "${erEsc(squadAtiva.nome)}")` : erState[respKey] ? ` (filtrado por "${erEsc(erState[respKey])}")` : '';
-      main.innerHTML = nav + `<div class="er-card er-empty"><div class="e-title">Nenhum erro de ${erEsc(cfg.short)} auditado nesta semana${filtroAtivo}</div><div class="e-sub">${pendentesSemana > 0 ? pendentesSemana + ' caso(s) ainda pendente(s) de auditoria nesta semana.' : 'Use as setas pra navegar até uma semana com dado, ou é uma boa notícia mesmo.'}</div></div>`;
+      main.innerHTML = nav + `<div class="er-card er-empty"><div class="e-title">Nenhum erro de ${erEsc(cfg.short)} auditado ${T.vazioTit}${filtroAtivo}</div><div class="e-sub">${pendentesSemana > 0 ? pendentesSemana + ' caso(s) ainda pendente(s) de auditoria ' + T.pendNaSemana + '.' : (modoPeriodo ? 'Ajuste as datas ou use um dos atalhos acima.' : 'Use as setas pra navegar até uma semana com dado, ou é uma boa notícia mesmo.')}</div></div>`;
       bindNav();
       return;
     }
 
     const causaDestaque = causasTop[0];
     const comFoto = casosOrdenados.filter((r) => parseFotos(r.foto).length).length;
-    const arrow = (delta) => delta === null ? '' : delta > 0 ? `<span style="color:var(--bad-text,var(--bad))">▲ ${delta}% vs semana anterior</span>` : delta < 0 ? `<span style="color:var(--ok-text,var(--ok))">▼ ${Math.abs(delta)}% vs semana anterior</span>` : `<span style="color:var(--text-muted)">igual à semana anterior</span>`;
+    const arrow = (delta) => delta === null ? '' : delta > 0 ? `<span style="color:var(--bad-text,var(--bad))">▲ ${delta}% ${T.comp}</span>` : delta < 0 ? `<span style="color:var(--ok-text,var(--ok))">▼ ${Math.abs(delta)}% ${T.comp}</span>` : `<span style="color:var(--text-muted)">igual ${modoPeriodo ? 'ao período anterior' : 'à semana anterior'}</span>`;
     const maxCustoResp = respTop.length ? respTop[0].custo : 0;
 
+    // Custo mês a mês + acumulado (só na visão de período, quando passa de um mês)
+    const maxCustoMes = modoPeriodo ? Math.max(1, ...d.porMes.map((m) => m.custo)) : 1;
+    const cardMeses = modoPeriodo && d.porMes.length > 1 ? `
+      <div class="er-card" style="margin-bottom:16px">
+        <h3>Custo mês a mês</h3>
+        <div class="er-card-sub">Do primeiro ao último mês do período, com o acumulado. Só entram os casos auditados.</div>
+        <div style="margin-top:10px">
+          ${d.porMes.map((m) => `<div class="er-legend-row"><span style="min-width:110px;font-weight:600">${erEsc(nomeMesCurto_(m.ym))}</span><div class="er-mbar" style="flex:1;max-width:260px;margin:0 10px"><div class="track"><div class="fill" style="width:${Math.max(3, m.custo / maxCustoMes * 100)}%;background:#E0A400"></div></div></div><span style="color:var(--text-muted);min-width:78px;text-align:right">${m.n} caso(s)</span><b style="min-width:92px;text-align:right">${brl(m.custo)}</b><span style="color:var(--text-muted);min-width:150px;text-align:right">acumulado ${brl(m.acumulado)}</span></div>`).join('')}
+        </div>
+      </div>` : '';
+
     main.innerHTML = nav + `
-      ${pendentesSemana > 0 ? `<div class="er-banner red"><span class="b-ic">!</span><div><div class="b-title">${pendentesSemana} caso(s) de ${erEsc(cfg.short)} ainda pendente(s) de auditoria nesta semana</div><div class="b-text">Não entram nos números abaixo. Vale fechar antes da reunião.</div></div></div>` : ''}
+      ${pendentesSemana > 0 ? `<div class="er-banner red"><span class="b-ic">!</span><div><div class="b-title">${pendentesSemana} caso(s) de ${erEsc(cfg.short)} ainda pendente(s) de auditoria ${T.pendNaSemana}</div><div class="b-text">Não entram nos números abaixo. Vale fechar antes da reunião.</div></div></div>` : ''}
 
       <div class="er-metrics">
-        <div class="er-metric hero"><div class="m-top"><span class="m-ic">▦</span><span class="m-label">Erros de ${erEsc(cfg.short)} na semana</span></div><div class="m-value">${n}</div><div class="m-foot">${arrow(deltaN)}</div></div>
-        <div class="er-metric"><div class="m-top"><span class="m-ic ic-amber">◈</span><span class="m-label">Custo total da semana</span></div><div class="m-value">${brl(custoTotal)}</div><div class="m-foot">${arrow(deltaCusto)}</div></div>
+        <div class="er-metric hero"><div class="m-top"><span class="m-ic">▦</span><span class="m-label">Erros de ${erEsc(cfg.short)} ${T.na}</span></div><div class="m-value">${n}</div><div class="m-foot">${arrow(deltaN)}</div></div>
+        <div class="er-metric"><div class="m-top"><span class="m-ic ic-amber">◈</span><span class="m-label">${T.custoLbl}</span></div><div class="m-value">${brl(custoTotal)}</div><div class="m-foot">${arrow(deltaCusto)}</div></div>
         <div class="er-metric"><div class="m-top"><span class="m-ic ic-green">◆</span><span class="m-label">Causa em destaque</span></div><div class="m-value sm">${erEsc(causaDestaque.nome)}</div><div class="m-foot">${causaDestaque.n} caso(s) · ${brl(causaDestaque.custo)}</div></div>
         <div class="er-metric"><div class="m-top"><span class="m-ic ic-blue">◉</span><span class="m-label">Casos com foto</span></div><div class="m-value">${comFoto}<span style="font-size:16px;color:var(--text-muted);font-weight:600"> / ${n}</span></div><div class="m-foot">aparecem com imagem no PDF</div></div>
       </div>
 
+      ${cardMeses}
+
       <div class="er-grid er-grid-2col">
         <div class="er-card">
-          <h3>Top causas da semana</h3>
+          <h3>Top causas ${T.da}</h3>
           <div class="er-card-sub">Ordenado por custo, onde uma ação de processo rende mais.</div>
           <div style="margin-top:10px">
             ${causasTop.slice(0, 5).map((c, i) => `<div class="er-legend-row"><span class="er-rank ${i === 0 ? 'top' : ''}">${i + 1}</span><span style="margin-left:10px">${erEsc(c.nome)}</span><b style="margin-left:auto">${brl(c.custo)}</b><span style="color:var(--text-muted);margin-left:12px;min-width:70px;text-align:right">${c.n} caso(s)</span></div>`).join('')}
@@ -1616,7 +1724,7 @@
       </div>
 
       <div class="er-card">
-        <h3>Casos da semana · ${erEsc(cfg.short)}</h3>
+        <h3>Casos ${T.da} · ${erEsc(cfg.short)}${modoPeriodo ? ` (${n})` : ''}</h3>
         <div class="er-card-sub">Ordenado por custo. Clique numa linha pra ver o caso completo. A miniatura mostra se o caso tem foto.</div>
         <div class="er-tbl-wrap"><table>
           <thead><tr><th>Foto</th><th>ID</th><th>Responsável</th><th>Cliente / Card</th><th>Causa</th><th class="er-num">Custo</th><th>Tipo de resolução</th></tr></thead>
@@ -1656,18 +1764,23 @@
   function buildPrintReport(d, cfg, opts) {
     cfg = cfg || REUNIOES.vendas;
     opts = opts || {};
-    const tipoPeriodo = opts.tipoPeriodo === 'mes' ? 'mes' : 'semana';
+    const tipoPeriodo = ['mes', 'periodo'].includes(opts.tipoPeriodo) ? opts.tipoPeriodo : 'semana';
     const periodo = opts.periodoLabel || `${fmtDM(new Date(d.monday))} a ${fmtDM(d.sunday)}`;
-    const compTexto = tipoPeriodo === 'mes' ? 'vs mês anterior' : 'vs semana anterior';
-    const naPeriodoTxt = tipoPeriodo === 'mes' ? 'no mês' : 'na semana';
-    const daPeriodoTxt = tipoPeriodo === 'mes' ? 'do mês' : 'da semana';
-    const tituloRelatorio = tipoPeriodo === 'mes' ? 'Erros do Mês' : 'Erros da Semana';
+    const TX = { mes: ['vs mês anterior', 'no mês', 'do mês', 'Erros do Mês'], periodo: ['vs período anterior', 'no período', 'do período', 'Erros do Período'], semana: ['vs semana anterior', 'na semana', 'da semana', 'Erros da Semana'] }[tipoPeriodo];
+    const [compTexto, naPeriodoTxt, daPeriodoTxt, tituloRelatorio] = TX;
     const filtroTxt = !opts.responsavelFiltro ? ''
       : typeof opts.responsavelFiltro === 'string' ? ` · Responsável: ${erEsc(opts.responsavelFiltro)}`
       : ` · Squad: ${erEsc(opts.responsavelFiltro.nome)}`;
     const comFoto = d.casosOrdenados.filter((r) => parseFotos(r.foto).length).length;
     const causa = d.causasTop[0] || { nome: '—', n: 0, custo: 0 };
     const maxResp = d.respTop.length ? (d.respTop[0].custo || 1) : 1;
+    // Período com mais de um mês: custo mês a mês com o acumulado
+    const meses = opts.porMes && opts.porMes.length > 1 ? `
+      <div style="margin-bottom:16px">
+        <div class="er-pr-sec">Custo mês a mês</div>
+        <div class="er-pr-secsub">Do primeiro ao último mês do período, com o acumulado.</div>
+        ${opts.porMes.map((m) => `<div class="er-pr-row"><span class="er-pr-name">${erEsc(nomeMesCurto_(m.ym))}</span><span class="er-pr-cnt">${m.n} caso(s)</span><span class="er-pr-val">${brl(m.custo)}</span><span class="er-pr-cnt" style="min-width:150px;text-align:right">acumulado ${brl(m.acumulado)}</span></div>`).join('')}
+      </div>` : '';
 
     const kpis = `
       <div class="er-pr-kpis">
@@ -1693,7 +1806,7 @@
 
     const cases = d.casosOrdenados.map((r, idx) => {
       const fs = parseFotos(r.foto);
-      const photo = fs.length
+      const photo = opts.semFotos ? '' : fs.length
         ? `<div class="er-pr-photo"><img src="${erEsc(fotoSrc(fs[0]))}" alt=""></div>`
         : `<div class="er-pr-photo"><span class="noimg">Sem foto</span></div>`;
       // Comentário Final é o texto estudado do auditor pra repassar ao
@@ -1702,7 +1815,7 @@
       // então cai pra descrição pra não deixar o PDF sem contexto nenhum.
       const descTexto = r.comentarioFinal || r.descricao;
       const desc = descTexto ? `<div class="er-pr-cdesc">${erEsc(String(descTexto).slice(0, 420))}</div>` : '';
-      return `<div class="er-pr-case">
+      return `<div class="er-pr-case"${opts.semFotos ? ' style="grid-template-columns:1fr"' : ''}>
         ${photo}
         <div>
           <div class="er-pr-ckicker">Caso ${idx + 1} · ${erEsc(r.tipoResolucao) || 'Sem classificação'}</div>
@@ -1730,6 +1843,7 @@
         <h1 class="er-pr-title">${tituloRelatorio}</h1>
         <div class="er-pr-sub">${d.n} caso(s) auditado(s) · ${brl(d.custoTotal)} em custo · foco em aprendizado, não em culpa.${d.pendentesPeriodo > 0 ? ` <b style="color:#A62A23">${d.pendentesPeriodo} caso(s) ainda pendente(s) (fora destes números).</b>` : ''}</div>
         ${kpis}
+        ${meses}
         <div class="er-pr-two">${causas}${ranking}</div>
         <div class="er-pr-cases-h">Casos ${daPeriodoTxt} · ${erEsc(cfg.short)} (${d.casosOrdenados.length})</div>
         ${cases}
@@ -1776,6 +1890,15 @@
     const nomeMes = dataAncora.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
     const periodoLabel = nomeMes.charAt(0).toUpperCase() + nomeMes.slice(1);
     dispararImpressao(buildPrintReport(d, cfg, { tipoPeriodo: 'mes', periodoLabel, responsavelFiltro }), 'erBtnPdfMes', '⤓ Exportar PDF (mês)');
+  }
+
+  // Exporta o período livre (De/Até) num PDF só: KPIs do período todo, custo mês a mês com acumulado, causas, ranking e todos os casos.
+  function exportarPDFPeriodo(deStr, ateStr, cfg, responsavelFiltro, comFotos) {
+    cfg = cfg || REUNIOES.vendas;
+    const d = reuniaoDataPeriodo(deStr, ateStr, cfg.setores, responsavelFiltro);
+    if (d.n === 0) { toast('Sem casos de ' + cfg.short + ' auditados neste período para exportar.', false); return; }
+    const periodoLabel = fmtDMA_(d.ini) + ' a ' + fmtDMA_(d.fim);
+    dispararImpressao(buildPrintReport(d, cfg, { tipoPeriodo: 'periodo', periodoLabel, responsavelFiltro, porMes: d.porMes, semFotos: !comFotos }), 'erBtnPdfPeriodo', '⤓ Exportar PDF (período)');
   }
 
   // limpa o relatório depois de imprimir/cancelar
