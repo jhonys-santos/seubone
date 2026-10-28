@@ -29,13 +29,8 @@ function parseNumero(v) {
 const extrairLink = (texto) => { const m = String(texto || '').match(/https?:\/\/[^\s)]+/i); return m ? m[0] : ''; };
 
 // ── Upload de arquivos (continua no Google Drive, via Apps Script) ───────
-let uploader = async (fotos, idVenda) => {
-  const { chamarAppsScript } = require('./appsScriptClient');
-  const env = require('../config/env');
-  const r = await chamarAppsScript(env.errosAppsScriptUrl, { method: 'POST', body: { action: 'salvarFotos', fotos, idVenda } });
-  if (!r || !r.ok) throw new Error((r && r.error) || 'Falha ao salvar no Drive');
-  return { urls: r.urls || [], falhas: r.falhas || 0, erroExemplo: r.erroExemplo || '' };
-};
+// Um arquivo por chamada, vários ao mesmo tempo (ver fotosDrive.js): o Drive leva ~6 s por arquivo e uma chamada com vários estourava o tempo limite.
+let uploader = async (fotos, idVenda) => require('./fotosDrive').enviarFotos('salvarFotos', fotos, idVenda);
 /** Só para testes. */
 function definirUploader(fn) { uploader = fn; }
 

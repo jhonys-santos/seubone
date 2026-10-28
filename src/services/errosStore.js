@@ -27,6 +27,6 @@ Object.keys(planilha).forEach((nome) => {
 });
 
 // Só salva arquivo no Drive (não toca em planilha nem banco): sempre via Apps Script.
-store.salvarFotoPreCaso = (fotos) => post({ action: 'salvarFotoPreCaso', fotos });
+store.salvarFotoPreCaso = (fotos) => require('./fotosDrive').enviarFotos('salvarFotoPreCaso', fotos).then((r) => (!r.urls.length && r.falhas ? { ok: false, error: 'Não consegui salvar os arquivos' + (r.erroExemplo ? ` (${r.erroExemplo})` : '') + '.' } : { ok: true, ...r }));
 
 module.exports = store;
