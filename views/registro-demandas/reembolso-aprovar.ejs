@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<%- include('../partials/head') %>
+<title>Aprovar Reembolsos - SeuBoné</title>
+<link rel="stylesheet" href="/css/reembolso-aprovar.css">
+</head>
+<body>
+<div class="app-shell">
+<%- include('../partials/sidebar') %>
+<div class="app-main">
+
+<div class="ra-scope">
+
+  <div class="ra-header">
+    <p class="ra-sobretitulo">Solicitações Financeiro · só gestor</p>
+    <h1><i class="ti ti-checklist" aria-hidden="true"></i> Aprovar reembolsos</h1>
+    <p class="ra-lede">Aprovar move o card para <b>Aprovado</b> no finfin e negar move para <b>Negado</b>. O hub guarda quem decidiu, quando e o motivo (no finfin tudo o que vem daqui aparece como "Sistema") e avisa o solicitante.</p>
+  </div>
+
+  <div class="ra-abas" role="tablist">
+    <button type="button" role="tab" class="ra-aba ra-ativa" id="raAbaPendentes" data-aba="pendentes">Aguardando decisão <span class="ra-cont" id="raContPendentes"></span></button>
+    <button type="button" role="tab" class="ra-aba" id="raAbaDecididos" data-aba="decididos">Já decididos</button>
+    <button type="button" class="ra-atualizar" id="raAtualizar" title="Buscar de novo"><i class="ti ti-refresh" aria-hidden="true"></i> Atualizar</button>
+  </div>
+
+  <p class="ra-erro" id="raErro" role="alert" style="display:none"></p>
+  <p class="ra-ok" id="raOk" role="status" style="display:none"></p>
+
+  <div id="raLista" class="ra-lista"><p class="ra-vazio">Carregando…</p></div>
+
+</div>
+
+<!-- Aprovar / Negar -->
+<div class="ra-modal" id="raModal" hidden>
+  <div class="ra-modalCaixa" role="dialog" aria-modal="true" aria-labelledby="raModalTitulo">
+    <h2 id="raModalTitulo" class="ra-h2">Aprovar reembolso</h2>
+    <p class="ra-modalResumo" id="raModalResumo"></p>
+    <label class="ra-campo" id="raCampoMotivo">
+      <span id="raRotuloMotivo">Observação (opcional)</span>
+      <textarea id="raMotivo" rows="4" maxlength="1000" placeholder=""></textarea>
+    </label>
+    <p class="ra-dica" id="raDicaModal"></p>
+    <p class="ra-erro" id="raModalErro" role="alert" style="display:none"></p>
+    <div class="ra-modalAcoes">
+      <button type="button" class="ra-sec" id="raModalCancelar">Voltar</button>
+      <button type="button" class="ra-btn" id="raModalConfirmar">Aprovar</button>
+    </div>
+  </div>
+</div>
+
+</div>
+</div>
+
+<script src="/js/reembolso-aprovar.js?v=<%= appVersion %>"></script>
+</body>
+</html>

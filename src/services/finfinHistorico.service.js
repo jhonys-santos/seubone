@@ -108,7 +108,7 @@ async function listarReembolsosParaHistorico({ ehGestor = false } = {}) {
       Valor: d.valor != null ? d.valor : '',
       EmpresaResponsavel: 'SeuBoné',
       Anexos: JSON.stringify(Array.isArray(json(l.anexos_retorno)) ? json(l.anexos_retorno) : []),
-      Status: l.coluna === 'pago' ? 'Feito' : l.coluna === 'negado' ? 'Negado' : 'Pendente',
+      Status: l.coluna === 'pago' ? 'Feito' : l.coluna === 'negado' ? 'Negado' : l.coluna === 'aprovado' ? 'Aprovado' : 'Pendente',
       FeitoPor: l.concluido_por || '',
       InseridoEm: new Date(l.criado_em).toISOString(),
       SolicitanteSlug: l.solicitante_slug,

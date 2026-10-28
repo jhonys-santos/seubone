@@ -70,6 +70,7 @@ module.exports = [
     subpaginas: [
       { titulo: 'Registro', url: '/registro-demandas', icone: 'ti-file-text' },
       { titulo: 'Reembolso', url: '/registro-demandas/reembolso', icone: 'ti-cash' },
+      { titulo: 'Aprovar Reembolsos', url: '/registro-demandas/reembolso/aprovar', icone: 'ti-checklist', somenteRole: 'gestor' },
       { titulo: 'Pagamento', url: '/registro-demandas/pagamento', icone: 'ti-credit-card' },
       { titulo: 'Análise de Termo', url: '/registro-demandas/analise-termo', icone: 'ti-file-certificate' },
       { titulo: 'Histórico', url: '/registro-demandas/historico', icone: 'ti-history' },

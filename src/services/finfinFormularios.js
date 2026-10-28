@@ -36,6 +36,7 @@ const FORMULARIOS = {
     colunas: {
       pago: { fecha: true, msg: (d) => comComentario(`Seu reembolso ${d.codigo} foi pago pelo financeiro.${anexosTxt(d)}`, d) },
       negado: { fecha: true, msg: (d) => comComentario(`Seu reembolso ${d.codigo} foi negado.`, d) },
+      aprovado: { fecha: false, msg: (d) => comComentario(`Seu reembolso ${d.codigo} foi aprovado e segue para o pagamento.`, d) },
       aguardando: { fecha: false, msg: (d) => comComentario(`Seu reembolso ${d.codigo} está aguardando retorno ou ajuste.`, d) },
     },
   },
