@@ -147,6 +147,30 @@ async function buscarTicketsResolucao(slugAlvo, periodo, mes, ano, semIni, semFi
   };
 }
 
+// Nathalia, Francis e Iasmin: "TMR Refab." (tmr_refab, em minutos) passa a vir dos tickets de Refabricação do hub (mesma conta do Time Resolução:
+// Resolvidos pelo dia do fechamento, da atribuição ao fechamento só em horário de trabalho; ver ticketsTempo.js). Vale a partir de 01/11/2026:
+// períodos anteriores (outubro e antes, já pagos na RV) ficam CONGELADOS como a planilha devolveu. Semana que começa antes de 01/11 também
+// fica com a planilha (a RV é mensal; a semana de 30/10 a 05/11 mistura outubro com novembro).
+const CONSULTORES_REFAB_SLUGS = ['nathalia', 'francis', 'iasmin'];
+const REFAB_HUB_DESDE = 20261101;
+
+function periodoUsaHubNaRefab_(periodo, mes, ano, semIni) {
+  if (periodo === 'semana') { const ini = dataBrParaChave(semIni); return ini !== null && ini >= REFAB_HUB_DESDE; }
+  const primeiroDia = Number(ano) * 10000 + (Number(mes) + 1) * 100 + 1;
+  return Number.isFinite(primeiroDia) && primeiroDia >= REFAB_HUB_DESDE;
+}
+
+async function buscarRefabAtendimento(slugAlvo, periodo, mes, ano, semIni, semFim) {
+  if (!CONSULTORES_REFAB_SLUGS.includes(slugAlvo) || !periodoUsaHubNaRefab_(periodo, mes, ano, semIni)) return null;
+  const json = await ticketsStore.listarComAtribuicao();
+  if (!json || !json.ok || !Array.isArray(json.tickets)) return null;
+  const lista = json.tickets.filter(
+    (t) => t.identificador === 'Refabricação' && t.responsavelSlug === slugAlvo && t.status === 'Resolvido' && t.dataFechamento
+      && registroNoPeriodo(t.dataFechamento, periodo, mes, ano, semIni, semFim)
+  );
+  return { tmr_refab: tmrMinutosDe_(lista), tickets_refab: lista.length };
+}
+
 // "Pico de demanda" — mesmos tickets resolvidos já contados acima (o
 // mesmo total do card "Tickets"), só quebrados por dia. Semana: sexta a
 // quinta (mesma janela de sempre, formato {d:'Sex'|'Seg'|...,v}). Mês:
@@ -255,7 +279,14 @@ router.get('/api/dados', resolveSlug, async (req, res) => {
         })
       : Promise.resolve(null);
 
-    const [json, auditoria, contagemAuditorias, ticketsResolucao] = await Promise.all([
+    const refabPromise = CONSULTORES_REFAB_SLUGS.includes(req.slugAlvo)
+      ? buscarRefabAtendimento(req.slugAlvo, periodo, mes, ano, sem_ini, sem_fim).catch((err) => {
+          console.error('[painel-sac] falha ao buscar TMR Refabricação do Painel de Ticket (segue com a planilha):', err.message);
+          return null;
+        })
+      : Promise.resolve(null);
+
+    const [json, auditoria, contagemAuditorias, ticketsResolucao, refab] = await Promise.all([
       chamarAppsScript(env.painelSacAppsScriptUrl, {
         params: { action: 'dados', usuario: req.slugAlvo, periodo, mes, ano, sem_ini, sem_fim },
         cache: true,
@@ -263,6 +294,7 @@ router.get('/api/dados', resolveSlug, async (req, res) => {
       auditoriaSacPromise,
       contagemAuditoriasPromise,
       ticketsResolucaoPromise,
+      refabPromise,
     ]);
 
     await escalaStore.sobreporNoDados(json, req.slugAlvo, mes, ano);
@@ -276,6 +308,10 @@ router.get('/api/dados', resolveSlug, async (req, res) => {
       }
       // Independente do bloco acima (Gabrielle também audita — ela precisa
       // das DUAS sobrescritas juntas, não é um "ou" com o audit/auditorias dela).
+      if (refab) {
+        json.indicadores.tmr_refab = refab.tmr_refab;
+        json.indicadores.tickets_refab = refab.tickets_refab;
+      }
       if (ticketsResolucao) {
         json.indicadores.tmr_ppf = ticketsResolucao.tmr_ppf;
         json.indicadores.tmr_erro_envio = ticketsResolucao.tmr_erro_envio;

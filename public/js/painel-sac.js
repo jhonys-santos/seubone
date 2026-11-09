@@ -232,7 +232,9 @@ function fmtHoras(mins) {
 }
 function stTMA(v){if(!v||v<=0)return'neutral';return v<=30?'ok':v<=35?'warn':'bad';}
 function stCSAT(v){if(!v||v<=0)return'neutral';return v>=95?'ok':v>=90?'warn':'bad';}
-function stTMR(v){if(!v||v<=0)return'neutral';return v<=5040?'ok':v<=6720?'warn':'bad';}
+// Meta do TMR Refab. (minutos): 49h (5 dias úteis de expediente) a partir de nov/2026; meses anteriores ficam com os 84h com que a RV foi paga.
+function metaRefabMin(){return (anoHoje*100+mesAtual+1)>=202611?49*60:84*60;}
+function stTMR(v){if(!v||v<=0)return'neutral';const m=metaRefabMin();return v<=m?'ok':v<=m*4/3?'warn':'bad';}   // atenção: até 1/3 acima da meta (como antes: 84h -> 112h)
 function stAudit(v){if(!v||v<=0)return'neutral';return v>=90?'ok':v>=80?'warn':'bad';}
 function bdg(s,t){const tx=t||(s==='ok'?'dentro da meta':s==='warn'?'atenção':s==='neutral'?'sem dados':'acima da meta');return `<span class="badge b-${s}"><i class="ti ${s==='ok'?'ti-check':s==='warn'?'ti-alert-triangle':s==='neutral'?'ti-minus':'ti-x'}" style="font-size:9px"></i>${tx}</span>`;}
 function kpiCard(icon,lbl,val,s,badge,meta){return `<div class="kpi-card"><div class="kpi-top"><i class="ti ${icon} kpi-ic"></i><span class="kpi-lbl">${lbl}</span></div><div class="kpi-val ${s}">${val}</div>${badge}<div class="kpi-meta">${meta}</div></div>`;}
@@ -252,7 +254,7 @@ function renderTudo(dados) {
     document.getElementById('kpi-grid').innerHTML =
       kpiCard('ti-clock','TMA',tmaStr,s1,bdg(s1),'Meta: &lt; 30 min') +
       kpiCard('ti-star','CSAT',csatStr2,s2,bdg(s2, s2 === 'bad' ? 'abaixo da meta' : undefined),'Meta: ≥ 95%') +
-      kpiCard('ti-refresh','TMR Refab.',fmtHoras(ind.tmr_refab||0),s3,bdg(s3),'Meta: &lt; 84h') +
+      kpiCard('ti-refresh','TMR Refab.',fmtHoras(ind.tmr_refab||0),s3,bdg(s3),'Meta: &lt; '+(metaRefabMin()/60)+'h') +
       kpiCard('ti-headset','Atendimentos',ind.atendimentos||0,'neutral','',lbl) +
       kpiCard('ti-chart-bar','Pesquisas',ind.pesquisas||0,'neutral','',lbl) +
       kpiCard('ti-ticket','Tickets',ind.tickets||0,'neutral','','resolvidos');
@@ -529,7 +531,7 @@ function renderRV(ind) {
 
 // ── RV SAC (Nathalia, Francis, Iasmin) ───────────────────────
 // TMA <15→R$150 | 15-30→R$100 | >30→R$0
-// CSAT >95%→R$75 | Auditoria >90%→R$50 | TMR Refab <84h→R$50 | Máx R$325
+// CSAT >95%→R$75 | Auditoria >90%→R$50 | TMR Refab <49h→R$50 (a partir de nov/2026; até outubro era <84h, ver metaRefabMin) | Máx R$325
 function renderRV_SAC(ind, block) {
   const tma      = ind.tma       || 0;
   const csat     = ind.csat      || 0;
@@ -550,8 +552,9 @@ function renderRV_SAC(ind, block) {
 
   let tmrVal = 0, tmrS = 'bad';
   const tmrLbl = tmrRefab > 0 ? fmtHoras(tmrRefab) : 'Sem dados';
-  if (tmrRefab > 0 && tmrRefab <= 84 * 60) { tmrVal = 50; tmrS = 'ok'; }
-  else if (tmrRefab > 84 * 60) tmrS = 'bad';
+  const metaRefab = metaRefabMin();
+  if (tmrRefab > 0 && tmrRefab <= metaRefab) { tmrVal = 50; tmrS = 'ok'; }
+  else if (tmrRefab > metaRefab) tmrS = 'bad';
 
   const total = tmaVal + csatVal + audVal + tmrVal;
   const max   = 325;
@@ -559,7 +562,7 @@ function renderRV_SAC(ind, block) {
     rvItem('TMA',        tmaLbl,                        tmaVal,  tmaS,  'Meta: < 30 min'),
     rvItem('CSAT',       csat + '%',                    csatVal, csatS, 'Meta: ≥ 95%'),
     rvItem('Auditoria',  audLbl,                        audVal,  audS,  'Meta: ≥ 90%'),
-    rvItem('TMR Refab.', tmrLbl,                        tmrVal,  tmrS,  'Meta: < 84h'),
+    rvItem('TMR Refab.', tmrLbl,                        tmrVal,  tmrS,  'Meta: < ' + (metaRefab / 60) + 'h'),
   ]);
 }
 
