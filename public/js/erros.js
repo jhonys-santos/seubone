@@ -2664,10 +2664,12 @@
         // O caso é salvo mesmo se o anexo falhar (nunca some o registro por
         // causa da mídia) — mas antes disso ninguém ficava sabendo que subiu
         // sem anexo. Agora avisa direto, sem esconder atrás de um "sucesso".
-        if (json.fotosSalvas === false) {
+        if (json.ticketRefab && json.ticketRefab.ok === false) {
+          toast('Erro registrado, mas o ticket de Refabricação NÃO foi criado (' + (json.ticketRefab.erro || 'motivo desconhecido') + '). Abra o ticket manualmente no painel de Tickets.', false);
+        } else if (json.fotosSalvas === false) {
           toast('Caso registrado, mas o anexo NÃO foi salvo (' + (json.fotosErro || 'motivo desconhecido') + '). Abra o caso e anexe de novo.', false);
         } else {
-          toast((json.substituidos ? 'Caso anterior apagado e substituído. O novo foi registrado como Novo, vai para a auditoria' : 'Erro registrado como Novo, vai para a auditoria') + (erState.dataRetroativa ? ' (com a data ' + erState.dataRetroativa.split('-').reverse().join('/') + ')' : ''), true);
+          toast((json.substituidos ? 'Caso anterior apagado e substituído. O novo foi registrado como Novo, vai para a auditoria' : 'Erro registrado como Novo, vai para a auditoria') + (erState.dataRetroativa ? ' (com a data ' + erState.dataRetroativa.split('-').reverse().join('/') + ')' : '') + (json.ticketRefab && json.ticketRefab.idTicket ? '. Ticket de Refabricação ' + (json.ticketRefab.jaExistia ? 'já existia: ' : 'criado: ') + json.ticketRefab.idTicket : ''), true);
         }
       } catch (err) {
         msg.textContent = 'Erro: ' + err.message + '. Confira a conexão e tente de novo.'; btnCriar.disabled = false;

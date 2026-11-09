@@ -3,6 +3,7 @@ const { requireAuth, requirePainel, requireRole } = require('../middleware/auth'
 const errosStore = require('../services/errosStore');
 const notificacoesService = require('../services/notificacoes.service');
 const usuariosService = require('../services/usuarios.service');
+const ticketRefab = require('../services/errosTicketRefab.service');
 const env = require('../config/env');
 
 const router = express.Router();
@@ -62,6 +63,11 @@ router.post('/api/criar', async (req, res) => {
     const json = await errosStore.criar(campos, req.session.user.nome, req.session.user.slug);
     if (json.ok && json.entrouAprovacaoRefab) {
       notificarGestoresRefab(req.body.fields && req.body.fields.idVenda, req.body.fields && req.body.fields.nomeCard, json.rowIndex);
+    }
+    // Erro novo com resolução "Refabricação": abre o ticket no painel de Tickets (se ERROS_TICKET_REFAB=on). Falha aqui não desfaz o caso.
+    if (json.ok) {
+      const t = await ticketRefab.criarParaCaso(campos, { rowIndex: json.rowIndex, usuario: req.session.user.nome, usuarioSlug: req.session.user.slug });
+      if (!t.ignorado) json.ticketRefab = t;
     }
     // O caso é criado mesmo se o anexo falhar (nunca perde o registro por
     // causa da mídia) — mas antes disso o alerta de "anexo não salvo" só

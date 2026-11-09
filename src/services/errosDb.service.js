@@ -46,6 +46,11 @@ async function logHist(q, rowIndex, idVenda, usuario, acao, detalhe, slug) {
   }
 }
 
+/** Registro no histórico do caso feito por outro módulo (ex.: ticket de Refabricação criado automaticamente). */
+async function registrarNoHistorico(rowIndex, idVenda, usuario, usuarioSlug, acao, detalhe) {
+  return logHist(db, rowIndex, idVenda, usuario, acao, detalhe, usuarioSlug);
+}
+
 // ── Leitura ──────────────────────────────────────────────────────────────
 const COLUNAS_LISTA = `
   row_index::int as "rowIndex", to_char(data, 'DD/MM/YYYY') as data, auditoria, id_venda as "idVenda", nome_card as "nomeCard",
@@ -336,5 +341,5 @@ async function adicionarAnexos(rowIndex, fotos, usuario, usuarioSlug) {
 
 module.exports = {
   listar, historico, criar, auditar, decidirRefab, finalizarRefab, comentarCaso, setStatus, setSetor, setDescricao, adicionarAnexos,
-  definirUploader, parseNumero, extrairLink,
+  definirUploader, parseNumero, extrairLink, registrarNoHistorico,
 };
