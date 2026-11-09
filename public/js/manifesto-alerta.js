@@ -1,5 +1,6 @@
 // Alerta do Manifesto do dia — aparece em QUALQUER tela do hub, com som, e fica até a pessoa clicar em "OK".
-// Lê a Agenda da Semana (a mesma da Home): eventos do tipo "Escala" com "Manifesto" na descrição (ex.: "Manifesto - Nathalia").
+// Lê /manifesto-escala/api/alerta: os eventos de HOJE da Escala do Manifesto (com MANIFESTO_ESCALA=on) ou, sem linha para a data / desligado, o rodízio semanal da
+// Agenda da Semana (eventos do tipo "Escala" com "Manifesto" na descrição, ex.: "Manifesto - Nathalia"). Vale para qualquer usuário logado.
 // Abre 5 minutos antes do horário e continua em qualquer tela que a pessoa abrir, tocando, até ela confirmar (ou até 1 h depois
 // do horário). A confirmação vale para o LOGIN: cada usuário confirma o seu, e o aviso não volta nesse navegador depois do OK.
 // Com várias abas abertas, o som toca em uma só e o OK de uma aba fecha o aviso nas outras.
@@ -69,11 +70,11 @@
     if (parouDeBuscar) return;
     ultimaBusca = Date.now();
     try {
-      const r = await fetch('/agenda-semana/api/dados', { cache: 'no-store', credentials: 'same-origin', headers: { Accept: 'application/json' } });
+      const r = await fetch('/manifesto-escala/api/alerta', { cache: 'no-store', credentials: 'same-origin', headers: { Accept: 'application/json' } });
       if (r.status === 401 || r.status === 403) { parouDeBuscar = true; return; } // sem acesso à agenda (ou sessão expirada): fica quieto
       if (!r.ok || !/json/i.test(r.headers.get('content-type') || '')) return;
       const json = await r.json();
-      if (json && json.ok && json.dados && Array.isArray(json.dados.eventos)) eventos = json.dados.eventos;
+      if (json && json.ok && Array.isArray(json.eventos)) eventos = json.eventos;
     } catch (e) { /* tenta de novo na próxima */ }
   }
 

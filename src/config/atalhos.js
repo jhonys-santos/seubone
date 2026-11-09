@@ -4,6 +4,10 @@
 // Indicadores); sem essa chave, aparece pra todo mundo autenticado.
 module.exports = [
   {
+    titulo: 'Escala do Manifesto', descricao: 'Quem faz o Manifesto em cada dia, trocas entre colegas e o alerta do dia',
+    url: '/manifesto-escala', icone: 'ti-calendar-event', categoria: 'logistica',
+  },
+  {
     titulo: 'Base de Conhecimento', descricao: 'Guias e procedimentos do SAC',
     url: 'https://tourmaline-quartz-cf5.notion.site/Base-de-Conhecimento-SAC-8216ddb8fcf74707b0fcd57d75b4fe72',
     icone: 'ti-book', novaAba: true, requerPainel: 'painel-sac',

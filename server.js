@@ -51,6 +51,7 @@ const auditoriaRoutes = require('./src/routes/auditoria.routes');
 const errosRoutes = require('./src/routes/erros.routes');
 const ticketsRoutes = require('./src/routes/tickets.routes');
 const manifestoRoutes = require('./src/routes/manifesto.routes');
+const manifestoEscalaRoutes = require('./src/routes/manifestoEscala.routes');
 const cotacoesRoutes = require('./src/routes/cotacoes.routes');
 const cotacaoExternaRoutes = require('./src/routes/cotacaoExterna.routes');
 const correiosEtiquetaRoutes = require('./src/routes/correiosEtiqueta.routes');
@@ -152,6 +153,7 @@ app.use('/auditoria', auditoriaRoutes);
 app.use('/erros', errosRoutes);
 app.use('/tickets', ticketsRoutes);
 app.use('/manifesto', manifestoRoutes);
+app.use('/manifesto-escala', manifestoEscalaRoutes);
 app.use('/cotacoes', cotacoesRoutes);
 // Cotação para quem não tem acesso ao hub: pública (sem login), com limite de consultas por IP.
 app.use('/cotacao', cotacaoExternaRoutes);

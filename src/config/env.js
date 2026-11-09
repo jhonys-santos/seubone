@@ -37,6 +37,8 @@ module.exports = {
   errosBackend: required('ERROS_BACKEND', 'sheets'),
   // Erro registrado com resolução "Refabricação" abre sozinho um ticket de Refabricação (responsável = quem cadastrou). 'on' liga; padrão desligado.
   errosTicketRefab: required('ERROS_TICKET_REFAB', 'off'),
+  // Alerta do Manifesto: 'on' = lê a Escala do Manifesto (/manifesto-escala); sem a variável continua lendo o rodízio semanal da Agenda.
+  manifestoEscala: required('MANIFESTO_ESCALA', 'off'),
   // Registro de Demandas, Reembolso, Pagamento e Corridas Avulsas: 'db' = Postgres; padrão = planilhas.
   financeiroBackend: required('FINANCEIRO_BACKEND', 'sheets'),
   // Usuários do hub (login/senha/painéis), Quitações, Auditoria e Foco/Agenda da Semana: 'db' = Postgres; padrão = planilhas.

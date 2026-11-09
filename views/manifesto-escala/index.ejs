@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<%- include('../partials/head') %>
+<title>Escala do Manifesto - SeuBoné</title>
+<link rel="stylesheet" href="/css/manifesto-escala.css?v=<%= appVersion %>">
+</head>
+<body>
+<div class="app-shell">
+<%- include('../partials/sidebar') %>
+<div class="app-main">
+
+<div class="me-scope">
+
+  <header class="me-header">
+    <p class="me-sobretitulo">Logística</p>
+    <h1><i class="ti ti-calendar-event" aria-hidden="true"></i> Escala do Manifesto</h1>
+    <p class="me-lede">Quem faz o Manifesto em cada dia. O alerta com som avisa a pessoa do dia 5 minutos antes do horário. Quem está escalado pode pedir troca a um colega.</p>
+  </header>
+
+  <p class="me-erro" id="meErro" role="alert" hidden></p>
+  <p class="me-ok" id="meOk" role="status" hidden></p>
+  <p class="me-aviso" id="meAviso" hidden></p>
+
+  <section class="me-resumo" aria-label="Resumo">
+    <div class="me-card-resumo"><span class="me-rotulo">Hoje</span><strong id="meHoje">-</strong><span class="me-sub" id="meHojeSub"></span></div>
+    <div class="me-card-resumo"><span class="me-rotulo">Seu próximo Manifesto</span><strong id="meProximo">-</strong><span class="me-sub" id="meProximoSub"></span></div>
+    <div class="me-acoes-topo" id="meAcoesGestor" hidden>
+      <button type="button" class="me-btn" id="meRodizio"><i class="ti ti-calendar-repeat" aria-hidden="true"></i> Preencher dias vazios com o rodízio da Agenda</button>
+    </div>
+  </section>
+
+  <section class="me-pedidos" id="mePedidos" hidden aria-label="Pedidos de troca"></section>
+
+  <section class="me-calendario" aria-label="Calendário">
+    <div class="me-nav">
+      <button type="button" class="me-nav-btn" id="mePrev" aria-label="Mês anterior"><i class="ti ti-chevron-left" aria-hidden="true"></i></button>
+      <h2 id="meMesTitulo">-</h2>
+      <button type="button" class="me-nav-btn" id="meNext" aria-label="Próximo mês"><i class="ti ti-chevron-right" aria-hidden="true"></i></button>
+      <button type="button" class="me-link" id="meHojeBtn">Ir para hoje</button>
+    </div>
+    <div class="me-grade" id="meGrade" role="grid"></div>
+    <p class="me-legenda" id="meLegenda"></p>
+  </section>
+
+</div>
+
+<div class="me-modal" id="meModal" hidden>
+  <div class="me-modal-caixa" role="dialog" aria-modal="true" aria-labelledby="meModalTitulo">
+    <h2 id="meModalTitulo">-</h2>
+    <p class="me-modal-resumo" id="meModalResumo"></p>
+    <div id="meModalCorpo"></div>
+    <p class="me-erro" id="meModalErro" hidden></p>
+    <div class="me-modal-acoes">
+      <button type="button" class="me-btn-sec" id="meModalCancelar">Cancelar</button>
+      <button type="button" class="me-btn" id="meModalConfirmar">Salvar</button>
+    </div>
+  </div>
+</div>
+
+</div>
+</div>
+
+<script src="/js/manifesto-escala.js?v=<%= appVersion %>"></script>
+</body>
+</html>
