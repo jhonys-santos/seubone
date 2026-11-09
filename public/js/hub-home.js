@@ -46,11 +46,12 @@ const diaHoje = hoje.getDate(), mesHoje = hoje.getMonth(), anoHoje = hoje.getFul
       else {
         evs.forEach((ev) => {
           const tc = tipoClass[ev.tipo] || 'tipo-outro';
-          const acoes = gestor ? `<div class="hh-evento-acoes">
+          const daEscala = !!ev.somenteLeitura;   // Manifesto vindo da Escala do Manifesto: sem editar/excluir aqui
+          const acoes = gestor && !daEscala ? `<div class="hh-evento-acoes">
             <button class="hh-evento-acao" onclick="abrirEditorEvento(${ev.linha})" title="Editar"><i class="ti ti-pencil" aria-hidden="true"></i></button>
             <button class="hh-evento-acao" onclick="excluirEvento(${ev.linha})" title="Excluir"><i class="ti ti-trash" aria-hidden="true"></i></button>
           </div>` : '';
-          h += `<div class="hh-evento ${tc}">${acoes}<div class="hh-evento-hora">${ev.hora}</div><div class="hh-evento-desc">${ev.descricao}</div></div>`;
+          h += `<div class="hh-evento ${tc}"${daEscala ? ' title="Vem da Escala do Manifesto"' : ''}>${acoes}<div class="hh-evento-hora">${ev.hora}</div><div class="hh-evento-desc">${ev.descricao}</div></div>`;
         });
       }
       h += '</div>';

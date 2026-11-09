@@ -201,7 +201,36 @@ async function eventosDoAlerta(eventosAgenda, agora = Date.now()) {
   return { fonte: 'agenda', eventos: daAgenda };
 }
 
+// ── Agenda da Semana ─────────────────────────────────────────────────────
+const DIAS_AGENDA = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta'];
+
+/**
+ * Com MANIFESTO_ESCALA=on, o Manifesto da Agenda da Semana (Home) passa a vir da escala: para cada dia útil da semana (sábado e domingo mostram a semana
+ * que vem) que tenha linha na escala, o evento fixo "Manifesto - Fulano" sai e entra o da escala (pessoa/horário já com as trocas; "sem Manifesto"
+ * não mostra nada). Dia sem linha mantém o evento fixo. Os demais eventos não mudam. Eventos vindos da escala não têm "linha" (somenteLeitura).
+ */
+async function mesclarNaAgenda(eventos, agora = Date.now()) {
+  const lista = Array.isArray(eventos) ? eventos : [];
+  if (!ligado()) return lista;
+  const hoje = hojeBrasilia(agora);
+  const base = new Date(hoje.data + 'T12:00:00Z');
+  const recuo = hoje.dow === 0 ? -1 : hoje.dow === 6 ? -2 : (hoje.dow - 1);   // domingo/sábado: segunda da semana que vem
+  base.setUTCDate(base.getUTCDate() - recuo);
+  const datas = DIAS_AGENDA.map((_, i) => { const d = new Date(base.getTime()); d.setUTCDate(d.getUTCDate() + i); return d.toISOString().slice(0, 10); });
+  const r = await db.query(`select ${COLUNAS} from manifesto_escala where data = any($1::date[])`, [datas]);
+  const linhas = new Map(r.rows.map((l) => [l.data, l]));
+  const ehManifesto = (ev) => semAcento(ev.tipo) === 'escala' && /manifesto/i.test(txt(ev.descricao));
+  const diasComLinha = new Set(DIAS_AGENDA.filter((_, i) => linhas.has(datas[i])).map(semAcento));
+  const resultado = lista.filter((ev) => !(ehManifesto(ev) && diasComLinha.has(semAcento(ev.dia))));
+  DIAS_AGENDA.forEach((dia, i) => {
+    const l = linhas.get(datas[i]);
+    if (l && l.slug) resultado.push({ linha: null, dia, hora: l.hora, descricao: `Manifesto - ${l.nome || nomeDe(l.slug)}`, tipo: 'Escala', somenteLeitura: true });
+  });
+  return resultado;
+}
+
 module.exports = {
+  mesclarNaAgenda,
   doMes, doDia, proximosDe, datasFuturasDe, definirDia, preencherRodizio, trocasDe, solicitarTroca, responderTroca, cancelarTroca, eventosDoAlerta,
   hojeBrasilia, dataValida, horaPadrao, horaValida, ligado, brData, nomeDe,
 };

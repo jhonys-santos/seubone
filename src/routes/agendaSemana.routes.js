@@ -1,6 +1,7 @@
 const express = require('express');
 const { requireAuth, requirePainel, requireRole } = require('../middleware/auth');
 const agenda = require('../services/agendaStore');
+const manifestoEscala = require('../services/manifestoEscala.service');
 
 const router = express.Router();
 
@@ -10,6 +11,10 @@ router.use(requireAuth, requirePainel('ranking-sac'));
 router.get('/api/dados', async (req, res) => {
   try {
     const json = await agenda.ler();
+    // Com MANIFESTO_ESCALA=on o Manifesto da semana vem da Escala do Manifesto (ver mesclarNaAgenda). Falha aqui não derruba a agenda.
+    if (json && json.ok && json.dados && Array.isArray(json.dados.eventos)) {
+      try { json.dados.eventos = await manifestoEscala.mesclarNaAgenda(json.dados.eventos); } catch (e) { console.error('[agenda-semana] escala do Manifesto indisponível, mostrando a agenda como está:', e.message); }
+    }
     res.json(json);
   } catch (err) {
     res.status(502).json({ ok: false, erro: 'Falha ao buscar foco/agenda: ' + err.message });
