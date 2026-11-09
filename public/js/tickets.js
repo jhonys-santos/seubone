@@ -142,7 +142,16 @@
   // o prazo usado nos contadores de Vencidos/Vence hoje/Vence amanhã do
   // dashboard. Identificador sem SLA definido aqui simplesmente não entra
   // nesses contadores (não é "vencido", é "sem prazo").
-  const SLA_DIAS = { 'Pedido atrasado': 1, 'Refabricação': 3, 'Erro de Envio': 1 };
+  const SLA_DIAS = { 'Pedido atrasado': 1, 'Erro de Envio': 1 };
+  // Refabricação: 5 dias ÚTEIS (sem sábado e domingo), contando o dia da abertura como o 1º. Em horas de expediente são sempre 49h
+  // (4 dias de 10h + a sexta de 9h), qualquer que seja o dia em que o ticket abriu.
+  const SLA_DIAS_UTEIS = { 'Refabricação': 5 };
+  function somarDiasUteis(base, n) {
+    const d = new Date(base.getTime());
+    while (d.getDay() === 0 || d.getDay() === 6) d.setDate(d.getDate() + 1);   // aberto no fim de semana: o 1º dia útil é a segunda
+    for (let falta = n - 1; falta > 0; ) { d.setDate(d.getDate() + 1); if (d.getDay() !== 0 && d.getDay() !== 6) falta--; }
+    return d;
+  }
 
   let dashEscopoChart = 'todos'; // 'todos' | 'meus' — só afeta o gráfico de fluxo
   let tkStatusChart = null; // instância Chart.js do donut de status (destruída/recriada a cada render do dashboard)
@@ -390,6 +399,7 @@
   function prazoTicket(r) {
     const dias = SLA_DIAS[r.identificador];
     const abertura = parseData(r.dataAbertura);
+    if (abertura && SLA_DIAS_UTEIS[r.identificador]) return somarDiasUteis(soData(abertura), SLA_DIAS_UTEIS[r.identificador]);
     if (dias == null || !abertura) return null;
     const prazo = soData(abertura);
     prazo.setDate(prazo.getDate() + dias);
@@ -950,7 +960,7 @@
     return `
       <div class="tk-card">
         <h3>Prazo dos pedidos em aberto</h3>
-        <div class="card-sub">SLA por identificador (Pedido atrasado e Erro de Envio: 1 dia · Refabricação: 3 dias).</div>
+        <div class="card-sub">SLA por identificador (Pedido atrasado e Erro de Envio: 1 dia · Refabricação: 5 dias úteis).</div>
         ${counts.map((c) => `
           <div class="tk-rk-row">
             <div class="tk-rk-top">

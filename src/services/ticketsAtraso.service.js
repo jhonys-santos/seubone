@@ -14,18 +14,28 @@ const env = require('../config/env');
 // atrasado — e é limpo automaticamente se o ticket deixar de estar atrasado
 // (resolvido, reaberto com prazo novo etc.), permitindo notificar de novo
 // caso volte a atrasar.
-const SLA_DIAS = { 'Pedido atrasado': 1, 'Refabricação': 3, 'Erro de Envio': 1 };
+const SLA_DIAS = { 'Pedido atrasado': 1, 'Erro de Envio': 1 };
+// Refabricação: 5 dias úteis (sem sábado e domingo), contando o dia da abertura como o 1º = 49h de expediente (4 x 10h + 9h da sexta).
+const SLA_DIAS_UTEIS = { 'Refabricação': 5 };
+function somarDiasUteis(base, n) {
+  const d = new Date(base.getTime());
+  while (d.getDay() === 0 || d.getDay() === 6) d.setDate(d.getDate() + 1);
+  for (let falta = n - 1; falta > 0; ) { d.setDate(d.getDate() + 1); if (d.getDay() !== 0 && d.getDay() !== 6) falta--; }
+  return d;
+}
 const STATUS_RESOLVIDO = 'Resolvido';
 const INTERVALO_MS = 60 * 60 * 1000; // granularidade do SLA é em dias — checar a cada hora já é sobra
 
 function diasParaPrazo(dataAberturaIso, identificador) {
   const dias = SLA_DIAS[identificador];
-  if (dias == null || !dataAberturaIso) return null;
+  const diasUteis = SLA_DIAS_UTEIS[identificador];
+  if ((dias == null && diasUteis == null) || !dataAberturaIso) return null;
   const abertura = new Date(dataAberturaIso);
   if (isNaN(abertura.getTime())) return null;
   const aberturaSemHora = new Date(abertura.getFullYear(), abertura.getMonth(), abertura.getDate());
-  const prazo = new Date(aberturaSemHora.getTime());
-  prazo.setDate(prazo.getDate() + dias);
+  let prazo = new Date(aberturaSemHora.getTime());
+  if (diasUteis != null) prazo = somarDiasUteis(prazo, diasUteis);
+  else prazo.setDate(prazo.getDate() + dias);
   const hojeSemHora = new Date();
   hojeSemHora.setHours(0, 0, 0, 0);
   return Math.round((prazo.getTime() - hojeSemHora.getTime()) / 86400000);
@@ -64,4 +74,4 @@ function iniciarChecagemAtrasos() {
   setInterval(checarAtrasos, INTERVALO_MS);
 }
 
-module.exports = { iniciarChecagemAtrasos, checarAtrasos };
+module.exports = { iniciarChecagemAtrasos, checarAtrasos, diasParaPrazo };

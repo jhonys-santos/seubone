@@ -85,7 +85,7 @@ const IE_TIMES = {
       { key: 'csat', label: 'CSAT', unidade: 'pct', agregacao: 'media', meta: { valor: 95, direcao: 'maior' } },
       { key: 'atendimentos', label: 'Atendimentos', unidade: 'num', agregacao: 'soma' },
       { key: 'tickets_refab', label: 'Tickets Refabricação', unidade: 'num', agregacao: 'soma' },
-      { key: 'tmt_refab', label: 'TMR Refabricação', unidade: 'tempo', agregacao: 'media', meta: { valor: 84 * 60 * 60, direcao: 'menor' } },
+      { key: 'tmt_refab', label: 'TMR Refabricação', unidade: 'tempo', agregacao: 'media', meta: { valor: 49 * 60 * 60, direcao: 'menor' } },   // 5 dias úteis = 49h de expediente (4 x 10h + 9h da sexta)
     ],
   },
   resolucao: {
