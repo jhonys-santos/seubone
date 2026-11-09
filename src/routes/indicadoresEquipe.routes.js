@@ -103,6 +103,44 @@ async function buscarResolucaoEquipeDosTickets_(desde, ate) {
   return { equipe, porConsultor };
 }
 
+// Time Atendimento (Iasmin, Nathalia e Francis): "Tickets Refabricação" e "TMR Refabricação" (chaves tickets_refab / tmt_refab) passam a vir dos
+// tickets de Refabricação do hub, com a mesma conta do Time Resolução: tickets Resolvidos, contados e medidos pelo dia do FECHAMENTO, tempo da
+// atribuição ao fechamento só em horário de trabalho (ver serieDeTickets_ e ticketsTempo.js). Antes de REFAB_HUB_DESDE os tickets ainda estavam no
+// Octadesk (o histórico foi migrado a partir de 01/10/2026), então esses dias continuam vindo da planilha, dia a dia.
+const CONSULTORES_ATENDIMENTO = { iasmin: 'Iasmin Cristina', nathalia: 'Nathalia Guedes', francis: 'Francis Medeiros' };
+const REFAB_HUB_DESDE = 20261001;
+
+async function buscarRefabAtendimentoDosTickets_(desde, ate) {
+  if (!desde || !ate) return null;
+  const json = await ticketsStore.listarComAtribuicao();
+  if (!json || !json.ok || !Array.isArray(json.tickets)) return null;
+
+  const dias = [];
+  const cursor = new Date(desde + 'T00:00:00Z');
+  const fim = new Date(ate + 'T00:00:00Z');
+  while (cursor <= fim) {
+    dias.push(cursor.getUTCFullYear() * 10000 + (cursor.getUTCMonth() + 1) * 100 + cursor.getUTCDate());
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
+  }
+
+  const resolvidos = json.tickets.filter(
+    (t) => t.identificador === 'Refabricação' && t.status === 'Resolvido' && t.dataFechamento && CONSULTORES_ATENDIMENTO[t.responsavelSlug]
+  );
+  const serie = (lista) => { const s = serieDeTickets_(lista, dias); return { tickets_refab: s.qtd, tmt_refab: s.tempo }; };
+  const porConsultor = {};
+  for (const [slug, nome] of Object.entries(CONSULTORES_ATENDIMENTO)) porConsultor[nome] = serie(resolvidos.filter((t) => t.responsavelSlug === slug));
+  return { equipe: serie(resolvidos), porConsultor, usaHub: dias.map((d) => d >= REFAB_HUB_DESDE) };
+}
+
+// Troca, dia a dia, o valor da planilha pelo do hub (só nos dias com usaHub); o resto do array fica como veio.
+function misturarDias_(destino, serie, usaHub) {
+  for (const chave of Object.keys(serie)) {
+    const base = Array.isArray(destino[chave]) ? destino[chave].slice() : new Array(usaHub.length).fill(null);
+    for (let i = 0; i < usaHub.length; i++) if (usaHub[i]) base[i] = serie[chave][i];
+    destino[chave] = base;
+  }
+}
+
 router.get('/api/dados', async (req, res) => {
   try {
     const { time, desde, ate } = req.query;
@@ -118,15 +156,22 @@ router.get('/api/dados', async (req, res) => {
           return null;
         })
       : Promise.resolve(null);
+    const refabTicketsPromise = time === 'atendimento'
+      ? buscarRefabAtendimentoDosTickets_(desde, ate).catch((err) => {
+          console.error('[indicadores-equipe] falha ao buscar Refabricação do Painel de Ticket (segue com a planilha):', err.message);
+          return null;
+        })
+      : Promise.resolve(null);
 
     // Espelho primeiro (resposta em milissegundos, sem abrir a planilha); se estiver desligado, velho ou sem o período, planilha como sempre.
     const doEspelho = await espelho.obterDados(time, desde, ate).catch((err) => { console.error('[indicadores-equipe] espelho indisponível, usando a planilha:', err.message); return null; });
-    const [json, resolucaoTickets] = await Promise.all([
+    const [json, resolucaoTickets, refabTickets] = await Promise.all([
       doEspelho || chamarAppsScript(env.indicadoresEquipeAppsScriptUrl, {
         params: { action: 'dados', time, desde, ate },
         cache: true,
       }),
       resolucaoTicketsPromise,
+      refabTicketsPromise,
     ]);
 
     if (time === 'resolucao' && json.ok && json.porEquipe && resolucaoTickets) {
@@ -134,6 +179,15 @@ router.get('/api/dados', async (req, res) => {
       if (json.porConsultor) {
         for (const [nome, serie] of Object.entries(resolucaoTickets.porConsultor)) {
           if (json.porConsultor[nome]) Object.assign(json.porConsultor[nome], serie);
+        }
+      }
+    }
+
+    if (time === 'atendimento' && json.ok && json.porEquipe && refabTickets && refabTickets.usaHub.some(Boolean)) {
+      misturarDias_(json.porEquipe, refabTickets.equipe, refabTickets.usaHub);
+      if (json.porConsultor) {
+        for (const [nome, s] of Object.entries(refabTickets.porConsultor)) {
+          if (json.porConsultor[nome]) misturarDias_(json.porConsultor[nome], s, refabTickets.usaHub);
         }
       }
     }
