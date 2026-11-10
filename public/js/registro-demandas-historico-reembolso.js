@@ -57,6 +57,7 @@ async function carregar() {
       if (Array.isArray(rf)) reembolsos = reembolsos.concat(rf);
     } catch (e) { console.error('finfin:', e); }
     document.getElementById('empty').innerHTML = textoVazioPadrao;
+    popularSolicitantes();
     renderizar();
   } catch (err) {
     console.error(err);
@@ -69,12 +70,22 @@ async function carregar() {
   }
 }
 
+// Filtro "Solicitante": quem pediu cada reembolso (só os nomes que existem na lista; a escolha atual é mantida ao recarregar).
+function popularSolicitantes() {
+  const sel = document.getElementById('ft-solicitante');
+  const atual = sel.value;
+  const nomes = Array.from(new Set(reembolsos.map((r) => String(r.Solicitante || '').trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  sel.innerHTML = '<option value="">Todos</option>' + nomes.map((n) => `<option value="${escapeHtml(n)}">${escapeHtml(n)}</option>`).join('');
+  sel.value = nomes.includes(atual) ? atual : '';
+}
+
 function renderizar() {
   const de = document.getElementById('ft-de').value;
   const ate = document.getElementById('ft-ate').value;
   const statusFiltro = document.getElementById('ft-status').value;
   const bancoFiltro = document.getElementById('ft-banco').value;
   const empresaFiltro = document.getElementById('ft-empresa').value;
+  const solicitanteFiltro = document.getElementById('ft-solicitante').value;
   const busca = document.getElementById('ft-busca').value.trim().toLowerCase();
 
   let lista = reembolsos.filter((r) => {
@@ -85,6 +96,7 @@ function renderizar() {
     // Os reembolsos do finfin trazem o nome completo do banco (ex.: "Itaú Unibanco S.A."): o filtro casa por parte do nome.
     if (bancoFiltro && !(r.Banco || '').toLowerCase().includes(bancoFiltro.toLowerCase())) return false;
     if (empresaFiltro && r.EmpresaResponsavel !== empresaFiltro) return false;
+    if (solicitanteFiltro && String(r.Solicitante || '').trim() !== solicitanteFiltro) return false;
     if (busca) {
       const alvo = ((r.IDReferencia || '') + ' ' + (r.RazaoSocialCliente || '') + ' ' + (r.CPFCNPJ || '')).toLowerCase();
       if (!alvo.includes(busca)) return false;
@@ -127,6 +139,7 @@ function renderizar() {
     <tr>
       <td>${formatarData(r.DataVencimento) || '—'}</td>
       <td>${escapeHtml(r.IDReferencia)}</td>
+      <td>${escapeHtml(r.Solicitante) || '—'}</td>
       <td>${escapeHtml(r.CPFCNPJ)}</td>
       <td>${escapeHtml(r.RazaoSocialCliente)}</td>
       <td class="td-truncar" title="${escapeHtml(r.MotivoReembolso)}">${escapeHtml(r.MotivoReembolso)}</td>
@@ -172,6 +185,7 @@ document.getElementById('btn-filtrar').addEventListener('click', aplicarFiltros)
 document.getElementById('ft-status').addEventListener('change', aplicarFiltros);
 document.getElementById('ft-banco').addEventListener('change', aplicarFiltros);
 document.getElementById('ft-empresa').addEventListener('change', aplicarFiltros);
+document.getElementById('ft-solicitante').addEventListener('change', aplicarFiltros);
 document.getElementById('ft-busca').addEventListener('input', aplicarFiltros);
 
 carregar();

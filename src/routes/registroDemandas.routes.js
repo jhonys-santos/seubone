@@ -3,6 +3,7 @@ const { requireAuth } = require('../middleware/auth');
 const financeiroStore = require('../services/financeiroStore');
 const finfinHistorico = require('../services/finfinHistorico.service');
 const notificacoesService = require('../services/notificacoes.service');
+const usuariosService = require('../services/usuarios.service');
 const env = require('../config/env');
 
 const router = express.Router();
@@ -154,6 +155,8 @@ router.get('/api/list-reembolso-finfin', async (req, res) => {
 router.get('/api/list-reembolso', async (req, res) => {
   try {
     const json = await financeiroStore.listarReembolsos();
+    // O Histórico mostra quem solicitou: os reembolsos antigos só guardam o slug de quem pediu, então o nome vem do cadastro de usuários.
+    if (Array.isArray(json)) json.forEach((r) => { if (r && !String(r.Solicitante || '').trim() && r.SolicitanteSlug) { const u = usuariosService.buscarPorSlug(r.SolicitanteSlug); if (u) r.Solicitante = u.nome; } });
     res.json(json);
   } catch (err) {
     res.status(502).json({ erro: 'Falha ao buscar reembolsos: ' + err.message });
