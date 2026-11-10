@@ -88,9 +88,16 @@ async function listarReembolsosParaHistorico({ ehGestor = false } = {}) {
       where codigo <> '' and formulario = 'reembolso_sac' and ($1::boolean or modo <> 'teste')
       order by ordem`, [!!ehGestor]);
   const json = (v) => { if (typeof v === 'string') { try { return JSON.parse(v); } catch (e) { return {}; } } return v || {}; };
+  const erroDoPedido = require('./reembolsoErro.service');
+  const comErro = erroDoPedido.ligado();
+  let sit = {};
+  if (comErro) { try { sit = await erroDoPedido.situacaoDe(r.rows.map((l) => ({ codigo: l.codigo, idVenda: json(l.dados).id_venda }))); } catch (e) { console.error('[historico-reembolso] situação do erro indisponível:', e.message); } }
   return r.rows.map((l) => {
     const d = json(l.dados);
+    const ids = sit[l.codigo];
     return {
+      ...(ids ? { Erro: ids.some((x) => x.estado === 'pendente') ? 'pendente' : ids.every((x) => x.estado === 'registrado') ? 'registrado' : 'dispensado', ErroIds: ids } : {}),
+      ...(comErro && !ids ? { Erro: '' } : {}),
       ID: l.codigo,
       DataVencimento: d.vencimento || '',
       IDReferencia: d.id_venda || '',

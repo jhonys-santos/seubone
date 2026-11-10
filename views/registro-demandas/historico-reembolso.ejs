@@ -4,6 +4,7 @@
 <%- include('../partials/head') %>
 <title>Histórico de Reembolsos - SeuBoné</title>
 <link rel="stylesheet" href="/css/pedidos-urgentes.css">
+<link rel="stylesheet" href="/css/reembolso-erro.css?v=<%= appVersion %>">
 </head>
 <body>
 <div class="app-shell">
@@ -79,6 +80,7 @@
           <th>Anexos</th>
           <th>Status</th>
           <th>Feito por</th>
+          <th id="th-erro" hidden>Erro do pedido</th>
         </tr>
       </thead>
       <tbody id="tbody"></tbody>
@@ -92,6 +94,7 @@
 </div>
 </div>
 
-<script src="/js/registro-demandas-historico-reembolso.js"></script>
+<script src="/js/reembolso-erro-bloco.js?v=<%= appVersion %>"></script>
+<script src="/js/registro-demandas-historico-reembolso.js?v=<%= appVersion %>"></script>
 </body>
 </html>

@@ -4,6 +4,7 @@
 <%- include('../partials/head') %>
 <title>Reembolso - SeuBoné</title>
 <link rel="stylesheet" href="/css/pedidos-urgentes.css">
+<link rel="stylesheet" href="/css/reembolso-erro.css?v=<%= appVersion %>">
 </head>
 <body>
 <div class="app-shell">
@@ -100,6 +101,12 @@
     <div style="font-size:12px;color:var(--text-muted);margin-top:6px;">Até 10 arquivos, 4 MB somados (limite do finfin).</div>
     <div class="anexos-lista" id="r-anexos-lista"></div>
 
+    <section class="rb-secao" id="rb-secao" hidden>
+      <h3>Erro deste pedido</h3>
+      <p class="rb-lede">Todo reembolso precisa ter o erro registrado no Painel de Erros. Diga se já registrou (conferimos pelo ID da venda), registre agora aqui mesmo ou marque que não será necessário.</p>
+      <div id="rb-bloco"></div>
+    </section>
+
     <button class="btn-primary" id="btn-registrar"><i class="ti ti-send" aria-hidden="true"></i> Enviar ao financeiro</button>
     <div class="msg" id="form-msg"></div>
   </div>
@@ -111,6 +118,7 @@
 </div>
 
 <script src="/js/finfin-form-comum.js"></script>
-<script src="/js/registro-demandas-reembolso-novo.js"></script>
+<script src="/js/reembolso-erro-bloco.js?v=<%= appVersion %>"></script>
+<script src="/js/registro-demandas-reembolso-novo.js?v=<%= appVersion %>"></script>
 </body>
 </html>

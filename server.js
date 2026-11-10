@@ -40,6 +40,8 @@ const registroDemandasFinfinRoutes = require('./src/routes/registroDemandasFinfi
 const registroPagamentoFinfinRoutes = require('./src/routes/registroPagamentoFinfin.routes');
 const registroReembolsoFinfinRoutes = require('./src/routes/registroReembolsoFinfin.routes');
 const reembolsoAprovacaoRoutes = require('./src/routes/reembolsoAprovacao.routes');
+const reembolsoErroRoutes = require('./src/routes/reembolsoErro.routes');
+const { iniciarAvisoPendentes: iniciarAvisoReembolsoErro } = require('./src/services/reembolsoErro.service');
 const analiseTermoFinfinRoutes = require('./src/routes/analiseTermoFinfin.routes');
 const finfinWebhookRoutes = require('./src/routes/finfinWebhook.routes');
 const indicadoresEquipeRoutes = require('./src/routes/indicadoresEquipe.routes');
@@ -141,6 +143,7 @@ app.use('/registro-demandas/novo', registroDemandasFinfinRoutes);
 app.use('/registro-demandas/pagamento/novo', registroPagamentoFinfinRoutes);
 app.use('/registro-demandas/reembolso/novo', registroReembolsoFinfinRoutes);
 app.use('/registro-demandas/reembolso/aprovar', reembolsoAprovacaoRoutes);
+app.use('/registro-demandas/reembolso/erro', reembolsoErroRoutes);
 app.use('/registro-demandas/analise-termo', analiseTermoFinfinRoutes);
 // Retorno do finfin (card concluido + anexos): publico, protegido por segredo (FINFIN_WEBHOOK_SECRET), como o webhook do n8n.
 app.use('/webhooks/finfin/demandas', finfinWebhookRoutes);
@@ -181,6 +184,7 @@ usuariosService
     iniciarFechamentoPremiacao();
     iniciarEspelho();
     iniciarConsultaFinfin();
+    iniciarAvisoReembolsoErro();
   })
   .catch((err) => {
     // Sem a lista de usuários carregada, ninguém consegue logar — melhor

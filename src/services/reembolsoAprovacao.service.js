@@ -48,7 +48,12 @@ async function listar(aba) {
   const r = aba === 'decididos'
     ? await db.query(`${SELECT} and d.decisao is not null order by d.em desc limit 150`)
     : await db.query(`${SELECT} and f.coluna = any($1) order by f.criado_em asc`, [PENDENTES]);
-  return { ok: true, itens: r.rows.map(linha) };
+  const itens = r.rows.map(linha);
+  const erroDoPedido = require('./reembolsoErro.service');
+  if (erroDoPedido.ligado() && itens.length) {
+    try { const sit = await erroDoPedido.situacaoDe(itens.map((i) => ({ codigo: i.codigo, idVenda: i.idVenda }))); itens.forEach((i) => { i.erro = sit[i.codigo]; }); } catch (e) { console.error('[aprovar-reembolso] situação do erro indisponível:', e.message); }
+  }
+  return { ok: true, itens };
 }
 
 /**

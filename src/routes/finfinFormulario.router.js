@@ -13,7 +13,7 @@ const finfin = require('../services/finfinDemandas.service');
 const consulta = require('../services/finfinConsulta.service');
 const envio = require('../services/finfinEnvio.service');
 
-function criarRouter({ formulario, view }) {
+function criarRouter({ formulario, view, antes, depois }) {
   const router = express.Router();
   router.use(requireAuth);
 
@@ -31,7 +31,12 @@ function criarRouter({ formulario, view }) {
 
   router.post('/api/enviar', async (req, res) => {
     try {
+      if (antes) {   // validação própria do formulário (ex.: Reembolso exige o erro do pedido resolvido)
+        const v = await antes(req);
+        if (v && v.ok === false) return res.status(v.http || 422).json({ ok: false, erro: v.erro });
+      }
       const r = await envio.enviar({ formulario, usuario: req.session.user, corpo: req.body });
+      if (depois && r.json && r.json.ok) { try { await depois(req, r.json); } catch (e) { console.error('[finfin-form] gancho pós-envio falhou:', e.message); } }
       res.status(r.http).json(r.json);
     } catch (err) {
       res.status(502).json({ ok: false, erro: 'Falha ao enviar ao finfin: ' + err.message });

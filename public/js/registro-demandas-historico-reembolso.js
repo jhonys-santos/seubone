@@ -112,6 +112,17 @@ function renderizar() {
   const inicio = (paginaAtual - 1) * ITENS_POR_PAGINA;
   const paginaLista = lista.slice(inicio, inicio + ITENS_POR_PAGINA);
 
+  // Coluna "Erro do pedido": só existe com REEMBOLSO_EXIGE_ERRO=on (o servidor manda o campo Erro).
+  const temErro = reembolsos.some((r) => r.Erro !== undefined);
+  document.getElementById('th-erro').hidden = !temErro;
+  const celulaErro = (r) => {
+    if (!r.Erro) return '<td>—</td>';
+    const ids = Array.isArray(r.ErroIds) ? r.ErroIds : [];
+    const rot = { registrado: 'Registrado', dispensado: 'Dispensado', pendente: 'Pendente' }[r.Erro];
+    const detalhe = ids.map((x) => x.estado === 'registrado' ? `${escapeHtml(x.idVenda)}: ${escapeHtml(x.tipoResolucao || 'registrado')}` : x.estado === 'dispensado' ? `${escapeHtml(x.idVenda)}: não necessário (${escapeHtml(x.motivo)}, ${escapeHtml(x.por)})` : `${escapeHtml(x.idVenda)}: sem erro`).join('<br>');
+    return `<td><span class="rb-estado" data-e="${r.Erro}">${rot}</span>${r.Erro === 'pendente' ? ` <button type="button" class="rb-resolver" data-resolver="${escapeHtml(r.ID)}">Resolver</button>` : ''}<span class="rb-detalhe">${detalhe}</span></td>`;
+  };
+
   tbody.innerHTML = paginaLista.map((r) => `
     <tr>
       <td>${formatarData(r.DataVencimento) || '—'}</td>
@@ -127,8 +138,13 @@ function renderizar() {
       <td>${renderizarAnexos(r.Anexos)}</td>
       <td><span class="badge ${r.Status === 'Feito' ? 'ok' : 'warn'}">${escapeHtml(r.Status)}</span></td>
       <td>${escapeHtml(r.FeitoPor) || '—'}</td>
+      ${temErro ? celulaErro(r) : ''}
     </tr>
   `).join('');
+  tbody.querySelectorAll('[data-resolver]').forEach((b) => b.addEventListener('click', () => {
+    const r = reembolsos.find((x) => x.ID === b.dataset.resolver);
+    if (r) ReembolsoErro.abrirResolver({ codigo: r.ID, ids: r.ErroIds, cliente: r.RazaoSocialCliente, link: r.LinkLulu, motivo: r.MotivoReembolso }, carregar);
+  }));
 
   renderizarPaginacao(paginacao, lista.length, totalPaginas);
 }

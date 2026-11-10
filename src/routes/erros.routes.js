@@ -3,24 +3,10 @@ const { requireAuth, requirePainel, requireRole } = require('../middleware/auth'
 const errosStore = require('../services/errosStore');
 const notificacoesService = require('../services/notificacoes.service');
 const usuariosService = require('../services/usuarios.service');
-const ticketRefab = require('../services/errosTicketRefab.service');
+const { registrarCaso, notificarGestoresRefab } = require('../services/errosRegistro.service');
 const env = require('../config/env');
 
 const router = express.Router();
-
-// Avisa todo gestor quando um caso entra na fila de aprovação de
-// Refabricação — não deixa uma falha aqui derrubar a resposta do
-// create/audit, só loga (o caso já foi salvo, essa é só a notificação).
-function notificarGestoresRefab(idVenda, nomeCard, rowIndex) {
-  const link = '/erros?refab=' + rowIndex;
-  const mensagem = `Caso #${idVenda || rowIndex} (${nomeCard || 'sem nome'}) aguardando aprovação de Refabricação.`;
-  usuariosService
-    .listarUsuarios()
-    .filter((u) => u.role === 'gestor')
-    .forEach((u) => {
-      notificacoesService.adicionar(mensagem, link, u.slug).catch((err) => console.error('[erros] falha ao notificar gestor:', err.message));
-    });
-}
 
 router.use(requireAuth, requirePainel('painel-erros'));
 
@@ -60,25 +46,8 @@ router.post('/api/criar', async (req, res) => {
       if (req.session.user.role !== 'gestor') return res.status(403).json({ ok: false, error: 'Só gestor pode informar a data do registro.' });
       if (env.errosBackend !== 'db') return res.status(400).json({ ok: false, error: 'A data do registro só funciona com o banco ligado (ERROS_BACKEND=db).' });
     }
-    const json = await errosStore.criar(campos, req.session.user.nome, req.session.user.slug);
-    if (json.ok && json.entrouAprovacaoRefab) {
-      notificarGestoresRefab(req.body.fields && req.body.fields.idVenda, req.body.fields && req.body.fields.nomeCard, json.rowIndex);
-    }
-    // Erro novo com resolução "Refabricação": abre o ticket no painel de Tickets (se ERROS_TICKET_REFAB=on). Falha aqui não desfaz o caso.
-    if (json.ok) {
-      const t = await ticketRefab.criarParaCaso(campos, { rowIndex: json.rowIndex, usuario: req.session.user.nome, usuarioSlug: req.session.user.slug });
-      if (!t.ignorado) json.ticketRefab = t;
-    }
-    // O caso é criado mesmo se o anexo falhar (nunca perde o registro por
-    // causa da mídia) — mas antes disso o alerta de "anexo não salvo" só
-    // ficava no Histórico interno do caso, que ninguém olha por padrão.
-    // Notifica direto quem cadastrou, além do toast na hora.
-    if (json.ok && json.fotosSalvas === false) {
-      const idVenda = req.body.fields && req.body.fields.idVenda;
-      notificacoesService
-        .adicionar(`Caso #${idVenda || json.rowIndex} foi registrado, mas o anexo (foto/áudio/vídeo) não foi salvo. Abra o caso e anexe de novo.`, '/erros#/casos/' + json.rowIndex, req.session.user.slug)
-        .catch((err) => console.error('[erros] falha ao notificar sobre anexo não salvo:', err.message));
-    }
+    // Registro + efeitos (aviso aos gestores, ticket de Refabricação, aviso de anexo): ver errosRegistro.service.js.
+    const json = await registrarCaso(campos, req.session.user);
     res.json(json);
   } catch (err) {
     res.status(502).json({ ok: false, error: 'Falha ao registrar caso: ' + err.message });

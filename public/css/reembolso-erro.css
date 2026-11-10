@@ -1,0 +1,56 @@
+/* Bloco "Erro deste pedido" do Reembolso (formulário, Histórico, Aprovação): usa os tokens globais de base.css (claro e escuro). */
+.rb-secao { margin-top: 22px; padding: 16px; border: 1px solid var(--border-strong); border-radius: var(--radius); background: var(--surface); }
+.rb-secao[hidden] { display: none; }
+.rb-secao > h3 { margin: 0 0 4px; font-size: 15px; color: var(--text); }
+.rb-secao > .rb-lede { margin: 0 0 12px; font-size: 12.5px; color: var(--text-muted); }
+
+.rb-cartao { margin: 0 0 12px; padding: 12px 14px 14px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-2); min-width: 0; }
+.rb-cartao legend { padding: 0 6px; font-size: 12px; font-weight: 800; letter-spacing: .04em; color: var(--gold-dark); }
+.rb-pergunta { margin: 0 0 8px; font-size: 13.5px; font-weight: 600; color: var(--text); }
+.rb-ops { display: flex; flex-wrap: wrap; gap: 8px; }
+.rb-op { font: inherit; font-size: 13px; font-weight: 700; padding: 8px 14px; border-radius: 8px; cursor: pointer; color: var(--text); background: var(--surface); border: 1px solid var(--border-strong); }
+.rb-op:hover { border-color: var(--gold-dark); color: var(--gold-dark); }
+.rb-op.rb-ativo { background: var(--gold); border-color: var(--gold); color: var(--on-gold); }
+.rb-op-sec { font-weight: 600; }
+.rb-op:focus-visible, .rb-chip button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.rb-corpo { margin-top: 10px; display: flex; flex-direction: column; gap: 8px; }
+
+.rb-ok, .rb-aviso, .rb-dica { margin: 0; font-size: 13px; line-height: 1.45; }
+.rb-ok { padding: 9px 11px; border-radius: 7px; background: var(--ok-bg); color: var(--ok); }
+.rb-aviso { padding: 9px 11px; border-radius: 7px; background: var(--warn-bg); color: var(--warn); }
+.rb-dica { color: var(--text-muted); font-size: 12px; }
+
+.rb-form { display: flex; flex-direction: column; gap: 10px; }
+.rb-grade { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px 14px; }
+.rb-campo { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.rb-campo label { display: flex; flex-direction: column; gap: 5px; font-size: 12.5px; font-weight: 600; color: var(--text); }
+.rb-campo input[type="text"], .rb-campo input[type="url"], .rb-campo input[type="number"], .rb-campo select, .rb-campo textarea { width: 100%; font: inherit; font-weight: 400; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 9px 11px; color: var(--text); }
+.rb-campo input:focus, .rb-campo select:focus, .rb-campo textarea:focus { outline: none; border-color: var(--gold-dark); box-shadow: 0 0 0 3px var(--gold-dim); }
+.rb-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.rb-chip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 4px 3px 10px; border-radius: 999px; background: var(--surface); border: 1px solid var(--border); font-size: 12px; color: var(--text); max-width: 100%; overflow-wrap: anywhere; }
+.rb-chip button { font: inherit; border: 0; background: none; color: var(--text-muted); cursor: pointer; padding: 2px 6px; border-radius: 999px; }
+.rb-chip button:hover { color: var(--bad); }
+
+/* Situação do erro (Histórico e Aprovação) */
+.rb-estado { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 11.5px; font-weight: 700; white-space: nowrap; }
+.rb-estado[data-e="registrado"] { background: var(--ok-bg); color: var(--ok); }
+.rb-estado[data-e="dispensado"] { background: var(--surface-2); color: var(--text-muted); }
+.rb-estado[data-e="pendente"] { background: var(--warn-bg); color: var(--warn); }
+.rb-resolver { font: inherit; font-size: 12px; font-weight: 700; margin-left: 6px; padding: 3px 9px; border-radius: 6px; cursor: pointer; color: var(--on-gold); background: var(--gold); border: 0; }
+.rb-resolver:hover { filter: brightness(1.06); }
+.rb-detalhe { display: block; margin-top: 3px; font-size: 11.5px; color: var(--text-muted); white-space: normal; }
+
+.rb-modal { position: fixed; inset: 0; z-index: 900; background: rgba(0,0,0,.55); display: flex; align-items: flex-start; justify-content: center; padding: 24px 16px; overflow: auto; }
+.rb-modal[hidden] { display: none; }
+.rb-modal-caixa { width: min(720px, 100%); background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--radius); padding: 20px; display: flex; flex-direction: column; gap: 12px; }
+.rb-modal-caixa h2 { margin: 0; font-size: 18px; color: var(--text); }
+.rb-modal-resumo { margin: 0; color: var(--text-muted); font-size: 13.5px; }
+.rb-modal-acoes { display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap; }
+.rb-btn, .rb-btn-sec { font: inherit; font-weight: 700; border-radius: 8px; padding: 10px 18px; cursor: pointer; border: 0; }
+.rb-btn { color: var(--on-gold); background: var(--gold); }
+.rb-btn-sec { color: var(--text); background: var(--surface); border: 1px solid var(--border-strong); }
+.rb-btn:disabled, .rb-btn-sec:disabled { opacity: .6; cursor: progress; }
+.rb-erro { margin: 0; padding: 9px 11px; border-radius: 7px; background: var(--bad-bg); color: var(--bad); font-size: 13px; }
+.rb-erro[hidden] { display: none; }
+
+@media (max-width: 640px) { .rb-secao { padding: 12px; } .rb-ops .rb-op { flex: 1 1 100%; } }

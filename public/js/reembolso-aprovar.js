@@ -31,6 +31,15 @@
     render();
   }
 
+  // Situação do erro de cada venda (só com REEMBOLSO_EXIGE_ERRO=on). Só informa: o gestor continua podendo aprovar.
+  function erroHtml(ids) {
+    return ids.map((x) => {
+      const rot = { registrado: 'Registrado', dispensado: 'Dispensado', pendente: 'Pendente' }[x.estado];
+      const det = x.estado === 'registrado' ? (x.tipoResolucao || 'registrado') + (x.quemCadastrou ? ' · ' + x.quemCadastrou : '') : x.estado === 'dispensado' ? x.motivo + ' (' + x.por + ')' : 'ninguém registrou nem dispensou ainda';
+      return `<span class="rb-estado" data-e="${x.estado}">${rot}</span> <small>${esc(x.idVenda)}: ${esc(det)}</small>`;
+    }).join('<br>');
+  }
+
   function cardHtml(i) {
     const dias = Math.max(0, Math.floor((Date.now() - new Date(i.criadoEm).getTime()) / 86400000));
     const esperando = aba === 'pendentes' ? ` · aguarda há ${dias === 0 ? 'menos de 1 dia' : dias + ' dia(s)'}` : '';
@@ -57,6 +66,7 @@
         <div><dt>Chave pix</dt><dd>${pix}</dd></div>
         <div><dt>Anexos enviados</dt><dd>${i.anexos.length ? esc(i.anexos.join(', ')) + ' <span class="ra-sub">(ver no finfin)</span>' : 'nenhum'}</dd></div>
         <div><dt>Situação no finfin</dt><dd>${esc(i.colunaNome)}</dd></div>
+        ${i.erro ? `<div><dt>Erro do pedido</dt><dd>${erroHtml(i.erro)}</dd></div>` : ''}
       </dl>
       ${decisao}${acoes}
     </article>`;
