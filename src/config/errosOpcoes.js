@@ -1,7 +1,7 @@
 // Listas do formulário de erro usadas fora da tela do Painel de Erros (hoje: bloco "Erro deste pedido" do formulário de Reembolso).
 // Espelham as de public/js/erros.js (SETOR_OPCOES, RESOLUCAO_TABLE, RESPONSAVEL_SUGESTOES): se mudar lá, mude aqui.
 module.exports = {
-  setores: ['Vendas', 'Fábrica', 'Dupla (Vendedor e Designer)', 'Escritório', 'Cliente', 'Estoque'],
+  setores: ['Vendas', 'Fábrica', 'Dupla (Vendedor e Designer)', 'Escritório', 'Cliente', 'Estoque', 'Transportadora'],
   resolucoes: ['Sem custo', 'Envio rápido', 'Ajuste do produto', 'Brinde até 12 und.', 'Desconto <=20%', 'Desconto >20%', 'Refabricação', 'Reembolso parcial', 'Reembolso total', 'Outros'],
   responsaveis: [
     'Expectativa do Cliente', 'Estoque Caicó', 'Fabrica Cacinho', 'Fabrica CIA Bruto', 'Fabrica Eneas',
