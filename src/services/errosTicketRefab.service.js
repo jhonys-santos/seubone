@@ -1,4 +1,5 @@
-// Ticket de Refabricação automático: quando alguém registra um erro no Painel de Erros com tipo de resolução "Refabricação", o hub abre o ticket
+// Ticket de Refabricação automático: quando alguém registra um erro no Painel de Erros com tipo de resolução "Refabricação" ou "Brinde até 12 und."
+// (os dois exigem produzir as unidades), o hub abre o ticket
 // no painel de Tickets, com quem cadastrou o erro como responsável. Só vale para registros NOVOS (os já cadastrados não geram ticket).
 // Ligado por ERROS_TICKET_REFAB=on (padrão: desligado). Uma falha aqui nunca derruba o registro do erro: devolve { ok: false, erro } e o caso fica salvo.
 const env = require('../config/env');
@@ -8,7 +9,9 @@ const txt = (v) => String(v == null ? '' : v).trim();
 const semAcento = (s) => txt(s).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
 const ligado = () => semAcento(env.errosTicketRefab) === 'on';
-const ehRefabricacao = (tipoResolucao) => semAcento(tipoResolucao) === 'refabricacao';
+// Resoluções que mandam produzir de novo (viram ticket de Refabricação): Refabricação e Brinde até 12 und. (o brinde também é produzido).
+const RESOLUCOES_COM_TICKET = ['refabricacao', 'brinde ate 12 und.'];
+const ehRefabricacao = (tipoResolucao) => RESOLUCOES_COM_TICKET.includes(semAcento(tipoResolucao));
 
 /** "Fabrica Cacinho" -> "Fábrica Cacinho" (padrão dos tickets). Responsável que não é uma fábrica só ("João", "Fabrica A / B", "Expectativa do Cliente") fica em branco. */
 function fabricaDoResponsavel(responsavel) {
@@ -19,6 +22,7 @@ function fabricaDoResponsavel(responsavel) {
 
 function montarObservacao(campos, rowIndex) {
   const linhas = [`Criado automaticamente do Painel de Erros · caso #${rowIndex}${txt(campos.idVenda) ? ' · ID venda ' + txt(campos.idVenda) : ''}`];
+  if (txt(campos.tipoResolucao)) linhas.push('Resolução: ' + txt(campos.tipoResolucao));
   const problema = [txt(campos.tipoProblema), txt(campos.subproblema)].filter(Boolean).join(' · ');
   if (problema) linhas.push('Problema: ' + problema);
   const detalhes = [campos.qtd !== undefined && txt(campos.qtd) ? 'Qtd: ' + txt(campos.qtd) : '', txt(campos.setor) ? 'Setor: ' + txt(campos.setor) : '', txt(campos.responsavel) ? 'Responsável pelo erro: ' + txt(campos.responsavel) : ''].filter(Boolean);
@@ -39,7 +43,7 @@ async function ticketAbertoDaVenda(idVenda) {
 /**
  * campos: o que o formulário do erro mandou (idVenda, nomeCard, linkPedido, tipoProblema, subproblema, qtd, setor, responsavel, queFim, descricao, tipoResolucao, fotosUrls).
  * ctx:    { rowIndex (do caso), usuario, usuarioSlug } = quem cadastrou, vindo da sessão.
- * Devolve { ignorado: true } (desligado ou não é Refabricação), { ok: true, idTicket, rowIndex, jaExistia? } ou { ok: false, erro }.
+ * Devolve { ignorado: true } (desligado ou resolução que não manda produzir), { ok: true, idTicket, rowIndex, jaExistia? } ou { ok: false, erro }.
  */
 async function criarParaCaso(campos, ctx) {
   campos = campos || {};
