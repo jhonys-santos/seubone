@@ -54,6 +54,33 @@ router.post('/api/criar', async (req, res) => {
   }
 });
 
+// Miniatura de um anexo do Drive para a apresentação da Reunião (.pptx). Só serve arquivos que são anexos de casos do Painel de Erros (não vira proxy aberto do Drive).
+const DRIVE_ID = /^[-\w]{20,80}$/;
+let idsDeAnexos = { em: 0, ids: new Set() };
+async function anexoConhecido(id) {
+  if (Date.now() - idsDeAnexos.em > 60000) {
+    const r = await errosStore.listar();
+    const linhas = (r && (r.rows || r.data)) || [];
+    idsDeAnexos = { em: Date.now(), ids: new Set(linhas.flatMap((x) => String(x.foto || '').match(/[-\w]{25,}/g) || [])) };
+  }
+  return idsDeAnexos.ids.has(id);
+}
+router.get('/api/anexo-img', async (req, res) => {
+  try {
+    const id = String(req.query.id || '');
+    const w = Math.min(2000, Math.max(400, parseInt(req.query.w, 10) || 1200));
+    if (!DRIVE_ID.test(id) || !(await anexoConhecido(id))) return res.status(404).json({ ok: false, error: 'Anexo não encontrado.' });
+    const r = await fetch(`https://drive.google.com/thumbnail?id=${id}&sz=w${w}`, { redirect: 'follow', signal: AbortSignal.timeout(25000) });
+    const tipo = r.headers.get('content-type') || '';
+    if (!r.ok || !/^image\//.test(tipo)) return res.status(404).json({ ok: false, error: 'Sem miniatura para este anexo.' });
+    const buf = Buffer.from(await r.arrayBuffer());
+    if (buf.length > 8 * 1024 * 1024) return res.status(404).json({ ok: false, error: 'Miniatura grande demais.' });
+    res.set({ 'Content-Type': tipo, 'Cache-Control': 'private, max-age=3600' }).send(buf);
+  } catch (err) {
+    res.status(502).json({ ok: false, error: 'Falha ao buscar a miniatura: ' + err.message });
+  }
+});
+
 // Salva foto(s)/anexo(s) ANTES de criar o caso — separado do "criar" pra
 // garantir que o anexo já está confirmado no Drive antes de registrar o
 // erro (sem trava de role, mesma ideia de "registrar" e "anexar": qualquer

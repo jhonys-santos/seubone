@@ -1616,6 +1616,7 @@
           <input type="month" id="erMesPdfInput" value="${erState[mesKey]}" title="Escolher mês do PDF" class="er-mes-input">
           <button class="er-btn er-btn-ghost" id="erBtnPdfMes" title="Exporta ${erEsc(nomeMesEscolhido)} inteiro" ${dMes.n === 0 ? 'disabled style="opacity:.5"' : ''}>⤓ Exportar PDF (mês)</button>
           <button class="er-btn er-btn-primary" id="erBtnPdf" ${n === 0 ? 'disabled style="opacity:.5"' : ''}>⤓ Exportar PDF (semana)</button>
+          <button class="er-btn er-btn-accent" id="erBtnApresSemana" title="Gera um PowerPoint para a reunião com a diretoria: resumo e um slide por caso com todos os anexos" ${n === 0 ? 'disabled style="opacity:.5"' : ''}>▶ Apresentação (.pptx)</button>
         </div>
       </div>
     `;
@@ -1638,6 +1639,7 @@
         <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
           <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--text-muted)" title="Com muitos casos o PDF fica pesado: sem as fotos ele sai bem mais leve."><input type="checkbox" id="erPdfFotos" ${fotosPdf ? 'checked' : ''}> Fotos no PDF</label>
           <button class="er-btn er-btn-primary" id="erBtnPdfPeriodo" ${n === 0 ? 'disabled style="opacity:.5"' : ''}>⤓ Exportar PDF (período)</button>
+          <button class="er-btn er-btn-accent" id="erBtnApresPeriodo" title="Gera um PowerPoint para a reunião com a diretoria: resumo, custo mês a mês e um slide por caso com todos os anexos" ${n === 0 ? 'disabled style="opacity:.5"' : ''}>▶ Apresentação (.pptx)</button>
         </div>
       </div>
     `;
@@ -1658,11 +1660,15 @@
         document.getElementById('erPdfFotos').addEventListener('change', (e) => { erState[fotosKey] = e.target.checked; });
         const bp = document.getElementById('erBtnPdfPeriodo');
         if (bp && n > 0) bp.addEventListener('click', () => exportarPDFPeriodo(erState[deKey], erState[ateKey], cfg, filtroEfetivo, document.getElementById('erPdfFotos').checked));
+        const bApP = document.getElementById('erBtnApresPeriodo');
+        if (bApP && n > 0) bApP.addEventListener('click', () => gerarApresentacao(d, cfg, fmtDMA_(d.ini) + ' a ' + fmtDMA_(d.fim), filtroEfetivo, 'período anterior', bApP));
         return;
       }
       document.getElementById('erSemanaPrev').addEventListener('click', () => { erState[cfg.stateKey] -= 7 * 86400000; erRender(); });
       document.getElementById('erSemanaNext').addEventListener('click', () => { erState[cfg.stateKey] += 7 * 86400000; erRender(); });
       const bap = document.getElementById('erBtnPdf'); if (bap && n > 0) bap.addEventListener('click', () => exportarPDF(erState[cfg.stateKey], cfg, filtroEfetivo));
+      const bApS = document.getElementById('erBtnApresSemana');
+      if (bApS && n > 0) bApS.addEventListener('click', () => gerarApresentacao(d, cfg, 'Semana de ' + fmtDMA_(new Date(d.monday)) + ' a ' + fmtDMA_(d.sunday), filtroEfetivo, 'semana anterior', bApS));
       const bapMes = document.getElementById('erBtnPdfMes'); if (bapMes && dMes.n > 0) bapMes.addEventListener('click', () => exportarPDFMensal(dataMesEscolhido.getTime(), cfg, filtroEfetivo));
       document.getElementById('erMesPdfInput').addEventListener('change', (e) => {
         if (!e.target.value) return;
@@ -1870,6 +1876,19 @@
       im.addEventListener('error', () => { if (--pending <= 0) finish(); });
     });
     setTimeout(finish, 3000);
+  }
+
+  // Apresentação (.pptx) para a diretoria: usa os mesmos dados que a tela mostra (período ou semana, com o filtro de responsável), ver erros-apresentacao.js.
+  async function gerarApresentacao(d, cfg, periodoLabel, responsavelFiltro, comparacao, btn) {
+    if (!window.ErrosApresentacao) { toast('O módulo de apresentação não carregou. Atualize a página (Ctrl+F5).', false); return; }
+    const rotulo = btn ? btn.textContent : '';
+    if (btn) btn.disabled = true;
+    const filtroTxt = responsavelFiltro ? 'Filtro: ' + (typeof responsavelFiltro === 'string' ? responsavelFiltro : 'Squad ' + responsavelFiltro.nome) : '';
+    const r = await window.ErrosApresentacao.gerar({ d, cfg, periodoLabel, filtroTxt, comparacao });
+    if (btn) { btn.disabled = false; btn.textContent = rotulo; }
+    if (r.cancelado) toast('Geração cancelada.', false);
+    else if (!r.ok) toast('Não consegui gerar a apresentação: ' + r.erro, false);
+    else toast(`Apresentação gerada (${r.slides} slides, ${r.anexos} anexo(s)${r.semMiniatura ? ', ' + r.semMiniatura + ' sem miniatura: abrem pelo link' : ''}).`, true);
   }
 
   function exportarPDF(monday, cfg, responsavelFiltro) {
