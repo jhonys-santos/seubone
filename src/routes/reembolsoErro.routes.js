@@ -10,7 +10,7 @@ router.use(requireAuth);
 const falha = (res, e, o) => res.status(502).json({ ok: false, erro: `Falha ao ${o}: ${e.message}` });
 
 router.get('/api/config', async (req, res) => {
-  try { res.json({ ok: true, ligado: erro.ligado(), opcoes: erro.ligado() ? await erro.opcoesDoFormulario() : null }); } catch (e) { falha(res, e, 'carregar as opções'); }
+  try { const algum = erro.ligado() || erro.ligadoTicket(); res.json({ ok: true, ligado: erro.ligado(), ticketLigado: erro.ligadoTicket(), opcoes: algum ? await erro.opcoesDoFormulario() : null }); } catch (e) { falha(res, e, 'carregar as opções'); }
 });
 
 router.get('/api/conferir', async (req, res) => {
@@ -21,6 +21,14 @@ router.get('/api/conferir', async (req, res) => {
 router.post('/api/registrar', async (req, res) => {
   try {
     const r = await erro.registrarErro({ campos: (req.body && req.body.campos) || {}, arquivos: (req.body && req.body.arquivos) || [], usuario: req.session.user });
+    res.status(r.ok ? 200 : 400).json(r);
+  } catch (e) { falha(res, e, 'registrar o erro'); }
+});
+
+// Mesmo registro, para o formulário de ticket de Refabricação: não abre o ticket automático (o ticket está sendo aberto à mão no mesmo envio).
+router.post('/api/registrar-para-ticket', async (req, res) => {
+  try {
+    const r = await erro.registrarErro({ campos: (req.body && req.body.campos) || {}, arquivos: (req.body && req.body.arquivos) || [], usuario: req.session.user, semTicket: true });
     res.status(r.ok ? 200 : 400).json(r);
   } catch (e) { falha(res, e, 'registrar o erro'); }
 });

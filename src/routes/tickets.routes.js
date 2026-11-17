@@ -1,6 +1,7 @@
 const express = require('express');
 const { requireAuth, requirePainel, requireRole } = require('../middleware/auth');
 const ticketsStore = require('../services/ticketsStore');
+const erroDoPedido = require('../services/reembolsoErro.service');
 const ticketsEntrega = require('../services/ticketsEntrega.service');
 const octadeskConversa = require('../services/octadeskConversa.service');
 const notificacoesService = require('../services/notificacoes.service');
@@ -112,10 +113,14 @@ router.post('/api/conversa', async (req, res) => {
 router.post('/api/criar', async (req, res) => {
   try {
     const { pedido, idVenda, identificador, fabrica, responsavel, responsavelSlug, link, observacao, fotos } = req.body;
+    // Ticket de Refabricação à mão (TICKET_REFAB_ERRO=on): o erro do pedido precisa estar registrado (ou dispensado com motivo).
+    const v = await erroDoPedido.validarTicketRefab(req.body);
+    if (v.ok === false) return res.status(v.http || 422).json({ ok: false, erro: v.erro });
     const json = await ticketsStore.criar({
       pedido, idVenda, identificador, fabrica, responsavel, responsavelSlug, link, observacao,
       fotos: fotos || [], origem: 'manual', usuario: req.session.user.nome, usuarioSlug: req.session.user.slug,
     });
+    if (json && json.ok && json.idTicket) { try { await erroDoPedido.gravarDispensasDoTicket(req.body, json.idTicket, req.session.user); } catch (e) { console.error('[tickets] dispensa do erro:', e.message); } }
     res.json(json);
   } catch (err) {
     res.status(502).json({ ok: false, erro: 'Falha ao criar ticket: ' + err.message });

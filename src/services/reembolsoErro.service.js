@@ -12,6 +12,8 @@ const semZeros = (id) => txt(id).replace(/^0+/, '');
 const BRT = -3 * 3600000;
 
 const ligado = () => txt(env.reembolsoExigeErro).toLowerCase() === 'on';
+/** Ticket de Refabricação aberto à mão: confere/registra o erro do pedido (TICKET_REFAB_ERRO=on). */
+const ligadoTicket = () => txt(env.ticketRefabErro).toLowerCase() === 'on';
 /** "101428, 108123" -> ['101428', '108123'] (sem repetir). */
 const idsDaVenda = (v) => [...new Set(txt(v).split(/[^0-9]+/).filter(Boolean))];
 
@@ -114,6 +116,31 @@ async function gravarDispensasDoEnvio(corpo, codigo, usuario) {
   }
 }
 
+// ── Ticket de Refabricação aberto à mão ──────────────────────────────────
+/** Antes de criar o ticket: o ID da venda precisa ter erro registrado ou uma dispensa com motivo no corpo (erroDispensas). */
+async function validarTicketRefab(corpo) {
+  if (!ligadoTicket() || txt(corpo && corpo.identificador) !== 'Refabricação') return { ok: true };
+  const ids = idsDaVenda(corpo.idVenda);
+  if (!ids.length) return { ok: false, http: 422, erro: 'Informe o ID da venda: o ticket de Refabricação precisa do erro do pedido registrado no Painel de Erros.' };
+  const dispensas = Array.isArray(corpo.erroDispensas) ? corpo.erroDispensas : [];
+  for (const c of await conferir(ids)) {
+    if (c.registrado) continue;
+    const d = dispensas.find((x) => semZeros(x && x.idVenda) === semZeros(c.idVenda));
+    if (!d || !motivoValido(d.motivo)) return { ok: false, http: 422, erro: `A venda ${c.idVenda} ainda não tem erro registrado. Registre o erro ou marque que não será necessário (com o motivo).` };
+  }
+  return { ok: true };
+}
+
+/** Depois de criar o ticket: grava as dispensas, com o código do ticket (T00123) no lugar do código do reembolso. */
+async function gravarDispensasDoTicket(corpo, idTicket, usuario) {
+  if (!ligadoTicket() || !idTicket || txt(corpo && corpo.identificador) !== 'Refabricação') return;
+  const ids = idsDaVenda(corpo.idVenda).map(semZeros);
+  for (const d of Array.isArray(corpo.erroDispensas) ? corpo.erroDispensas : []) {
+    if (!ids.includes(semZeros(d && d.idVenda)) || !motivoValido(d.motivo)) continue;
+    try { await gravarDispensa(db, { codigo: idTicket, idVenda: d.idVenda, motivo: d.motivo, usuario }); } catch (e) { console.error('[ticket-refab-erro] falha ao gravar a dispensa:', e.message); }
+  }
+}
+
 // ── Registrar o erro pelo formulário de reembolso ────────────────────────
 const OBRIGATORIOS = [['nomeCard', 'o nome do card/cliente'], ['descricao', 'a descrição do erro'], ['linkPedido', 'o link do pedido'], ['setor', 'o setor do problema'], ['responsavel', 'o responsável'], ['tipoProblema', 'o tipo de problema']];
 
@@ -121,7 +148,7 @@ const OBRIGATORIOS = [['nomeCard', 'o nome do card/cliente'], ['descricao', 'a d
  * campos: { idVenda, nomeCard, descricao, linkPedido, setor, responsavel, tipoProblema, subproblema, qtd, tipoResolucao }, arquivos: ['data:...;base64,...'].
  * Sobe os arquivos para o Drive e registra o caso pelo mesmo caminho do Painel de Erros. Devolve { ok, rowIndex? , jaExistia? } ou { ok: false, erro }.
  */
-async function registrarErro({ campos, arquivos, usuario }) {
+async function registrarErro({ campos, arquivos, usuario, semTicket = false }) {
   const c = campos || {};
   const idVenda = txt(c.idVenda);
   if (!idsDaVenda(idVenda).length) return { ok: false, erro: 'Informe o ID da venda.' };
@@ -136,9 +163,9 @@ async function registrarErro({ campos, arquivos, usuario }) {
   }
   const json = await registrarCaso({
     idVenda, nomeCard: txt(c.nomeCard), descricao: txt(c.descricao), linkPedido: txt(c.linkPedido), quemCadastrou: usuario.nome, setor: txt(c.setor), responsavel: txt(c.responsavel),
-    tipoProblema: txt(c.tipoProblema), subproblema: txt(c.subproblema), qtd: txt(c.qtd) === '' ? '' : Number(c.qtd), tipoResolucao: txt(c.tipoResolucao) || 'Reembolso total',
+    tipoProblema: txt(c.tipoProblema), subproblema: txt(c.subproblema), qtd: txt(c.qtd) === '' ? '' : Number(c.qtd), tipoResolucao: txt(c.tipoResolucao) || (semTicket ? 'Refabricação' : 'Reembolso total'),
     auditoria: false, status: 'novo', fotosUrls: salvos.urls,
-  }, usuario);
+  }, usuario, { semTicket });
   if (!json.ok && json.duplicado) return { ok: true, jaExistia: true };
   return json.ok ? { ok: true, rowIndex: json.rowIndex, ticketRefab: json.ticketRefab } : { ok: false, erro: json.error || json.erro || 'Não consegui registrar o erro.' };
 }
@@ -184,6 +211,6 @@ function iniciarAvisoPendentes() {
 }
 
 module.exports = {
-  ligado, idsDaVenda, conferir, situacaoDe, pendentes, dispensar, validarAntesDeEnviar, gravarDispensasDoEnvio, registrarErro, opcoesDoFormulario,
+  ligado, ligadoTicket, validarTicketRefab, gravarDispensasDoTicket, idsDaVenda, conferir, situacaoDe, pendentes, dispensar, validarAntesDeEnviar, gravarDispensasDoEnvio, registrarErro, opcoesDoFormulario,
   avisarPendentes, iniciarAvisoPendentes, motivoValido,
 };

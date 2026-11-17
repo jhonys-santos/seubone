@@ -1898,6 +1898,11 @@
                 <input type="file" id="tkFotoInputNovo" accept="image/*,application/pdf" multiple style="display:none">
                 <div class="tk-foto-prev" id="tkFotoPrevNovo"></div>
               </div>
+              <section class="rb-secao" id="tkErroSecao" hidden>
+                <h3>Erro deste pedido</h3>
+                <p class="rb-lede">Ticket de Refabricação precisa do erro registrado no Painel de Erros. Conferimos pelo ID da venda para não duplicar: se já existir, nada a fazer; se não existir, registre aqui junto com o ticket.</p>
+                <div id="tkErroBloco"></div>
+              </section>
             </form>
           </div>
           <div class="tk-modal-foot">
@@ -1950,6 +1955,29 @@
     ['dragleave', 'drop'].forEach((ev) => fotoDropNovo.addEventListener(ev, (e) => { e.preventDefault(); fotoDropNovo.style.borderColor = ''; }));
     fotoDropNovo.addEventListener('drop', (e) => { if (e.dataTransfer?.files?.length) addFotosNovo(e.dataTransfer.files); });
 
+    // Erro do pedido (só com TICKET_REFAB_ERRO=on no servidor): ao escolher Refabricação e informar o ID da venda, o Hub confere se o erro já está no Painel de Erros
+    // (para não duplicar) e, se não estiver, abre o formulário para registrar junto com o ticket. Ver reembolso-erro-bloco.js.
+    const formEl = document.getElementById('tkFormNovo');
+    const secaoErro = document.getElementById('tkErroSecao');
+    let blocoErro = null, erroLigado = false;
+    const atualizarSecaoErro = () => {
+      const mostrar = erroLigado && formEl.elements.identificador.value === 'Refabricação';
+      secaoErro.hidden = !mostrar;
+      if (!mostrar) return;
+      if (!blocoErro) {
+        blocoErro = ReembolsoErro.criar({
+          container: document.getElementById('tkErroBloco'), auto: true, tipoResolucaoPadrao: 'Refabricação', rotaRegistrar: '/registrar-para-ticket', junto: 'o ticket',
+          contexto: () => ({ idVenda: formEl.elements.idVenda.value, cliente: formEl.elements.pedido.value.trim(), link: formEl.elements.link.value.trim(), motivo: formEl.elements.observacao.value.trim() }),
+        });
+      }
+      blocoErro.atualizarIds();
+    };
+    (async () => { try { const cfg = await ReembolsoErro.chamar('/config'); erroLigado = !!cfg.ticketLigado; } catch (e) { /* sem o bloco o formulário segue */ } atualizarSecaoErro(); })();
+    formEl.elements.identificador.addEventListener('change', atualizarSecaoErro);
+    let tId = null;
+    formEl.elements.idVenda.addEventListener('input', () => { clearTimeout(tId); tId = setTimeout(() => { if (blocoErro && !secaoErro.hidden) blocoErro.atualizarIds(); }, 600); });
+    ['pedido', 'link', 'observacao'].forEach((n) => formEl.elements[n].addEventListener('input', () => { if (blocoErro) blocoErro.sincronizar(); }));
+
     document.getElementById('tkBtnCriarTicket').addEventListener('click', async () => {
       const form = document.getElementById('tkFormNovo');
       const msg = document.getElementById('tkSaveMsgNovo');
@@ -1961,15 +1989,27 @@
       const responsavelSlug = g('responsavelSlug');
       const responsavel = responsavelSlug ? (USUARIOS_HUB.find((u) => u.slug === responsavelSlug) || {}).nome || '' : '';
 
+      const blocoAtivo = !!blocoErro && !secaoErro.hidden;
+      if (blocoAtivo) {
+        if (!g('idVenda')) { msg.textContent = 'Informe o ID da venda para conferir o erro do pedido.'; return; }
+        const v = blocoErro.validar();
+        if (!v.ok) { msg.textContent = v.mensagem; secaoErro.scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
+      }
+
       const btn = document.getElementById('tkBtnCriarTicket');
       btn.disabled = true; msg.textContent = 'Gravando…';
       try {
+        let erroDispensas = [];
+        if (blocoAtivo) {   // registra o erro (se faltar) ANTES do ticket: se falhar, o ticket não é aberto
+          erroDispensas = (await blocoErro.executar((m) => { msg.textContent = m; })).dispensas;
+          msg.textContent = 'Gravando…';
+        }
         const res = await fetch('/tickets/api/criar', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             pedido: g('pedido'), idVenda: g('idVenda'),
             identificador: g('identificador'), fabrica: g('fabrica'), responsavel, responsavelSlug,
-            link: g('link'), observacao: g('observacao'), fotos: FOTOS_NOVO.map((f) => f.url),
+            link: g('link'), observacao: g('observacao'), fotos: FOTOS_NOVO.map((f) => f.url), erroDispensas,
           }),
         });
         const json = await res.json();

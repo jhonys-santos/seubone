@@ -20,11 +20,11 @@ function notificarGestoresRefab(idVenda, nomeCard, rowIndex) {
 }
 
 /** usuario: { nome, slug } da sessão (a autoria nunca vem do navegador). Devolve o mesmo JSON do errosStore.criar (+ ticketRefab). */
-async function registrarCaso(campos, usuario) {
+async function registrarCaso(campos, usuario, { semTicket = false } = {}) {
   const json = await errosStore.criar(campos, usuario.nome, usuario.slug);
   if (json.ok && json.entrouAprovacaoRefab) notificarGestoresRefab(campos.idVenda, campos.nomeCard, json.rowIndex);
   // Erro novo com resolução "Refabricação": abre o ticket no painel de Tickets (se ERROS_TICKET_REFAB=on). Falha aqui não desfaz o caso.
-  if (json.ok) {
+  if (json.ok && !semTicket) {
     const t = await ticketRefab.criarParaCaso(campos, { rowIndex: json.rowIndex, usuario: usuario.nome, usuarioSlug: usuario.slug });
     if (!t.ignorado) json.ticketRefab = t;
   }

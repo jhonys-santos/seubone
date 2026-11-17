@@ -38,7 +38,8 @@ window.ReembolsoErro = (function () {
   }
 
   /**
-   * opcoes: { container, contexto: () => ({ idVenda, cliente, link, motivo, codigo? }), aoMudar?: () => void }
+   * opcoes: { container, contexto: () => ({ idVenda, cliente, link, motivo, codigo? }), aoMudar?: () => void,
+   *           auto?: true (confere sozinho cada ID e já escolhe "sim" ou "vou registrar"), tipoResolucaoPadrao?: 'Reembolso total', rotaRegistrar?: '/registrar', junto?: 'o reembolso' }
    * Devolve { atualizarIds(), validar(), executar(onProgresso), resumo() }.
    */
   function criar(opcoes) {
@@ -61,7 +62,7 @@ window.ReembolsoErro = (function () {
       if (k === 'nomeCard') return c.cliente || '';
       if (k === 'linkPedido') return c.link || '';
       if (k === 'descricao') return c.motivo || '';
-      if (k === 'tipoResolucao') return 'Reembolso total';
+      if (k === 'tipoResolucao') return opcoes.tipoResolucaoPadrao || 'Reembolso total';
       return '';
     }
 
@@ -79,9 +80,10 @@ window.ReembolsoErro = (function () {
         else if (s.conferencia && s.conferencia.registrado) {
           const c = s.conferencia.caso;
           corpo = `<p class="rb-ok"><i class="ti ti-circle-check" aria-hidden="true"></i> Erro encontrado: <b>${esc(c.tipoResolucao || 'sem resolução definida')}</b>${c.quemCadastrou ? ' · registrado por ' + esc(c.quemCadastrou) : ''}${c.data ? ' em ' + esc(c.data) : ''}.</p>`;
-        } else if (s.conferencia) corpo = `<p class="rb-aviso"><i class="ti ti-alert-triangle" aria-hidden="true"></i> Não encontrei nenhum erro registrado com o ID <b>${esc(s.id)}</b>. Registre o erro abaixo, junto com o reembolso.</p>`;
+        } else if (s.conferencia) corpo = `<p class="rb-aviso"><i class="ti ti-alert-triangle" aria-hidden="true"></i> Não encontrei nenhum erro registrado com o ID <b>${esc(s.id)}</b>. Registre o erro abaixo, junto com ${opcoes.junto || 'o reembolso'}.</p>`;
       }
-      if (s.escolha === 'nao') corpo = '<p class="rb-dica">Preencha abaixo: o erro é registrado no Painel de Erros ao mesmo tempo que o reembolso.</p>';
+      if (s.escolha === 'nao' && s.conferencia && !s.conferencia.registrado) corpo = `<p class="rb-aviso"><i class="ti ti-alert-triangle" aria-hidden="true"></i> Não encontrei nenhum erro registrado com o ID <b>${esc(s.id)}</b>. Registre o erro abaixo, junto com ${opcoes.junto || 'o reembolso'}.</p>`;
+      else if (s.escolha === 'nao') corpo = `<p class="rb-dica">Preencha abaixo: o erro é registrado no Painel de Erros ao mesmo tempo que ${opcoes.junto || 'o reembolso'}.</p>`;
       if (precisaForm(s)) corpo += formulario(s);
       if (s.escolha === 'dispensa') corpo = dispensa(s);
       return `<fieldset class="rb-cartao" data-id="${esc(s.id)}"><legend>Venda ${esc(s.id)}</legend>
@@ -147,6 +149,17 @@ window.ReembolsoErro = (function () {
       const novos = idsDe(contexto().idVenda);
       if (novos.join(',') === idsAtuais.join(',') && box.innerHTML) return;
       idsAtuais = novos; render(); mudou();
+      if (opcoes.auto) novos.forEach((id) => { const s = estado(id); if (!s.escolha && !s.conferindo) conferirAuto(id); });
+    }
+
+    // Modo automático: confere o ID assim que ele aparece; achou = "já registrei" (nada a duplicar), não achou = abre o formulário para registrar junto.
+    async function conferirAuto(id) {
+      const s = estado(id); s.conferindo = true; s.escolha = 'sim'; s.conferencia = null; render();
+      try { const r = await chamar('/conferir?ids=' + encodeURIComponent(id)); s.conferencia = r.ids[0] || { registrado: false }; }
+      catch (e) { s.conferencia = { registrado: false, erroConferir: e.message }; }
+      s.conferindo = false;
+      s.escolha = s.conferencia.registrado ? 'sim' : 'nao';
+      render(); mudou();
     }
 
     /** { ok, mensagem } — cada ID precisa estar resolvido. */
@@ -186,7 +199,7 @@ window.ReembolsoErro = (function () {
         const arquivos = await Promise.all(s.arquivos.map(lerArquivo));
         const campos = { idVenda: id };
         ['nomeCard', 'linkPedido', 'descricao', 'setor', 'responsavel', 'tipoProblema', 'subproblema', 'qtd', 'tipoResolucao'].forEach((k) => { campos[k] = valorCampo(s, k); });
-        await chamar('/registrar', { campos, arquivos });
+        await chamar(opcoes.rotaRegistrar || '/registrar', { campos, arquivos });
         s.escolha = 'sim'; s.conferencia = { registrado: true, caso: { tipoResolucao: campos.tipoResolucao, quemCadastrou: 'você', data: 'agora' } }; s.arquivos = [];
       }
       render();

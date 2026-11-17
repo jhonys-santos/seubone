@@ -41,6 +41,8 @@ module.exports = {
   manifestoEscala: required('MANIFESTO_ESCALA', 'off'),
   // Reembolso: 'on' = todo reembolso precisa ter o erro do pedido registrado no Painel de Erros ou dispensado com motivo (formulário, histórico, aprovação e aviso diário).
   reembolsoExigeErro: required('REEMBOLSO_EXIGE_ERRO', 'off'),
+  // Ticket de Refabricação aberto à mão: 'on' = o formulário confere/registra o erro do pedido (sem duplicar) ou pede o motivo de não registrar.
+  ticketRefabErro: required('TICKET_REFAB_ERRO', 'off'),
   // Registro de Demandas, Reembolso, Pagamento e Corridas Avulsas: 'db' = Postgres; padrão = planilhas.
   financeiroBackend: required('FINANCEIRO_BACKEND', 'sheets'),
   // Usuários do hub (login/senha/painéis), Quitações, Auditoria e Foco/Agenda da Semana: 'db' = Postgres; padrão = planilhas.
